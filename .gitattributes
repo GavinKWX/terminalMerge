@@ -1,0 +1,20 @@
+# Normalise line endings. The build runs on Windows locally and Linux in CI.
+* text=auto eol=lf
+
+*.bat text eol=crlf
+gradlew text eol=lf
+
+# Binaries -- never touch
+*.jar     binary
+*.keystore binary
+*.bks     binary
+*.apk     binary
+*.aar     binary
+*.png     binary
+*.jpg     binary
+*.bmp     binary
+*.ttf     binary
+*.otf     binary
+*.db      binary
+*.wav     binary
+*.mp3     binary

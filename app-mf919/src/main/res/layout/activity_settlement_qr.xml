@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/LayoutColor">
+
+    <Toolbar
+        android:id="@+id/toolbarSettlement"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/BoxColor"
+        android:title=""
+        android:titleTextColor="@color/white"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/textHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Settlement QR"
+            android:layout_gravity="center"
+            android:textAlignment="center"
+            android:textColor="@color/white"
+            android:textSize="25sp"/>
+    </Toolbar>
+
+    <!--    <androidx.core.widget.NestedScrollView-->
+    <LinearLayout
+        android:id="@+id/scrollContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintTop_toBottomOf="@id/toolbarSettlement"
+        app:layout_constraintBottom_toTopOf="@+id/buttonLinearGroup">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:weightSum="15">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:layout_gravity="center"
+                android:orientation="vertical">
+
+                <ImageButton
+                    android:id="@+id/previousBtn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@drawable/ic_baseline_arrow_back_ios_24"
+                    android:backgroundTint="@color/LayoutColor"
+                    android:onClick="switchRecordBackward"
+                    android:visibility="gone"
+                    app:tint="@color/black" />
+
+                <ImageButton
+                    android:id="@+id/previousBtnLastSettlement"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@drawable/ic_baseline_arrow_back_ios_24"
+                    android:backgroundTint="@color/LayoutColor"
+                    android:onClick="switchLastSettlementBackward"
+                    android:visibility="gone"
+                    app:tint="@color/black" />
+
+            </LinearLayout>
+
+            <RelativeLayout
+                android:layout_weight="11"
+                android:layout_width="0dp"
+                android:layout_height="553dp"
+                android:layout_gravity="center_horizontal"
+                android:gravity="center_horizontal">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_centerHorizontal="true"
+                    android:background="@drawable/printport"
+                    android:orientation="vertical" />
+
+                <LinearLayout
+                    android:layout_width="250dp"
+                    android:layout_height="500dp"
+                    android:layout_marginTop="25dp"
+                    android:layout_centerHorizontal="true"
+                    android:layout_gravity="center_vertical"
+                    android:orientation="vertical">
+
+                    <ScrollView
+                        android:id="@+id/scrollReceipt"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/blackreceipt2">
+
+                        <LinearLayout
+                            android:id="@+id/receipt"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <ImageView
+                                android:id="@+id/headerImageView"
+                                android:layout_width="210dp"
+                                android:layout_height="55dp"
+                                android:layout_gravity="center"
+                                android:layout_marginLeft="10dp"
+                                android:layout_marginTop="10dp"
+                                android:layout_marginRight="10dp"
+                                android:src="@mipmap/blank" />
+
+                            <LinearLayout
+                                android:id="@+id/mainLayout"
+                                android:layout_width="match_parent"
+                                android:layout_height="fill_parent"
+                                android:layout_marginLeft="25dp"
+                                android:layout_marginTop="5dp"
+                                android:layout_marginRight="25dp"
+                                android:layout_marginBottom="30dp"
+                                android:orientation="vertical"/>
+                        </LinearLayout>
+                    </ScrollView>
+                </LinearLayout>
+            </RelativeLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:layout_gravity="center"
+                android:orientation="vertical">
+
+                <ImageButton
+                    android:id="@+id/nextBtn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@drawable/ic_baseline_arrow_forward_ios_24"
+                    android:backgroundTint="@color/LayoutColor"
+                    android:onClick="switchRecordForward"
+                    android:visibility="gone"
+                    app:tint="@color/black" />
+
+                <ImageButton
+                    android:id="@+id/nextBtnLastSettlement"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@drawable/ic_baseline_arrow_forward_ios_24"
+                    android:backgroundTint="@color/LayoutColor"
+                    android:onClick="switchLastSettlementForward"
+                    android:visibility="gone"
+                    app:tint="@color/black" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </LinearLayout>
+    <!--    </androidx.core.widget.NestedScrollView>-->
+
+    <LinearLayout
+        android:id="@+id/buttonLinearGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:layout_marginLeft="5dp"
+        android:layout_marginRight="5dp"
+        android:layout_marginBottom="20dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:id="@+id/cancelBtn"
+            android:layout_width="160dp"
+            android:layout_height="50dp"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:orientation="horizontal"
+            android:background="@drawable/cancelbtn_unpressed"
+            android:gravity="center"
+            android:layout_gravity="center_vertical"
+            android:onClick="settle_btn_cancel">
+
+            <ImageView
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:paddingLeft="2dp"
+                android:paddingRight="2dp"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:src="@drawable/cancel_icon"/>
+
+            <TextView
+                android:id="@+id/cancelTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:textStyle="bold"
+                android:textColor="@color/white"
+                android:text="CANCEL"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/settleBtn"
+            android:layout_width="160dp"
+            android:layout_height="50dp"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:orientation="horizontal"
+            android:background="@drawable/printbtn_unpressed"
+            android:gravity="center"
+            android:layout_gravity="center_vertical"
+            android:onClick="settle_btn_ok"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:paddingLeft="2dp"
+                android:paddingRight="2dp"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:src="@drawable/ic_baseline_account_balance_24"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:textStyle="bold"
+                android:textColor="@color/white"
+                android:text="SETTLEMENT"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/printBtn"
+            android:layout_width="160dp"
+            android:layout_height="50dp"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:orientation="horizontal"
+            android:background="@drawable/printbtn_unpressed"
+            android:gravity="center"
+            android:layout_gravity="center_vertical"
+            android:onClick="settle_btn_ok">
+
+            <ImageView
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:paddingLeft="2dp"
+                android:paddingRight="2dp"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:src="@drawable/print_button_icon"/>
+
+            <TextView
+                android:id="@+id/printTV"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:textStyle="bold"
+                android:textColor="@color/white"
+                android:text="PRINT RECEIPT"/>
+        </LinearLayout>
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:weightSum="4"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_weight="4"
+            android:weightSum="5"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:weightSum="3">
+
+                <Button
+                    android:id="@+id/button_1"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/btn_1"
+                    android:textSize="36sp"
+                    android:textStyle="normal"
+                    tools:ignore="ButtonStyle"
+                    android:background="@drawable/keypad_number_border"
+                    android:textColor="@color/colorBlackText"/>
+
+                <Button
+                    android:id="@+id/button_2"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/btn_2"
+                    android:textSize="36sp"
+                    android:textStyle="normal"
+                    tools:ignore="ButtonStyle"
+                    android:background="@drawable/keypad_number_border"
+                    android:textColor="@color/colorBlackText"/>
+
+                <Button
+                    android:id="@+id/button_3"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/btn_3"
+                    android:textSize="36sp"
+                    android:textStyle="normal"
+                    tools:ignore="ButtonStyle"
+                    android:background="@drawable/keypad_number_border"
+                    android:textColor="@color/colorBlackText"/>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:weightSum="3">
+
+                <Button
+                    android:id="@+id/button_4"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/btn_4"
+                    android:textSize="36sp"
+                    android:textStyle="normal"
+                    tools:ignore="ButtonStyle"
+                    android:background="@drawable/keypad_number_border"
+                    android:textColor="@color/colorBlackText"/>
+
+                <Button
+                    android:id="@+id/button_5"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/btn_5"
+                    android:textSize="36sp"
+                    android:textStyle="normal"
+                    tools:ignore="ButtonStyle"
+                    android:background="@drawable/keypad_number_border"
+                    android:textColor="@color/colorBlackText"/>
+
+                <Button
+                    android:id="@+id/button_6"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/btn_6"
+                    android:textSize="36sp"
+                    android:textStyle="normal"
+                    tools:ignore="ButtonStyle"
+                    android:background="@drawable/keypad_number_border"
+                    android:textColor="@color/colorBlackText"/>
+
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:weightSum="3">
+
+                <Button
+                    android:id="@+id/button_7"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/btn_7"
+                    android:textSize="36sp"
+                    android:textStyle="normal"
+                    tools:ignore="ButtonStyle"
+                    android:background="@drawable/keypad_number_border"
+                    android:textColor="@color/colorBlackText"/>
+
+                <Button
+                    android:id="@+id/button_8"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/btn_8"
+                    android:textSize="36sp"
+                    android:textStyle="normal"
+                    tools:ignore="ButtonStyle"
+                    android:background="@drawable/keypad_number_border"
+                    android:textColor="@color/colorBlackText"/>
+
+                <Button
+                    android:id="@+id/button_9"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/btn_9"
+                    android:textSize="36sp"
+                    android:textStyle="normal"
+                    tools:ignore="ButtonStyle"
+                    android:background="@drawable/keypad_number_border"
+                    android:textColor="@color/colorBlackText"/>
+
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:weightSum="3">
+
+                <Button
+                    android:id="@+id/button_dot"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/btn_dot"
+                    android:textSize="36sp"
+                    android:textStyle="normal"
+                    android:background="@drawable/keypad_dot_border"
+                    android:textColor="@color/colorBlackText"
+                    tools:ignore="ButtonStyle" />
+
+                <Button
+                    android:id="@+id/button_0"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/btn_0"
+                    android:textSize="36sp"
+                    android:textStyle="normal"
+                    android:background="@drawable/keypad_number_border"
+                    android:textColor="@color/colorBlackText"
+                    tools:ignore="ButtonStyle" />
+
+                <!--<Button
+                    android:id="@+id/button_delete_icon"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:textSize="36sp"
+                    android:textStyle="normal"
+                    android:background="@drawable/keypad_delete_border"
+                    android:textColor="@color/colorBlackText"
+                    tools:ignore="ButtonStyle" />-->
+
+                <ImageButton
+                    android:id="@+id/button_delete_icon"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:padding="20dp"
+                    android:src="@drawable/del_icon"
+                    android:background="@drawable/keypad_number_border"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="deleteButton"
+                    tools:ignore="ButtonStyle" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:weightSum="2"
+                android:background="@color/LayoutColor">
+
+                <LinearLayout
+                    android:id="@+id/button_back_icon"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="match_parent"
+                    android:layout_marginLeft="5dp"
+                    android:layout_marginRight="5dp"
+                    android:orientation="horizontal"
+                    android:background="@drawable/cancelbtn_unpressed"
+                    android:gravity="center"
+                    android:layout_gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:paddingTop="2dp"
+                        android:paddingBottom="2dp"
+                        android:paddingLeft="2dp"
+                        android:paddingRight="2dp"
+                        android:layout_marginLeft="5dp"
+                        android:layout_marginRight="5dp"
+                        android:src="@drawable/cancel_icon"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="5dp"
+                        android:layout_marginRight="5dp"
+                        android:textStyle="bold"
+                        android:textColor="@color/white"
+                        android:text="CANCEL"/>
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/button_OK"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="match_parent"
+                    android:layout_marginLeft="5dp"
+                    android:layout_marginRight="5dp"
+                    android:orientation="horizontal"
+                    android:background="@drawable/printbtn_unpressed"
+                    android:gravity="center"
+                    android:layout_gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:paddingTop="2dp"
+                        android:paddingBottom="2dp"
+                        android:paddingLeft="2dp"
+                        android:paddingRight="2dp"
+                        android:layout_marginLeft="5dp"
+                        android:layout_marginRight="5dp"
+                        android:src="@drawable/ok_icon"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="5dp"
+                        android:layout_marginRight="5dp"
+                        android:textStyle="bold"
+                        android:textColor="@color/white"
+                        android:text="OK"/>
+
+                </LinearLayout>
+
+                <!--Button
+                    android:id="@+id/button_OK"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/btn_ok"
+                    android:textSize="36sp"
+                    android:textStyle="normal"
+                    android:background="@drawable/keypad_ok_border"
+                    android:textColor="@color/colorWhite"/>
+
+                <Button
+                    android:id="@+id/button_back_icon"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/btn_cancel"
+                    android:textSize="36sp"
+                    android:textStyle="normal"
+                    android:textColor="@color/colorWhite"
+                    android:background="@drawable/keypad_cancel_border"
+                    tools:ignore="ButtonStyle" /-->
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

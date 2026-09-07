@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@color/LayoutColor">
+
+    <LinearLayout
+        android:id="@+id/pinTopLinear"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintHeight_percent="0.35"
+        android:weightSum="5"
+        android:orientation="vertical"
+        app:layout_constraintTop_toTopOf="parent">
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="2"/>
+        <TextView
+            android:id="@+id/titleMsg"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"
+            android:textSize="20sp"
+            android:textAlignment="center"
+            android:text="INSERT YOUR PIN"
+            android:textColor="@color/black"
+            android:background="@drawable/divider"
+            android:gravity="center_horizontal" />
+
+        <LinearLayout
+            android:id="@+id/pinMsg"
+            android:layout_marginTop="15dp"
+            android:layout_width="match_parent"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@drawable/divider"
+            android:gravity="center"
+            android:orientation="horizontal">
+        </LinearLayout>
+        <TextView
+            android:id="@+id/pinDescription"
+            android:layout_marginTop="15dp"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"
+            android:textSize="20sp"
+            android:textAlignment="center"
+            android:text="No Pin, Please Click Ok"
+            android:textColor="@color/black"
+            android:gravity="center_horizontal" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/pinBottomLinear"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintHeight_percent="0.65"
+        android:orientation="vertical"
+        app:layout_constraintTop_toBottomOf="@+id/pinTopLinear">
+        <com.sc.mf919pro.java.activity.Keypad
+            android:id="@+id/keypad_ll"
+            android:layout_marginTop="15dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+    <!--<com.sc.mf919.java.activity.Keypad
+        android:id="@+id/keypad_ll"
+        android:layout_marginTop="30dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="invisible"
+        app:layout_constraintTop_toTopOf="parent"/>-->
+</androidx.constraintlayout.widget.ConstraintLayout>

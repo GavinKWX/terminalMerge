@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.CLOUDPOS_EMV" />
+    <uses-permission android:name="android.permission.CLOUDPOS_MSR" /> <!-- Printer -->
+    <uses-permission android:name="android.permission.CLOUDPOS_PRINTER" /> <!-- LED -->
+    <uses-permission android:name="android.permission.CLOUDPOS_LED" /> <!-- Pinpad -->
+    <uses-permission android:name="android.permission.CLOUDPOS_PINPAD" />
+    <uses-permission android:name="android.permission.CLOUDPOS_PIN_GET_PIN_BLOCK" />
+    <uses-permission android:name="android.permission.CLOUDPOS_PIN_MAC" />
+    <uses-permission android:name="android.permission.CLOUDPOS_PIN_ENCRYPT_DATA" />
+    <uses-permission android:name="android.permission.CLOUDPOS_PIN_UPDATE_USER_KEY" />
+    <uses-permission android:name="android.permission.CLOUDPOS_PIN_UPDATE_MASTER_KEY" /> <!-- SAFE_MODULE -->
+    <uses-permission android:name="android.permission.CLOUDPOS_SAFE_MODULE_READONLY" />
+    <uses-permission android:name="android.permission.CLOUDPOS_SAFE_MODULE" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CLOUDPOS_SMARTCARD" />
+    <uses-permission android:name="android.permission.CLOUDPOS_CONTACTLESS_CARD" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REORDER_TASKS" />
+
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!--Bind YSDK services require this permission if you targetSDKVersion is higher then 30-->
+    <queries>
+        <package android:name="com.morefun.ysdk"/>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".java.MF919"
+        android:enableOnBackInvokedCallback="true"
+        android:allowBackup="true"
+        android:hardwareAccelerated="true"
+        android:label="${appNameSuffix}${appName}"
+        android:largeHeap="true"
+        android:requestLegacyExternalStorage="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.ShareComm_MF919">
+         <service
+             android:name=".kotlin.activity.AppServices"
+             android:foregroundServiceType="dataSync"
+             android:enabled="true" />
+        <!-- clearTaskOnLaunch: killProcess destroys the process but NOT the task record, so
+             relaunching from the icon restores the task's TOP state rather than a clean start.
+             After a crash on the transaction Result destination that meant coming back to the
+             Result screen, which re-runs against a TransData singleton the process death had
+             reset to defaults, and crashes again. Resetting the task to its root on every launch
+             means both crash recovery and a manual icon tap always land here, and this activity
+             routes on to the configured home screen. -->
+        <activity
+            android:name=".kotlin.activity.MainActivity"
+            android:theme="@style/splashScreenTheme"
+            android:clearTaskOnLaunch="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.SCREEN_OFF"/>
+                <action android:name="android.intent.action.SCREEN_ON"/>
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".kotlin.activity.TransactionReceiver"
+            android:exported="true"
+            android:noHistory="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask" />
+        <activity
+            android:name=".kotlin.activity.TransactionTransmitter"
+            android:exported="false"
+            android:noHistory="true"
+            android:excludeFromRecents="true" />
+        <activity
+            android:name=".kotlin.activity.UpdateAppAlertDialog"
+            android:launchMode="singleInstance"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
+        <activity
+            android:name=".kotlin.activity.UpdateAppInitialDialog"
+            android:launchMode="singleInstance"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
+
+        <!-- Runs in its own process so it OUTLIVES the crashing one. The crash handler starts it
+             while the app is still foreground (the only window in which Android 10+ permits an
+             activity start), then dies; this process holds the screen and relaunches MainActivity
+             as a foreground start, which is legal on 7/10/13 alike.
+             singleInstance + its own taskAffinity keep it out of the crashed app's task, and
+             excludeFromRecents keeps it out of the recents list. -->
+        <activity
+            android:name=".kotlin.activity.CrashRecoveryActivity"
+            android:process=":recovery"
+            android:launchMode="singleInstance"
+            android:taskAffinity="${applicationId}.recovery"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:theme="@style/AppTheme" />
+
+        <!-- FoodLink phone scan: zxing ships this as sensorLandscape. Forced to portrait so the scanner never rotates, regardless of the device auto-rotate setting. -->
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="portrait"
+            tools:replace="android:screenOrientation" />
+    </application>
+
+</manifest>

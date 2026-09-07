@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Shown by the :recovery process, which by design has none of the app's initialisation. Keep
+    this layout dependency-free: no view binding, no custom views, no drawables that pull in the
+    rest of the app. It has to render when everything else has just fallen over.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/crashRecoveryRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/colorWhite"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:id="@+id/crashRecoveryTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/crash_recovery_title"
+        android:textColor="@color/colorBlack"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/crashRecoveryMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:text="@string/crash_recovery_message"
+        android:textColor="@color/colorBlack"
+        android:textSize="15sp" />
+
+    <ProgressBar
+        android:id="@+id/crashRecoveryProgress"
+        style="?android:attr/progressBarStyleLarge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp" />
+
+    <TextView
+        android:id="@+id/crashRecoveryCountdown"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:textColor="@color/colorPrimary"
+        android:textSize="17sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/crashRecoveryTap"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/crash_recovery_tap"
+        android:textColor="@color/colorGreyDDD"
+        android:textSize="13sp" />
+
+    <!-- The reference is what support asks for: it matches the crash id in TerminaLogException. -->
+    <TextView
+        android:id="@+id/crashRecoveryReference"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textColor="@color/colorGreyDDD"
+        android:textSize="12sp" />
+
+</LinearLayout>

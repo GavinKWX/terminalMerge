@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_horizontal">
+
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:gravity="center_horizontal">
+
+        <LinearLayout
+            android:layout_marginTop="30dp"
+            android:layout_width="300dp"
+            android:layout_height="50dp"
+            android:orientation="vertical"
+            android:background="@drawable/printport"/>
+
+        <LinearLayout
+            android:layout_marginTop="55dp"
+            android:layout_marginLeft="29dp"
+            android:layout_width="250dp"
+            android:layout_height="500dp"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/receipt"
+                android:layout_width="match_parent"
+                android:layout_height="420dp"
+                android:background="@drawable/blackreceipt2"
+                android:orientation="vertical">
+
+                <ScrollView
+                    android:id="@+id/scrollReceipt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/blackreceipt2">
+
+                    <LinearLayout
+                        android:id="@+id/mainReceipt"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_marginLeft="25dp"
+                        android:layout_marginTop="5dp"
+                        android:layout_marginRight="25dp"
+                        android:layout_marginBottom="5dp"
+                        android:orientation="vertical">
+
+                        <ImageView
+                            android:id="@+id/headerImageView"
+                            android:layout_width="210dp"
+                            android:layout_height="55dp"
+                            android:layout_gravity="center"
+                            android:layout_marginLeft="10dp"
+                            android:layout_marginTop="10dp"
+                            android:layout_marginRight="10dp"
+                            android:src="@mipmap/ipaylogo" />
+
+                    </LinearLayout>
+                </ScrollView>
+
+<!--                <ImageView-->
+<!--                    android:id="@+id/headerImageView"-->
+<!--                    android:layout_width="210dp"-->
+<!--                    android:layout_height="55dp"-->
+<!--                    android:layout_gravity="center"-->
+<!--                    android:layout_marginLeft="10dp"-->
+<!--                    android:layout_marginTop="10dp"-->
+<!--                    android:layout_marginRight="10dp"-->
+<!--                    android:src="@mipmap/ipaylogo" />-->
+
+<!--                <LinearLayout-->
+<!--                    android:id="@+id/mainReceipt"-->
+<!--                    android:layout_width="match_parent"-->
+<!--                    android:layout_height="269dp"-->
+<!--                    android:layout_marginLeft="25dp"-->
+<!--                    android:layout_marginTop="5dp"-->
+<!--                    android:layout_marginRight="25dp"-->
+<!--                    android:layout_marginBottom="5dp"-->
+<!--                    android:orientation="vertical">-->
+
+<!--&lt;!&ndash;                    <ScrollView&ndash;&gt;-->
+<!--&lt;!&ndash;                        android:id="@+id/bnpl_schedule_scrolls"&ndash;&gt;-->
+<!--&lt;!&ndash;                        android:layout_width="match_parent"&ndash;&gt;-->
+<!--&lt;!&ndash;                        android:layout_height="match_parent"/>&ndash;&gt;-->
+
+<!--                </LinearLayout>-->
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </RelativeLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:layout_marginLeft="5dp"
+        android:layout_marginRight="5dp"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <LinearLayout
+            android:layout_width="160dp"
+            android:layout_height="50dp"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:orientation="horizontal"
+            android:background="@drawable/cancelbtn_unpressed"
+            android:gravity="center"
+            android:layout_gravity="center_vertical"
+            android:onClick="print_receipt_cancel">
+
+            <ImageView
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:paddingLeft="2dp"
+                android:paddingRight="2dp"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:src="@drawable/cancel_icon"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:textStyle="bold"
+                android:textColor="@color/white"
+                android:text="CANCEL"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/printBtn"
+            android:layout_width="160dp"
+            android:layout_height="50dp"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:orientation="horizontal"
+            android:background="@drawable/printbtn_unpressed"
+            android:gravity="center"
+            android:layout_gravity="center_vertical"
+            android:onClick="print_receipt">
+
+            <ImageView
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:paddingLeft="2dp"
+                android:paddingRight="2dp"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:src="@drawable/print_button_icon"/>
+
+            <TextView
+                android:id="@+id/printTV"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:textStyle="bold"
+                android:textColor="@color/white"
+                android:text="PRINT RECEIPT"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

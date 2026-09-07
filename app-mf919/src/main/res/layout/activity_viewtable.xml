@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/LayoutColor">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:weightSum="15">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:orientation="horizontal"
+            android:layout_weight="1"
+            android:layout_marginTop="10dp"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="10dp"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/white_box_border_withedge">
+
+            <Spinner
+                android:id="@+id/tablename"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:textSize="25sp"
+                android:layout_marginLeft="10dp"
+                android:layout_marginRight="10dp"/>
+
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="11.5">
+
+            <LinearLayout
+                android:id="@+id/LayoutVTC"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginRight="10dp"
+                android:orientation="vertical">
+            </LinearLayout>
+
+        </ScrollView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:orientation="vertical"
+            android:layout_weight="2.5"
+            android:weightSum="2"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="10dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:layout_weight="1"
+                android:weightSum="2"
+                tools:ignore="NestedWeights"
+                android:layout_marginBottom="5dp">
+
+                <Button
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/previous"
+                    android:onClick="move2Previous"
+                    android:textSize="20sp"
+                    android:textColor="@color/ButtonWordColor"
+                    android:background="@drawable/custom_ripple_with_stoke"
+                    tools:ignore="ButtonStyle,NestedWeights,RtlHardcoded"
+                    android:layout_marginRight="5dp"/>
+
+                <Button
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/next"
+                    android:onClick="move2Next"
+                    android:textSize="20sp"
+                    android:textColor="@color/ButtonWordColor"
+                    android:background="@drawable/custom_ripple_with_stoke"
+                    tools:ignore="ButtonStyle,RtlHardcoded"
+                    android:layout_marginLeft="5dp"/>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:layout_weight="1"
+                android:weightSum="2"
+                android:layout_marginBottom="5dp">
+
+                <Button
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/update"
+                    android:onClick="updateData"
+                    android:textSize="20sp"
+                    android:textColor="@color/ButtonWordColor"
+                    android:background="@drawable/custom_ripple_with_stoke"
+                    tools:ignore="ButtonStyle,RtlHardcoded"
+                    android:layout_marginRight="5dp"/>
+
+                <Button
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/delete"
+                    android:onClick="deleteData"
+                    android:textSize="20sp"
+                    android:textColor="@color/ButtonWordColor"
+                    android:background="@drawable/custom_ripple_with_stoke"
+                    tools:ignore="ButtonStyle"
+                    android:layout_marginLeft="5dp"/>
+
+            </LinearLayout>
+
+        </LinearLayout>
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

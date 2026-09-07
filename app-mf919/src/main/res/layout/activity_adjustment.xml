@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/LayoutColor">
+
+    <Toolbar
+        android:id="@+id/toolbarMoto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/BoxColor"
+        android:title=""
+        android:titleTextColor="@color/white"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/textHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ADJUSTMENT"
+            android:layout_gravity="center"
+            android:textAlignment="center"
+            android:textColor="@color/white"
+            android:textSize="25sp"/>
+    </Toolbar>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollArea"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintTop_toBottomOf="@id/toolbarMoto"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <!--<LinearLayout
+                android:id="@+id/inputCard"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:layout_marginRight="10dp"
+                android:layout_marginLeft="10dp"
+                android:background="@drawable/divider"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginRight="10dp"
+                    android:text="CARD NUMBER"
+                    android:textColor="@color/WordColor"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/tvCardNo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginRight="10dp"
+                    android:layout_marginLeft="10dp"
+                    android:hint="CARD NO"
+                    android:textColor="@color/WordColor"
+                    android:textSize="20sp" />
+            </LinearLayout>-->
+
+            <LinearLayout
+                android:id="@+id/inputRRN"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+
+                android:layout_marginRight="10dp"
+                android:layout_marginLeft="10dp"
+                android:background="@drawable/divider"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginRight="10dp"
+                    android:text="RRN"
+                    android:textColor="@color/WordColor"
+                    android:textSize="15sp" />
+
+                <EditText
+                    android:id="@+id/tvRRN"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginRight="10dp"
+                    android:hint="980011000099"
+                    android:textColor="@color/WordColor"
+                    android:textSize="20sp"
+                    android:maxLength="12"
+                    android:maxLines="1"
+                    android:inputType="number"
+                    android:imeOptions="actionNext" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/inputApproval"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+
+                android:layout_marginRight="10dp"
+                android:layout_marginLeft="10dp"
+                android:background="@drawable/divider"
+                app:layout_constraintTop_toBottomOf="@id/inputRRN"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginRight="10dp"
+                    android:text="Approval Code"
+                    android:textColor="@color/WordColor"
+                    android:textSize="15sp" />
+
+                <!-- Approval code is 6 alphanumeric (ISO field 38), not digits only.
+                     textCapCharacters is only a hint to the IME, so the activity also
+                     uppercases before the DB lookup - APPR_CODE has no COLLATE NOCASE. -->
+                <EditText
+                    android:id="@+id/tvApprCode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginRight="10dp"
+                    android:hint="R19020"
+                    android:textColor="@color/WordColor"
+                    android:textSize="20sp"
+                    android:maxLength="6"
+                    android:maxLines="1"
+                    android:inputType="textCapCharacters|textNoSuggestions"
+                    android:digits="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+                    android:imeOptions="actionDone" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/inputAmt"
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginRight="10dp"
+                android:layout_marginLeft="10dp"
+                android:background="@drawable/divider"
+                app:layout_constraintTop_toBottomOf="@+id/inputApproval"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="10dp"
+                    android:layout_marginRight="10dp"
+                    android:text="AMOUNT(RM)"
+                    android:textColor="@color/WordColor"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/tvAmount"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginRight="10dp"
+                    android:layout_marginLeft="10dp"
+                    android:hint="0.00"
+                    android:textColor="@color/WordColor"
+                    android:textSize="20sp"
+                    android:maxLength="13"/>
+            </LinearLayout>
+
+            <!-- Toggled as a whole rather than keypad1 alone: the wrapper owns the 55%
+                 height, so hiding only the keypad would leave an empty block behind.
+                 Shown by AdjustmentActivity when the amount field is tapped. -->
+            <LinearLayout
+                android:id="@+id/keypadContainer"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                app:layout_constraintHeight_percent="0.55"
+                android:orientation="horizontal"
+                android:layout_marginTop="70dp"
+                android:gravity="center_horizontal"
+                app:layout_constraintTop_toBottomOf="@+id/inputAmt"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                android:visibility="gone">
+                <com.sc.mf919.java.activity.Keypad
+                    android:id="@+id/keypad1"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+            </LinearLayout>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.core.widget.NestedScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>

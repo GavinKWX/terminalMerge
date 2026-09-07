@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/LayoutColor"
+    android:gravity="center_horizontal">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbarTransactionResult"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/BoxColor"
+        android:title=""
+        android:titleTextColor="@color/white">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="BNPL"
+            android:layout_gravity="center"
+            android:textAlignment="center"
+            android:textColor="@color/white"
+            android:textSize="25sp"/>
+    </androidx.appcompat.widget.Toolbar>
+
+    <TextView
+        android:id="@+id/textview_paymentResult"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:text="Payment Success"
+        android:textStyle="bold"
+        android:textColor="@color/WordColor"
+        android:textSize="20sp"
+        tools:ignore="RtlHardcoded"
+        android:gravity="center_horizontal"/>
+
+    <LinearLayout
+        android:id="@+id/mainCircle"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="10dp"
+        android:layout_marginRight="10dp"
+        android:layout_marginLeft="10dp"
+        android:orientation="vertical"
+        android:background="@drawable/sale_btn"
+        android:layout_gravity="center_horizontal"
+        android:gravity="center">
+
+        <ImageView
+            android:id="@+id/imageview_transactionresult"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_marginTop="5dp"
+            android:background="@drawable/succe_icon"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/LL_transactionresult"
+        android:layout_width="320dp"
+        android:layout_height="290dp"
+        android:layout_gravity="center_horizontal"
+        android:gravity="center"
+        android:background="@drawable/payment_selection_background_1"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="3dp"
+            android:layout_marginRight="3dp"
+            android:orientation="horizontal"
+            android:background="@drawable/divider"
+            android:weightSum="3"
+            android:paddingBottom="7dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="20dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:text="Type"
+                android:textColor="@color/black"/>
+
+            <TextView
+                android:id="@+id/qrType_tr"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:textSize="20dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:textAlignment="viewEnd"
+                android:text="Type"
+                android:textColor="@color/black"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="3dp"
+            android:layout_marginRight="3dp"
+            android:orientation="horizontal"
+            android:background="@drawable/divider"
+            android:weightSum="3"
+            android:paddingBottom="7dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:layout_weight="1"
+                android:text="Amount"
+                android:textColor="@color/black"
+                android:textSize="20dp" />
+
+            <TextView
+                android:id="@+id/qrAmount_tr"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:textSize="20dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:textAlignment="viewEnd"
+                android:text="Type"
+                android:textColor="@color/black"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="3dp"
+            android:layout_marginRight="3dp"
+            android:orientation="horizontal"
+            android:background="@drawable/divider"
+            android:weightSum="3"
+            android:paddingBottom="7dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="20dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:text="Host Ref"
+                android:textColor="@color/black"/>
+
+            <TextView
+                android:id="@+id/qrTxnId_tr"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:textSize="20dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:textAlignment="viewEnd"
+                android:text="Type"
+                android:textColor="@color/black"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="3dp"
+            android:layout_marginRight="3dp"
+            android:orientation="horizontal"
+            android:background="@drawable/divider"
+            android:weightSum="3"
+            android:paddingBottom="7dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="20dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:text="Ref ID"
+                android:textColor="@color/black"/>
+
+            <TextView
+                android:id="@+id/qrRefId_tr"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:textSize="20dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:textAlignment="viewEnd"
+                android:text="Type"
+                android:textColor="@color/black"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="3dp"
+            android:layout_marginRight="3dp"
+            android:orientation="horizontal"
+            android:background="@drawable/divider"
+            android:weightSum="3"
+            android:paddingBottom="7dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="20dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:text="Date/Time"
+                android:textColor="@color/black"/>
+
+            <TextView
+                android:id="@+id/qrDateNtime_tr"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:textSize="20dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:textAlignment="viewEnd"
+                android:text="Type"
+                android:textColor="@color/black"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="3dp"
+            android:layout_marginRight="3dp"
+            android:orientation="horizontal"
+            android:background="@drawable/divider"
+            android:weightSum="3"
+            android:paddingBottom="7dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="20dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:text="Resp Code"
+                android:textColor="@color/black"/>
+
+            <TextView
+                android:id="@+id/qrRespCode_tr"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:textSize="20dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:textAlignment="viewEnd"
+                android:text="Type"
+                android:textColor="@color/black"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/qrDesc_con"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="3dp"
+            android:layout_marginRight="3dp"
+            android:orientation="horizontal"
+            android:background="@drawable/divider"
+            android:weightSum="3"
+            android:paddingBottom="7dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="20dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:text="Desc"
+                android:textColor="@color/black"/>
+
+            <TextView
+                android:id="@+id/qrDesc_tr"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:textSize="20dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginRight="2dp"
+                android:textAlignment="viewEnd"
+                android:text="Type"
+                android:textColor="@color/black"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:layout_marginLeft="5dp"
+        android:layout_marginRight="5dp"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <LinearLayout
+            android:id="@+id/cancelBtn"
+            android:layout_width="160dp"
+            android:layout_height="50dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:background="@drawable/cancelbtn_unpressed"
+            android:gravity="center"
+            android:onClick="print_receipt_cancel"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/cancelBtnImageview"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:paddingLeft="2dp"
+                android:paddingTop="2dp"
+                android:paddingRight="2dp"
+                android:paddingBottom="2dp"
+                android:src="@drawable/cancel_icon" />
+
+            <TextView
+                android:id="@+id/cancelBtnTextview"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:text="CANCEL"
+                android:textColor="@color/white"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/printBtn"
+            android:layout_width="160dp"
+            android:layout_height="50dp"
+            android:layout_marginLeft="5dp"
+            android:layout_marginRight="5dp"
+            android:orientation="horizontal"
+            android:background="@drawable/printbtn_unpressed"
+            android:gravity="center"
+            android:layout_gravity="center_vertical"
+            android:onClick="print_receipt">
+
+            <ImageView
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:paddingLeft="2dp"
+                android:paddingRight="2dp"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:src="@drawable/print_button_icon"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
+                android:textStyle="bold"
+                android:textColor="@color/white"
+                android:text="PRINT "/>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

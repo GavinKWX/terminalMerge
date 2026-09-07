@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/payment_selection_background"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/payment_selection_white_bg"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:id="@+id/cancel_btn_preauth"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:padding="20dp">
+
+            <ImageButton
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:background="@drawable/xwithpointedge"
+                android:clickable="false"
+                android:duplicateParentState="true"
+                android:focusable="false" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="35dp"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"
+            android:layout_marginBottom="20dp"
+            android:background="@drawable/divider_ps"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="start"
+                android:text="SELECT PREAUTH METHOD"
+                android:textColor="@color/black"
+                android:textSize="18sp" />
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:paddingTop="20dp"
+                android:paddingBottom="20dp">
+
+                <!-- PREAUTH -->
+                <LinearLayout
+                    android:id="@+id/preauth"
+                    android:layout_width="250dp"
+                    android:layout_height="67dp"
+                    android:layout_marginBottom="20dp"
+                    android:background="@drawable/other_btn"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="PREAUTH"
+                        android:textColor="@color/black"
+                        android:textSize="18sp"/>
+                </LinearLayout>
+
+                <!-- SALE COMPLETION -->
+                <LinearLayout
+                    android:id="@+id/SaleComp"
+                    android:layout_width="250dp"
+                    android:layout_height="67dp"
+                    android:layout_marginBottom="20dp"
+                    android:background="@drawable/other_btn"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="SALE COMPLETION"
+                        android:textColor="@color/black"
+                        android:textSize="18sp"/>
+                </LinearLayout>
+
+                <!-- PREAUTH CANCEL -->
+                <LinearLayout
+                    android:id="@+id/PCancel"
+                    android:layout_width="250dp"
+                    android:layout_height="67dp"
+                    android:layout_marginBottom="20dp"
+                    android:background="@drawable/other_btn"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="PREAUTH CANCEL"
+                        android:textColor="@color/black"
+                        android:textSize="18sp"/>
+                </LinearLayout>
+
+                <!-- VOID SALE COMP -->
+                <LinearLayout
+                    android:id="@+id/VoidSaleComp"
+                    android:layout_width="250dp"
+                    android:layout_height="67dp"
+                    android:background="@drawable/other_btn"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="VOID SALE COMP"
+                        android:textColor="@color/black"
+                        android:textSize="18sp"/>
+                </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

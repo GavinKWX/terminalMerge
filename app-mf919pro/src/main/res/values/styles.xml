@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="SwitchCompatTheme" >
+        <item name="colorControlActivated">@color/switchActiveColor</item>
+    </style>
+    <style name="SwitchCompatStyle" >
+        <item name="thumbTint">@color/switch_thumb_color</item>
+        <item name="trackTint">@color/switch_color</item>
+    </style>
+
+    <style name="DialogThemeColor" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="android:background">@color/dialogBackground</item>
+        <item name="colorAccent">@color/dialogAnsWord</item>
+        <item name="android:textColorPrimary">@color/dialogMsg</item>
+        <item name="android:windowTitleStyle">@style/DialogTitleColor</item>
+    </style>
+
+    <style name="DialogTitleColor">
+        <item name="android:textColor">@color/dialogTitle</item>
+        <item name="android:textAppearance">@style/TextAppearance.AppCompat.Title</item>
+    </style>
+
+    <style name="CustomAlertDialog" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/payment_selection_background</item>
+    </style>
+
+    <style name="CustomTransparentAlertDialog" parent="">
+        <item name="android:windowBackground">@drawable/payment_selection_background_2</item>
+    </style>
+
+    <style name="DialogStyle" parent="android:Theme.Holo.Light.Dialog">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
+        <item name="android:windowSoftInputMode">stateUnspecified|adjustPan</item>
+    </style>
+
+    <!--<style name="myFullscreenAlertDialogStyle" parent="Theme.AppCompat.Light.NoActionBar">      //no actionbar, but status bar exists
+        <item name="android:windowFullscreen">true</item>                       //remove status bar
+        <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>        //smooth animation
+        <item name="colorAccent">@color/colorAccent</item>                      //change button text color
+    </style>-->
+
+    <!-- res/values/styles.xml -->
+    <style name="myFullscreenAlertDialogStyle" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- CRITICAL: prevents floating / half-height dialog -->
+        <item name="android:windowIsFloating">false</item>
+        <!--<item name="windowIsFloating">false</item>-->
+
+        <!-- Remove default dialog frame -->
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+
+        <!-- Optional: smooth dialog animation -->
+        <item name="android:windowAnimationStyle">
+            @android:style/Animation.Dialog
+        </item>
+
+        <!-- Your accent color -->
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+
+    <style name="splashScreenTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_screen_background</item>
+    </style>
+
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- normal app colors, toolbar, etc -->
+    </style>
+
+    <style name="CenterDialog" parent="ThemeOverlay.MaterialComponents.Dialog">
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimAmount">0.6</item>
+    </style>
+</resources>

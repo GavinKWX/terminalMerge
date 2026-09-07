@@ -1,0 +1,623 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found]){display:none!important}</style></head><body>
+<title>MF919 Merge Audit</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<style>
+:root{
+  --ground:#F5F7FA; --surface:#FFFFFF; --surface-2:#EDF1F6;
+  --ink:#131820; --ink-2:#4E5A66; --ink-3:#77828F;
+  --rule:#D9E0E8; --rule-2:#C3CCD7;
+  --old:#4C6E8F; --old-bg:#E7EEF5;
+  --pro:#0E8F7E; --pro-bg:#DFF1EE;
+  --signal:#B24A28; --signal-bg:#FAE9E2;
+  --ok:#1F7A4D; --ok-bg:#E2F1E9;
+  --warn:#8A6212; --warn-bg:#F7EEDA;
+  --shadow:0 1px 2px rgba(19,24,32,.05), 0 4px 14px rgba(19,24,32,.045);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --ground:#101318; --surface:#171B22; --surface-2:#1E242D;
+  --ink:#E8EDF3; --ink-2:#A6B1BE; --ink-3:#7B8794;
+  --rule:#2A323C; --rule-2:#3A4450;
+  --old:#8FB4D6; --old-bg:#1C2733;
+  --pro:#4FCDB8; --pro-bg:#122A28;
+  --signal:#E08A66; --signal-bg:#2E1D16;
+  --ok:#5CC28C; --ok-bg:#14241C;
+  --warn:#D8AE5C; --warn-bg:#26200F;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+}}
+:root[data-theme="dark"]{
+  --ground:#101318; --surface:#171B22; --surface-2:#1E242D;
+  --ink:#E8EDF3; --ink-2:#A6B1BE; --ink-3:#7B8794;
+  --rule:#2A323C; --rule-2:#3A4450;
+  --old:#8FB4D6; --old-bg:#1C2733;
+  --pro:#4FCDB8; --pro-bg:#122A28;
+  --signal:#E08A66; --signal-bg:#2E1D16;
+  --ok:#5CC28C; --ok-bg:#14241C;
+  --warn:#D8AE5C; --warn-bg:#26200F;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:15px; line-height:1.62; margin:0;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1020px; margin:0 auto; padding:0 28px 96px}
+
+/* ---------- masthead ---------- */
+header.mast{padding:56px 0 30px; border-bottom:2px solid var(--ink)}
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; font-weight:500;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3);
+  display:flex; flex-wrap:wrap; gap:8px 18px; margin-bottom:20px;
+}
+h1{
+  font-family:"IBM Plex Serif",Georgia,serif; font-weight:600;
+  font-size:clamp(30px,4.4vw,44px); line-height:1.14; letter-spacing:-.015em;
+  margin:0 0 14px; text-wrap:balance;
+}
+.standfirst{font-size:17px; color:var(--ink-2); max-width:64ch; margin:0}
+.verdict-line{
+  display:inline-flex; align-items:baseline; gap:10px; margin-top:22px;
+  padding:9px 15px; border-radius:2px; background:var(--ok-bg);
+  border-left:3px solid var(--ok);
+}
+.verdict-line b{color:var(--ok); font-size:14px}
+.verdict-line span{color:var(--ink-2); font-size:14px}
+
+/* ---------- sections ---------- */
+section{padding-top:54px}
+h2{
+  font-family:"IBM Plex Serif",Georgia,serif; font-weight:600;
+  font-size:25px; line-height:1.25; letter-spacing:-.01em;
+  margin:0 0 6px; text-wrap:balance;
+  display:flex; gap:14px; align-items:baseline;
+}
+h2 .num{
+  font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:500;
+  color:var(--ink-3); flex:none; padding-top:2px;
+}
+h3{
+  font-size:15px; font-weight:600; margin:32px 0 8px; letter-spacing:-.005em;
+}
+.sec-rule{height:1px; background:var(--rule); margin:0 0 22px}
+p{margin:0 0 14px; max-width:68ch}
+ul{margin:0 0 14px; padding-left:20px; max-width:68ch}
+li{margin-bottom:7px}
+a{color:var(--pro)}
+strong{font-weight:600}
+code, .mono{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.885em; background:var(--surface-2); padding:1px 5px;
+  border-radius:2px; word-break:break-word;
+}
+pre{
+  font-family:"IBM Plex Mono",monospace; font-size:12.5px; line-height:1.7;
+  background:var(--surface); border:1px solid var(--rule);
+  border-left:3px solid var(--ink-3);
+  padding:16px 18px; overflow-x:auto; margin:0 0 18px; border-radius:2px;
+}
+pre code{background:none; padding:0; font-size:inherit}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto; margin:0 0 20px; border:1px solid var(--rule); border-radius:2px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:520px}
+th,td{text-align:left; padding:10px 14px; border-bottom:1px solid var(--rule); vertical-align:top}
+thead th{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:500;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3);
+  background:var(--surface-2); border-bottom:1px solid var(--rule-2); white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:none}
+td.num, th.num{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; white-space:nowrap}
+th.c-old, td.c-old{color:var(--old)}
+th.c-pro, td.c-pro{color:var(--pro)}
+thead th.c-old{color:var(--old); box-shadow:inset 0 -2px 0 var(--old)}
+thead th.c-pro{color:var(--pro); box-shadow:inset 0 -2px 0 var(--pro)}
+td.k{color:var(--ink-2); width:1%; white-space:nowrap}
+
+/* ---------- constraint strip ---------- */
+.constraints{display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:2px; margin:0 0 8px}
+.cst{background:var(--surface); padding:14px 16px; display:grid; grid-template-columns:26px 1fr auto; gap:14px; align-items:start}
+.cst .cn{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3); padding-top:2px}
+.cst .ct{font-size:14px}
+.cst .ct em{font-style:normal; color:var(--ink-2); display:block; font-size:12.5px; margin-top:3px}
+.chip{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:500;
+  letter-spacing:.07em; text-transform:uppercase; white-space:nowrap;
+  padding:4px 9px; border-radius:2px; background:var(--ok-bg); color:var(--ok); align-self:center;
+}
+
+/* ---------- figures row ---------- */
+.figs{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--rule); border:1px solid var(--rule); border-radius:2px; margin:0 0 8px}
+.fig{background:var(--surface); padding:16px}
+.fig .v{font-family:"IBM Plex Mono",monospace; font-size:27px; font-weight:600; line-height:1; font-variant-numeric:tabular-nums}
+.fig .l{font-size:12px; color:var(--ink-2); margin-top:7px; line-height:1.4}
+@media (max-width:620px){ .figs{grid-template-columns:repeat(2,1fr)} }
+
+/* ---------- callout ---------- */
+.callout{
+  background:var(--signal-bg); border-left:3px solid var(--signal);
+  padding:14px 18px; margin:0 0 18px; border-radius:2px;
+}
+.callout p{margin:0; max-width:none; font-size:14px}
+.callout .lbl{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:500;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--signal); display:block; margin-bottom:5px;
+}
+.note{background:var(--surface-2); border-left:3px solid var(--rule-2); padding:14px 18px; margin:0 0 18px; border-radius:2px}
+.note p{margin:0; max-width:none; font-size:13.5px; color:var(--ink-2)}
+
+/* ---------- severity ---------- */
+.sev{font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:500; letter-spacing:.07em; text-transform:uppercase; padding:3px 8px; border-radius:2px; white-space:nowrap; display:inline-block}
+.sev.high{background:var(--signal-bg); color:var(--signal)}
+.sev.med{background:var(--warn-bg); color:var(--warn)}
+.sev.low{background:var(--ok-bg); color:var(--ok)}
+.rid{font-family:"IBM Plex Mono",monospace; font-weight:600; color:var(--ink); white-space:nowrap}
+
+/* ---------- tier headers ---------- */
+.tier{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:500;
+  letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3);
+  margin:30px 0 10px; padding-bottom:7px; border-bottom:1px solid var(--rule);
+}
+.eid{font-family:"IBM Plex Mono",monospace; font-weight:600; color:var(--pro); white-space:nowrap}
+.pid{font-family:"IBM Plex Mono",monospace; font-weight:600; white-space:nowrap}
+
+/* ---------- questions ---------- */
+ol.q{counter-reset:q; list-style:none; padding:0; margin:0; max-width:none}
+ol.q li{
+  counter-increment:q; position:relative; padding:14px 0 14px 44px;
+  border-bottom:1px solid var(--rule); margin:0; max-width:none;
+}
+ol.q li:last-child{border-bottom:none}
+ol.q li::before{
+  content:"Q" counter(q); position:absolute; left:0; top:14px;
+  font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:600; color:var(--signal);
+}
+footer{margin-top:56px; padding-top:22px; border-top:1px solid var(--rule); font-size:12.5px; color:var(--ink-3)}
+footer p{max-width:none; margin:0 0 7px}
+::selection{background:var(--pro); color:var(--surface)}
+:focus-visible{outline:2px solid var(--pro); outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="eyebrow">
+    <span>Merge Feasibility Audit</span><span>2026-09-03 · updated 2026-09-07</span><span>Phases 0–2 landed · 3 in progress</span>
+  </div>
+  <h1>ShareCommerce.Terminal + MF919&nbsp;Pro</h1>
+  <p class="standfirst">Two Android payment-terminal apps, same hardware SDK, same ISO stack, same two engineers — maintained as separate codebases. This audit measures how far apart they actually are and what it would take to converge them.</p>
+  <div class="verdict-line"><b>Verdict — merge is feasible and worth doing.</b><span>Shared <code>:core</code> library + two app modules, in a new repo, phased.</span></div>
+</header>
+
+<section id="s1">
+  <h2><span class="num">01</span>Executive summary</h2><div class="sec-rule"></div>
+
+  <div class="tw"><table>
+    <thead><tr><th></th><th class="c-old">ShareCommerce.Terminal — "OLD"</th><th class="c-pro">MF919Pro — "PRO"</th></tr></thead>
+    <tbody>
+      <tr><td class="k">applicationId</td><td><code>com.sc.mf919</code></td><td><code>com.sc.mf919pro</code></td></tr>
+      <tr><td class="k">version</td><td class="num">2.2.26</td><td class="num">1.0.04</td></tr>
+      <tr><td class="k">min / target / compile</td><td class="num">24 / 33 / 33</td><td class="num">29 / 35 / 35</td></tr>
+      <tr><td class="k">UI architecture</td><td>~55 Activities, manual Intent navigation</td><td>1 Activity + Nav graph, ~50 Fragments</td></tr>
+      <tr><td class="k">source</td><td>53 Java + 250 Kotlin · ~81k LOC</td><td>40 Java + 233 Kotlin · ~55k LOC</td></tr>
+      <tr><td class="k">history</td><td class="num">1135 commits since 2022</td><td class="num">117 commits since Nov 2025</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>The two repos have <strong>unrelated git histories</strong> — different root commits. PRO was created by copy-paste, not by forking. They nonetheless already share the same hardware SDK (byte-identical <code>ysdk_6.14</code> jar), the same ISO 8583 stack, the same TMS protocol, the same DB schema shape, and the same 10-flavor <code>client</code> dimension.</p>
+
+  <div class="callout">
+    <span class="lbl">The cost of not merging, measured</span>
+    <p>In 2026 alone, <strong>14 commit subjects are character-for-character identical across both repos</strong> — <span class="mono">Fix Pos Condition for Paydee Moto and BF63 Crash</span>, <span class="mono">add SettlementBlock handling for BSN CZ</span>, <span class="mono">enhance autosettle in hibernate</span> and eleven more. Every fix is written twice by the same two engineers, who together land ~25–40 commits/month across the pair. One OLD commit is titled <span class="mono">take aux code from mf919 pro</span>.</p>
+  </div>
+
+  <h3>The five constraints, at a glance</h3>
+  <div class="constraints">
+    <div class="cst"><span class="cn">01</span><span class="ct">Keep both bundle ids <code>com.sc.mf919</code> + <code>com.sc.mf919pro</code><em>Each app module sets its own applicationId and namespace.</em></span><span class="chip">Satisfied</span></div>
+    <div class="cst"><span class="cn">02</span><span class="ct"><code>TransactionReceiver</code> stays Java on MF919, Kotlin on Pro<em>Each stays in its own module, in its own language, manifest verbatim.</em></span><span class="chip">By construction</span></div>
+    <div class="cst"><span class="cn">03</span><span class="ct">MF919 HTTP: old integration only, no <code>IsOldIntegration</code> key<em>One injected flag. OLD has no such concept today anyway.</em></span><span class="chip">Satisfied</span></div>
+    <div class="cst"><span class="cn">04</span><span class="ct">Pro supports both old and new integration<em>PRO's existing auto-detect is preserved unchanged.</em></span><span class="chip">Satisfied</span></div>
+    <div class="cst"><span class="cn">05</span><span class="ct">Attend UI keeps its current look on each device<em>Attend screens never leave their app module.</em></span><span class="chip">By construction</span></div>
+  </div>
+</section>
+
+<section id="s2">
+  <h2><span class="num">02</span>How far apart are they?</h2><div class="sec-rule"></div>
+  <p>Measured with <code>norm.sh</code> (shipped alongside this document): the package token is rewritten on both sides, whitespace stripped, then compared. Re-runnable at any time.</p>
+
+  <div class="figs">
+    <div class="fig"><div class="v">42</div><div class="l">identical after package rename</div></div>
+    <div class="fig"><div class="v">77</div><div class="l">same name, drifted</div></div>
+    <div class="fig"><div class="v">125</div><div class="l">old-only</div></div>
+    <div class="fig"><div class="v">91</div><div class="l">pro-only</div></div>
+  </div>
+  <div class="note"><p>The old-only / pro-only figures are inflated by the Activity→Fragment rename — <code>AttendActivity.kt</code> and <code>AttendFragment.kt</code> each count once on their own side. Those are the same screens rewritten, not missing features.</p></div>
+
+  <h3>Worst-drifted shared files</h3>
+  <div class="tw"><table>
+    <thead><tr><th>file</th><th class="num">changed lines</th><th class="num">file length</th></tr></thead>
+    <tbody>
+      <tr><td><code>java/activity/DataAdapter.java</code></td><td class="num">2395</td><td class="num">2483</td></tr>
+      <tr><td><code>java/activity/Database.java</code></td><td class="num">2285</td><td class="num">2310</td></tr>
+      <tr><td><code>kotlin/helper_common/HTTPServer.kt</code></td><td class="num">2226</td><td class="num">1829</td></tr>
+      <tr><td><code>kotlin/activity/MainActivity.kt</code></td><td class="num">1308</td><td class="num">737</td></tr>
+      <tr><td><code>kotlin/helper_common/iso/IsoActivity.kt</code></td><td class="num">1103</td><td class="num">3044</td></tr>
+      <tr><td><code>kotlin/database/infrastructure/DbHandler.kt</code></td><td class="num">463</td><td class="num">654</td></tr>
+      <tr><td><code>kotlin/helper_common/ServiceHolder.kt</code></td><td class="num">445</td><td class="num">741</td></tr>
+      <tr><td><code>kotlin/activity/AppServices.kt</code></td><td class="num">366</td><td class="num">788</td></tr>
+    </tbody>
+  </table></div>
+
+  <p><strong>Resources:</strong> 153 identical, 24 differ, 87 old-only, 106 pro-only. <code>strings.xml</code> looks catastrophic at 703 diff lines but is 340 of 344 keys in common with only 4 unique each way — the diff is pure reformatting.</p>
+  <p><strong>Jars are already aligned.</strong> Every jar both projects use is byte-identical, including <code>ysdk_6.14</code> (md5 <span class="mono">39e92cd8…</span>). The only divergence is a stale older YSDK copy each side keeps around, commented out in both build files.</p>
+</section>
+
+<section id="s3">
+  <h2><span class="num">03</span>Target structure</h2><div class="sec-rule"></div>
+<pre><code>newrepo/
+  core/            Android library · namespace com.sc.terminal.core · minSdk 24
+  app-mf919/       applicationId com.sc.mf919      × 10 client flavors
+  app-mf919pro/    applicationId com.sc.mf919pro   × 10 client flavors</code></pre>
+
+  <h3>Why two app modules, not a <code>device</code> flavor dimension</h3>
+  <p>Both projects already use a <code>client</code> flavor dimension with the same 10 flavors, so a single-module design would need a second dimension crossed with it — 10 × 2 × 3 = 60 build variants. More decisively, <strong>AGP permits only one <code>namespace</code> per module</strong>, so one side would lose its <code>BuildConfig</code>/<code>R</code> package.</p>
+
+  <h3>Does this change the app-to-app intent name POS vendors depend on? No.</h3>
+  <p>The vendor contract is the component name <code>applicationId/fully-qualified-class</code>. Under this structure both halves are byte-identical to today:</p>
+  <div class="tw"><table>
+    <thead><tr><th></th><th>today</th><th>after merge</th></tr></thead>
+    <tbody>
+      <tr><td class="k c-old">MF919</td><td><code>com.sc.mf919/com.sc.mf919.java.activity.TransactionReceiver</code></td><td>unchanged</td></tr>
+      <tr><td class="k c-pro">MF919 Pro</td><td><code>com.sc.mf919pro/com.sc.mf919pro.kotlin.activity.TransactionReceiver</code></td><td>unchanged</td></tr>
+    </tbody>
+  </table></div>
+  <p>Each app module keeps its own <code>namespace</code> <em>and</em> its own <code>applicationId</code>, so the existing relative manifest entry <code>android:name=".java.activity.TransactionReceiver"</code> (OLD manifest line 215) still resolves to exactly the class it resolves to now. The <code>ACTION_SEND</code> + <code>text/plain</code> implicit filter stays in <code>app-mf919</code>'s manifest; <code>.dev</code>/<code>.uat</code> suffixes still apply per app; <code>taskAffinity</code> and the OLD-only <code>${applicationId}.provider</code> authority resolve per app as before. The return leg is unaffected under any design — it targets the vendor's own <code>Package_Name</code>/<code>Activity_Name</code> extras.</p>
+
+  <div class="callout">
+    <span class="lbl">Concrete argument against the single-module alternative</span>
+    <p>There, <code>namespace</code> is module-wide: with namespace <code>com.sc.mf919</code>, PRO's manifest entry <code>.kotlin.activity.TransactionReceiver</code> (PRO manifest line 82) would silently resolve to <code>com.sc.mf919.kotlin.activity.TransactionReceiver</code> — a class that does not exist. Fixable by writing every <code>android:name</code> fully-qualified, but the failure mode is a vendor-visible <code>ActivityNotFoundException</code> from a one-character manifest slip, on a surface already integrated with third parties.</p>
+  </div>
+  <div class="note"><p><strong>Regression test, once per app per phase:</strong> launch each <code>TransactionReceiver</code> by explicit component name from a stub vendor app, plus one implicit <code>ACTION_SEND</code> launch against MF919, and confirm the reply intent arrives with the expected extras.</p></div>
+
+  <h3>What moves into <code>:core</code>, in order of difficulty</h3>
+  <p><strong>Free — already package-neutral.</strong> <code>helpers/</code>, <code>tms/</code>, <code>enums/</code> sit in root packages (<code>package helpers</code>, <code>package tms.handlers</code>, <code>package enums</code>), <em>not</em> under <code>com.sc.mf919*</code>. They move with <strong>zero renaming</strong>: ~4.0k LOC, of which <code>tms</code> is 30 of 44 files byte-identical and <code>enums</code> 5 of 7.</p>
+  <p><strong>Next tier.</strong> <code>kotlin/database</code> (3.2k/3.1k LOC), <code>kotlin/scheduler</code>, <code>kotlin/data_enum</code>, <code>java/utils</code>, <code>java/device</code>. Both <code>DbHandler</code>s already sit at <code>DATABASE_VERSION = 1</code> and run their own migration mechanism, so the 28-vs-3 migration gap is a data question, not a schema-version collision.</p>
+  <p><strong>Hard tier.</strong> <code>HTTPServer</code>, <code>IsoActivity</code>, <code>ServiceHolder</code>, <code>MfHelper</code>, <code>TmsHelper</code>, <code>AppServices</code>.</p>
+  <div class="note"><p><strong>Added 2026-09-07 — the four <code>iso/*/IsoStepsNew.kt</code> files belong in the <em>next</em> tier, not the hard one.</strong> They were never classified above. Each is ~93% identical to its Pro twin (90–119 diff lines of ~1450), making them the largest cheap de-duplication in the programme — the opposite of <code>IsoActivity</code> sitting beside them. See section 13; the prerequisite is <span class="rid">R8</span>, not a seam.</p></div>
+</section>
+
+<section id="s4">
+  <h2><span class="num">04</span>Constraint-by-constraint verdict</h2><div class="sec-rule"></div>
+
+  <h3>1 · Two bundle ids — satisfied directly</h3>
+  <p>Each app module sets its own <code>applicationId</code> and <code>namespace</code>. Existing <code>.dev</code>/<code>.uat</code> suffixes on debug and stag carry over unchanged. Both fleets continue to upgrade in place.</p>
+
+  <h3>2 · TransactionReceiver split — satisfied, and simpler than expected</h3>
+  <div class="callout">
+    <span class="lbl">Correction to the brief</span>
+    <p><code>TransactionReceiver</code> is an <strong><code>AppCompatActivity</code></strong> in both projects, not a <code>BroadcastReceiver</code> — the name is historical. The vendor contract is therefore the <em>exported component name + intent extras</em>, not a broadcast action. Neither project has a <code>BroadcastReceiver</code> anywhere in the vendor path.</p>
+  </div>
+  <ul>
+    <li><strong class="c-old">OLD</strong> — Java, 1090 lines, one monolithic <code>switch</code>. <code>exported="true"</code> <em>with</em> an <code>&lt;intent-filter&gt;</code> for <code>ACTION_SEND</code> + <code>DEFAULT</code> + <code>image/*</code> + <code>text/plain</code>, so vendors can also launch it implicitly.</li>
+    <li><strong class="c-pro">PRO</strong> — Kotlin, 90 lines, delegating to <code>TransactionParser</code> → <code>TransactionRouter</code> → 5 use cases. <code>exported="true"</code>, <code>launchMode="singleTask"</code>, <strong>no intent-filter at all</strong> — explicit component launch only.</li>
+  </ul>
+  <p>Both stay in their own app module, in their own language, with their manifest entry preserved verbatim. The OLD <code>&lt;intent-filter&gt;</code> block must be kept character-for-character.</p>
+  <p><strong>Reply-leg difference to flag:</strong> OLD's <code>TransactionTransmitter</code> sets <code>ACTION_SEND</code> and uses <code>getLaunchIntentForPackage</code>; PRO's sets no action and no <code>FLAG_ACTIVITY_NEW_TASK</code>. A vendor filtering on <code>ACTION_SEND</code> behaves differently between them. Keep both transmitters per-app — do not unify.</p>
+
+  <h3>3 + 4 · Integration modes — satisfied cleanly</h3>
+  <p><strong>OLD has no <code>isOldIntegration</code> concept at all.</strong> A grep across the whole OLD source tree for <code>isOldIntegration|IsOldIntegration|oldIntegration|newIntegration|PaymentChannel|PreAuthType|PaymentCode</code> returns <strong>zero matches</strong> (verified 2026-09-03). OLD's single schema <em>is</em> what PRO calls "old integration", and PRO's <code>oldIntegrationType()</code> is a faithful port of it.</p>
+  <p>So the shared <code>HTTPServer</code> needs exactly one injected policy flag:</p>
+<pre><code>supportsNewIntegration = false   // app-mf919     → always oldIntegrationType()
+supportsNewIntegration = true    // app-mf919pro  → keep current auto-detect</code></pre>
+  <p>That gives MF919 old-only behaviour with no key required, exactly as specified, and leaves Pro untouched.</p>
+
+  <h3>5 · Attend UI unchanged — satisfied by construction</h3>
+  <p>Attend screens live in their app modules and are never touched. Recording the delta here so nobody "tidies" it later:</p>
+  <div class="tw"><table>
+    <thead><tr><th></th><th class="c-old">OLD <code>activity_attend.xml</code></th><th class="c-pro">PRO <code>fragment_attend.xml</code></th></tr></thead>
+    <tbody>
+      <tr><td class="k">root</td><td><code>NestedScrollView</code> → <code>LinearLayout</code></td><td><code>ConstraintLayout</code></td></tr>
+      <tr><td class="k">top</td><td>full-bleed merchant logo</td><td>45%-height banner slider</td></tr>
+      <tr><td class="k">primary action</td><td>200/300dp <strong>square</strong> SALE tile</td><td>full-width SALES pill</td></tr>
+      <tr><td class="k">secondary</td><td>4 buttons — INFO, PRINT, SETTLEMENT, VOID</td><td>6 buttons — + HISTORY, PAPER ROLL, CONTACT US, APP INFO</td></tr>
+      <tr><td class="k">bottom nav</td><td>in-layout</td><td>in <code>activity_main.xml</code></td></tr>
+      <tr><td class="k">sizing</td><td>hard-coded dp; no dimens file; SR800 handled at <strong>runtime</strong> via <code>ServiceHolder.SR800_MODEL</code> in 13 files</td><td>hard-coded dp; an unreferenced <code>values/dimen.xml</code>; <strong>no SR800 handling at all</strong></td></tr>
+      <tr><td class="k">click wiring</td><td>XML <code>android:onClick</code></td><td>Kotlin debounced listeners</td></tr>
+      <tr><td class="k">icons</td><td><code>sale_icon</code>, <code>logon_icon</code>…</td><td><code>ai_sales</code>, <code>ai_icon01</code>…<code>ai_icon11</code></td></tr>
+      <tr><td class="k">Oxpay variant</td><td><code>AttendActivityOxpay</code> exists</td><td><strong>no Oxpay screen at all</strong></td></tr>
+    </tbody>
+  </table></div>
+  <p><code>attend_denomination</code> is the exception — the two layouts differ by a single 5-line diff and are trivially shareable if ever wanted.</p>
+</section>
+
+<section id="s5">
+  <h2><span class="num">05</span>Risk register</h2><div class="sec-rule"></div>
+  <div class="tw"><table>
+    <thead><tr><th>#</th><th>risk</th><th>severity</th><th>evidence &amp; mitigation</th></tr></thead>
+    <tbody>
+      <tr><td class="rid">R1</td><td>Toolchain split must be unified</td><td><span class="sev high">high</span></td><td>OLD: AGP 8.13 / Gradle 8.13 / Kotlin 1.8.0 / Java 11. PRO: AGP 8.6.1 / Gradle 8.7 / Kotlin 1.9.0 / Java 1.8 — PRO is on the <em>older</em> AGP despite being the newer codebase. Unify on AGP 8.13 + Gradle 8.13 + Kotlin 1.9.x + Java 11; adopt PRO's <code>libs.versions.toml</code> (OLD has no catalog).</td></tr>
+      <tr><td class="rid">R2</td><td><code>:core</code> must compile at minSdk 24</td><td><span class="sev low">low — de-risked</span></td><td>Only two shared-candidate files use API-sensitive APIs: <code>HTTPServer.kt</code> (<code>CompletableFuture</code>, API 24) and <code>IsoActivity.kt</code> (<code>java.util.function.Consumer</code>, API 24). Both sit exactly at minSdk 24, and <strong>OLD already ships <code>Consumer</code> at minSdk 24 today</strong>. No <code>java.time</code> outside Pro's UI layer; no desugaring configured or needed.</td></tr>
+      <tr><td class="rid">R3</td><td>Navigation seam</td><td><span class="sev high">high</span></td><td>Shared <code>HTTPServer</code> starts concrete Activities on OLD but emits <code>UiEvent.FragmentNavigation(R.id.…)</code> on PRO — a library module cannot reference either app's <code>R</code>. <strong><code>AppBus</code> already exists in both, near-identical</strong>, and is the natural seam: a neutral <code>AppScreen</code> enum in <code>:core</code>, translated per app. Cost: one enum + two ~50-line translators.</td></tr>
+      <tr><td class="rid">R4</td><td>Long-lived merge branch rots</td><td><span class="sev high">high</span></td><td>~25–40 commits/month across both repos from the same two engineers. Phase the work; keep each phase short and mergeable.</td></tr>
+      <tr><td class="rid">R5</td><td>Migration-count asymmetry</td><td><span class="sev med">medium</span></td><td>OLD has 28 migrations (<code>Migration123</code>→<code>Migration2221</code>), PRO has 3. Both at <code>DATABASE_VERSION = 1</code>. Migrations stay per-app; only <code>DbHandler</code> + repos are shared.</td></tr>
+      <tr><td class="rid">R6</td><td>Feature asymmetry to resolve</td><td><span class="sev med">medium</span></td><td>OLD-only: BNPL flows, Oxpay screens, SR800 gating, MDB/vending controller, <code>QrPayTableRepo</code>, boot receiver, <code>FileProvider</code>, RS232 transport. PRO-only: use-case layer, <code>intent_helper</code>, TTS, lucky draw / paper-roll TMS, image slider, <code>CounterGuard</code>, <code>LogRedact</code>. Decide per feature: <code>:core</code>, one app, or drop.</td></tr>
+      <tr><td class="rid">R8</td><td><strong>MF919 allocates transaction counters without a lock</strong> — found 2026-09-07</td><td><span class="sev high">high</span></td><td>PRO allocates STAN / invoice / batch through one <code>synchronized</code> read-modify-write (<code>IsoBatchInfoRepo.allocateCounter</code>, <strong>26 call sites</strong>). MF919 has <strong>no such function</strong> and does read-increment-write inline at <strong>36</strong> <code>updateBatchInfo</code> sites. These tables are written from the nanohttpd worker, the ISO thread, the schedulers and the UI thread (section 09), so overlapping transactions can take the same counter — <strong>duplicate STAN / invoice reaching the acquirer</strong>. A live defect in the shipping fleet, not a merge artefact; it also blocks sharing the ISO stack. See section 13.</td></tr>
+      <tr><td class="rid">R7</td><td>Directory-case mismatch</td><td><span class="sev low">low</span></td><td><code>Helpers/</code> (OLD) vs <code>helpers/</code> (PRO) — both declare <code>package helpers</code>. Works on Windows, breaks on case-sensitive CI.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="s6">
+  <h2><span class="num">06</span>Pre-existing defects</h2><div class="sec-rule"></div>
+  <p>Found during the audit. Worth fixing whether or not the merge proceeds.</p>
+  <div class="tw"><table>
+    <thead><tr><th>finding</th><th>location</th></tr></thead>
+    <tbody>
+      <tr><td>Live <code>E99</code> / <code>"TODO"</code> placeholder on the old-integration else-branch</td><td class="c-pro"><code>TransactionRouter.kt:92-95</code></td></tr>
+      <tr><td>Retry cache is dead code — <code>RETRY_CACHE_WINDOW_MS = 0L</code>, intended <code>5_000L</code> commented out on the line above</td><td class="c-pro"><code>HTTPServer.kt:85</code></td></tr>
+      <tr><td><code>TransactionResultFragment</code> omits <code>OriTransactionRRN</code> / <code>OriTransactionApprovalCode</code>, which OLD's <code>TransactionResultActivity</code> writes — a silent contract regression for vendors reading them off a void result</td><td class="c-pro">PRO</td></tr>
+      <tr><td><code>SHC007</code> meant "Terminal System Error" on OLD and "Product Is Not Configured" on PRO — <strong>resolved 2026-09-07.</strong> MF919 was the last site emitting the bare wording; it now uses <code>enums.EnumResponseCode.PRODUCT_NOT_CONFIGURED</code>. A <em>separate</em> collision remains open on the same code — see section 15.</td><td>both</td></tr>
+      <tr><td><code>WebSocketClient.kt</code> sits in <code>kotlin/helper_common/</code> but declares <code>package com.sc.mf919pro.kotlin.activity</code>; OLD's same-named file correctly declares <code>…kotlin.helper_common</code>. A stale <code>com.sc.mf919…BaseActivity</code> import is present but commented out</td><td class="c-pro">PRO</td></tr>
+      <tr><td><code>ExampleInstrumentedTest.kt</code> asserts <code>packageName == "com.sc.mf919"</code> — stale, would fail if run</td><td class="c-pro"><code>src/androidTest/…/com/sc/mf919/</code></td></tr>
+      <tr><td><code>bcprov-jdk15on-160.jar</code> and <code>sun.misc.BASE64Decoder.jar</code> sit in <code>app/libs/</code> but are declared as dependencies in neither project</td><td>both</td></tr>
+      <tr><td>Full Compose BOM + <code>material3</code> + <code>activity-compose</code> on the classpath with <code>compose</code> <strong>not</strong> enabled as a build feature; only usage is a stray import</td><td class="c-pro"><code>ContactUsFragment.kt:8</code></td></tr>
+      <tr><td><code>androidx.viewpager2</code> used but not declared — resolves transitively via <code>me.relex:circleindicator</code></td><td class="c-pro"><code>AttendDenominationFragment.kt:19</code></td></tr>
+      <tr><td><code>special</code> is a declared flavor with no <code>src/special/</code> directory</td><td>both</td></tr>
+      <tr><td><strong>MF919 printed DES key material to logcat</strong> — <code>println("Clear Key -&gt; …")</code>, <code>strClearData=…</code>, <code>strEncData=…</code>. <code>System.out</code> is redirected to logcat on Android, so any process with adb access could read injected keys off a terminal. PRO had already removed exactly these four lines. <strong>Fixed 2026-09-07</strong>, with a note against reinstating them; <code>LogRedact</code> does not cover this file, and key material must not be logged at all rather than redacted-and-logged.</td><td class="c-old"><code>SecureDataRepo.kt</code></td></tr>
+      <tr><td>Four call sites bypass <code>HelperCommon.getHomeScreenIntent:291</code> and hard-code <code>AttendDenominationActivity</code>, ignoring <code>UNATTENDED_MODE</code></td><td class="c-old"><code>CardPaymentActivity.kt:226</code>, <code>DenominationPaymentOptionActivity.kt:363</code>/<code>:384</code>, <code>GenerateQrActivity.kt:815</code></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="s7">
+  <h2><span class="num">07</span>Should MF919 adopt Pro's Fragment/Nav structure?</h2><div class="sec-rule"></div>
+  <p><strong>Verdict: Pro's structure is better, but converting is out of scope for this merge.</strong></p>
+  <div class="tw"><table>
+    <thead><tr><th></th><th class="c-old">OLD — Activities</th><th class="c-pro">PRO — Fragments + Nav</th></tr></thead>
+    <tbody>
+      <tr><td class="k">LOC for the same screen set</td><td class="num">~35.2k</td><td class="num"><strong>~24.1k &nbsp;(−31%)</strong></td></tr>
+      <tr><td class="k"><code>&lt;activity&gt;</code> in manifest</td><td class="num">64</td><td class="num">7</td></tr>
+      <tr><td class="k">navigation call sites</td><td class="num">247 raw <code>startActivity(</code></td><td class="num">110 <code>navigateSafe</code>/<code>navigateToHome</code></td></tr>
+      <tr><td class="k">wrong-destination guard</td><td>none</td><td><code>BaseFragment.navigateSafe()</code></td></tr>
+      <tr><td class="k">nav destinations</td><td>—</td><td class="num">44 in <code>nav_graph.xml</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>It also removes a live class of bug — the four <code>getHomeScreenIntent</code> bypasses in section 06 become structurally impossible, because PRO centralises the same decision in <code>MainActivity.kt:479-491</code> and <code>BaseFragment.navigateToHome:139-154</code>. minSdk 24 is not an obstacle; Navigation supports API 14+.</p>
+  <h3>Reasons to defer</h3>
+  <ul>
+    <li>~35k LOC touched — the largest single chunk of the whole programme, on the fleet that is actually shipping (v2.2.26) with live vendor integrations.</li>
+    <li>MF919's exclusive screens have <strong>no Pro counterpart to copy from</strong>: BNPL (6 screens), Oxpay (2), MDB/denomination vending, SR800 gating. Net-new conversions with no reference implementation.</li>
+    <li>Directly worsens R4 — a branch that large will rot at the current commit rate.</li>
+    <li>The only merge-side benefit is collapsing R3, which costs one enum plus two small translators anyway.</li>
+  </ul>
+  <p>Converting is a <em>structural</em> change only — the attend layout XML is reusable verbatim inside a Fragment, so constraint 5 is unaffected either way. Run it as a follow-on (C1) once <code>:core</code> is stable.</p>
+</section>
+
+<section id="s8">
+  <h2><span class="num">08</span>Enhancements to fold into the migration</h2><div class="sec-rule"></div>
+  <p>The merge touches the build, the package layout and the shared core anyway. These are the improvements whose cost is near-zero <em>because</em> of that, plus the ones the merge makes possible for the first time.</p>
+
+  <div class="tier">Tier A — land inside the merge · marginal cost close to zero</div>
+  <div class="tw"><table>
+    <thead><tr><th>#</th><th>enhancement</th></tr></thead>
+    <tbody>
+      <tr><td class="eid">A1</td><td><strong>Promote <code>LogRedact</code> to <code>:core</code>.</strong> Both fleets already redact card data at the known ISO sites, but OLD does it with a private <code>maskTrack2()</code>/<code>maskPanLike()</code> helper <strong>copy-pasted into 5 files</strong> (<code>iso/bsn/</code>, <code>iso/bsn_cardzone/</code>, <code>iso/gobiz/</code>, <code>iso/paydee/IsoStepsNew.kt</code>, <code>iso/IsoActivity.kt</code>), all delegating to <code>Utils.hideCardDetails</code>. PRO centralises it in <code>LogRedact.kt</code> (101 lines, 37 call sites) <strong>and adds <code>registerCardData()</code>/<code>scrubPans()</code></strong> — a catch-all scrubber for PANs printed anywhere, not just at known sites. Its own comment records that the site-by-site approach "was measured to miss 10 raw PANs". Sharing it deletes 5 duplicates and gives MF919 a backstop it lacks. Logs are uploaded to TMS from both apps, so this is compliance-relevant.</td></tr>
+      <tr><td class="eid">A2</td><td><strong>One source of truth for integration mode &mdash; DONE 2026-09-04.</strong> Both surfaces defer to <code>helpers.IntegrationMode</code> in <code>:core</code>, unit-tested. <strong>Decided rule:</strong> the flag is read <strong>by value</strong> &mdash; only boolean <code>true</code> or the string <code>"true"</code> (case-insensitive, trimmed) selects old integration. <code>"1"</code>, <code>"yes"</code>, <code>"on"</code>, an explicit <code>false</code> and a present-but-empty value do <strong>not</strong>. This reverses HTTPServer's long-standing <code>has()</code> check, so a caller explicitly sending <code>"IsOldIntegration": false</code> is now honoured as new integration. One check covers both shapes, since Gson renders a JSON boolean as <code>"true"</code> via <code>asString</code> and intent extras are <code>HashMap&lt;String,String&gt;</code>. <strong>The old-format amount fallback is kept</strong> &mdash; a caller on old integration need not send the flag at all (MF919 has no such field, so its vendors never do), and without it <code>"10.00"</code> would be read as 10 cents.</td></tr>
+      <tr><td class="eid">A3</td><td><strong>Vendor response-contract parity.</strong> Restore <code>OriTransactionRRN</code> / <code>OriTransactionApprovalCode</code> to PRO's card result; settle <code>SHC007</code> on one meaning.</td></tr>
+      <tr><td class="eid">A4</td><td><strong>Dependency hygiene &mdash; DONE.</strong> Catalog adopted (60 entries); orphan jars gone (<code>core/libs</code> holds 4, all declared); Compose stack removed. <em>Open:</em> the <code>special</code> flavor still has no source directory (I2). Adopt <code>libs.versions.toml</code> across all three modules; drop the unused Compose stack; declare <code>viewpager2</code> explicitly; delete the two orphan jars and the two stale commented-out YSDK jars.</td></tr>
+      <tr><td class="eid">A5</td><td><strong>Delete dead code while moving it.</strong> The <code>E99</code>/<code>"TODO"</code> branch; the unreachable retry cache; ~185 commented-out lines in <code>activity_unattend.xml</code>.</td></tr>
+      <tr><td class="eid">A6</td><td><strong>Fix what breaks the merge anyway.</strong> <code>Helpers/</code> vs <code>helpers/</code> case mismatch; <code>WebSocketClient.kt</code>'s directory/package mismatch; the stale <code>androidTest</code> package assertion.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="tier">Tier B — the merge makes these practical for the first time</div>
+  <div class="tw"><table>
+    <thead><tr><th>#</th><th>enhancement</th></tr></thead>
+    <tbody>
+      <tr><td class="eid">B1</td><td><strong>Unit tests on <code>:core</code> &mdash; STARTED.</strong> 57 tests across 7 files, all passing: <code>IntegrationMode</code>, <code>LogRedact</code>, <code>TerminalInfo</code>, <code>DbSchema</code>, <code>CardSchemeEnum</code>, <code>EnumLogFileName</code>, <code>EnumResponseCode</code>. At audit time there were <strong>zero real tests in either repo</strong> — one stale instrumented example in PRO, and OLD's test dependencies are all commented out with no <code>test</code>/<code>androidTest</code> source set at all. <code>:core</code> is pure logic with no UI, so it is the first place tests are cheap. Highest-value targets are what has already caused production bugs: amount conversion (RM↔cents at the <code>TransactionParser</code>/<code>SaleUseCase</code> boundary), <code>TransactionType</code> routing per mode, ISO field build/parse, TMS model de/serialisation, and the <code>DbHandler.selectListData</code> TypeToken trap.</td></tr>
+      <tr><td class="eid">B2</td><td><strong>CI &mdash; DONE 2026-09-04.</strong> <code>.github/workflows/build.yml</code> builds <code>:core</code>, runs its unit tests, builds both apps and uploads the APKs. <strong>Gap (I1):</strong> it builds only the <code>sharecomm</code> flavor of ten. Neither repo had any CI config. One pipeline — build <code>:core</code>, run its tests, assemble both APKs — is the main structural payoff of the monorepo, and it is what stops the duplicate-commit pattern.</td></tr>
+      <tr><td class="eid">B3</td><td><strong>Release signing &mdash; resolved 2026-09-04: by design, not a gap.</strong> Both projects sign all three build types, including <code>release</code>, with the debug keystore. That is deliberate and load-bearing: distribution is via <strong>TMS, not the Play Store</strong>; a <strong>manufacturer signing layer</strong> is applied before upload to TMS and is the signature the fleet actually trusts; and because Android only permits an in-place update from an APK signed with the <em>same</em> key, moving <code>release</code> onto a separate CI keystore <strong>would break app updates on every deployed terminal</strong>. Now recorded on the release block of both <code>build.gradle.kts</code> files and in <code>docs/building.md</code>, because a security review will flag the debug certificate and someone would otherwise &ldquo;fix&rdquo; it. No action.</td></tr>
+      <tr><td class="eid">B4</td><td><strong>Variant filter.</strong> 2 apps × 10 client flavors × 3 build types. Filter to what is actually shipped to keep sync and CI times sane.</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="tier">Tier C — deliberate follow-on projects, after <code>:core</code> is stable</div>
+  <ul>
+    <li><span class="eid">C1</span> — MF919 Activity→Fragment conversion (section 07).</li>
+    <li><span class="eid">C2</span> — Migration consolidation: squash OLD's 28 migrations into a baseline schema.</li>
+    <li><span class="eid">C3</span> — Real HTTP routing. <code>serve()</code> <strong>never reads <code>session.uri</code></strong> in either project — any path and any method hits the same handler. Add versioned routes while keeping the legacy catch-all for existing vendors.</li>
+    <li><span class="eid">C4</span> — Feature reconciliation from R6, decided per feature rather than in bulk.</li>
+  </ul>
+  <div class="callout">
+    <span class="lbl">Explicitly out of scope during the merge</span>
+    <p>Attend layout changes (constraint 5), any vendor-visible contract change beyond A3, <code>TransactionType</code> renumbering, and DB schema changes beyond what a move requires.</p>
+  </div>
+</section>
+
+<section id="s9">
+  <h2><span class="num">09</span>Performance &amp; threading — during, or after?</h2><div class="sec-rule"></div>
+  <p><strong>Verdict: split it along the module boundary.</strong> The shared core's threading is decided <em>inside</em> the merge because reconciling those files forces the decision; the whole-app performance audit runs <em>after</em>, against a baseline captured <em>before</em>.</p>
+  <div class="tw"><table>
+    <thead><tr><th>measure</th><th class="num c-old">OLD</th><th class="num c-pro">PRO</th></tr></thead>
+    <tbody>
+      <tr><td>raw <code>Thread(</code></td><td class="num"><strong>148</strong></td><td class="num">36</td></tr>
+      <tr><td><code>runOnUiThread</code></td><td class="num"><strong>152</strong></td><td class="num">31</td></tr>
+      <tr><td><code>Handler(</code></td><td class="num">143</td><td class="num">99</td></tr>
+      <tr><td><code>Thread.sleep</code> / <code>DelayMili</code></td><td class="num"><strong>79</strong></td><td class="num">37</td></tr>
+      <tr><td><code>ServiceHolder</code> mutable <code>var</code>s</td><td class="num">48 &nbsp;(2 <code>@Volatile</code>)</td><td class="num">40 &nbsp;(6 <code>@Volatile</code>)</td></tr>
+      <tr><td><code>Atomic*</code></td><td class="num">23</td><td class="num">33</td></tr>
+      <tr><td><code>Mutex</code> / <code>withLock</code></td><td class="num"><strong>0</strong></td><td class="num"><strong>0</strong></td></tr>
+      <tr><td><code>GlobalScope</code></td><td class="num">0</td><td class="num">0</td></tr>
+    </tbody>
+  </table></div>
+  <p>PRO is roughly 4× leaner on raw threads and blocking sleeps for a comparable app; most of OLD's excess sits in the Activity layer.</p>
+
+  <h3>Decide inside the merge — unavoidable</h3>
+  <ul>
+    <li><strong><code>ServiceHolder</code> (Phase 2).</strong> A global mutable singleton with ~48 <code>var</code>s, almost no <code>@Volatile</code>, no locking anywhere, written from the nanohttpd worker thread, the ISO thread, the schedulers and the UI thread. Two divergent copies cannot be merged without stating its concurrency contract.</li>
+    <li><strong><code>HTTPServer</code> (Phase 3).</strong> OLD busy-waits <code>while (responseMsg == null &amp;&amp; …) { Utils.DelayMili(100) }</code> for up to 300 s on the nanohttpd worker thread; PRO uses <code>CompletableFuture.get(timeout)</code> plus an in-flight claim with takeover. PRO's model is strictly better and adopting it is forced anyway.</li>
+    <li><strong><code>AppServices</code> lifecycle and scheduler threading</strong> (Phase 2–3).</li>
+    <li><strong>Log I/O.</strong> <code>AsyncLogWriter</code> is already async in both — share one copy.</li>
+    <li><strong>DB access model.</strong> WAL was enabled and then reverted in OLD (<span class="mono">Migrate isoDB to dbHandler and sqllite to wal</span>, then <span class="mono">Remove wal db</span>). Settle it once in <code>:core</code>, with the reason recorded.</li>
+  </ul>
+
+  <h3>Defer to a separate audit afterwards</h3>
+  <ul>
+    <li>OLD's 148 raw threads / 152 <code>runOnUiThread</code> / 79 blocking sleeps are concentrated in the per-app Activity layer the merge never touches — and a large share disappears if C1 proceeds.</li>
+    <li>UI jank (the <span class="mono">keypad ui lag</span> and <span class="mono">Fix Keypad debounce crash issue</span> commits), cold-start time, memory, ANR profile.</li>
+    <li>A whole-app StrictMode / systrace / thread-contention pass.</li>
+  </ul>
+  <p><strong>Why defer rather than bundle:</strong> the merge is already ~136k LOC of movement. A concurrency rewrite layered on top makes regressions unbisectable — a field incident could not be attributed to the move versus the threading change. On payment terminals that ambiguity is expensive.</p>
+  <div class="note"><p><strong>Do before Phase 0 — baseline capture (~1 day).</strong> Measure on both apps and record the numbers: cold-start time, transaction round-trip (tap → result), HTTP response latency, log-write I/O throughput, and a StrictMode run snapshotting current violations. Without this there is no way to answer "it got slower after the merge" with evidence — nor to demonstrate that adopting PRO's <code>HTTPServer</code> model actually improved MF919.</p></div>
+</section>
+
+<section id="s10">
+  <h2><span class="num">10</span>Recommended phasing</h2><div class="sec-rule"></div>
+  <div class="tw"><table>
+    <thead><tr><th>phase</th><th>scope</th><th>enhancements folded in</th></tr></thead>
+    <tbody>
+      <tr><td class="pid">pre-0</td><td>Baseline capture on both apps (section 09).</td><td>—</td></tr>
+      <tr><td class="pid">0</td><td>New repo; both projects imported as subtrees preserving history; unified toolchain; two app modules building green against an empty <code>:core</code>.</td><td><span class="eid">A4 A6 B2 B3 B4</span></td></tr>
+      <tr><td class="pid">1</td><td>Move <code>helpers</code> + <code>tms</code> + <code>enums</code> + jars into <code>:core</code>. Package-neutral, near-zero risk.</td><td><span class="eid">A1 A5</span> + first <span class="eid">B1</span> tests</td></tr>
+      <tr><td class="pid">2</td><td><code>database</code>, <code>scheduler</code>, <code>data_enum</code>, <code>java/utils</code>, <code>java/device</code>. Reconcile <code>ServiceHolder</code> — 95 symbols common, 33 old-only, 13 pro-only, largely additive on each side.</td><td><span class="eid">B1</span></td></tr>
+      <tr><td class="pid">3</td><td><code>HTTPServer</code> behind the <code>supportsNewIntegration</code> flag and the <code>AppScreen</code> navigation seam; then the ISO stack.</td><td><span class="eid">A2 A3 B1</span></td></tr>
+      <tr><td class="pid">4+</td><td>Follow-on projects, individually scoped.</td><td><span class="eid">C1–C4</span></td></tr>
+    </tbody>
+  </table></div>
+  <div class="note"><p><strong>Exit criteria for every phase:</strong> both APKs installable, and a real transaction driven on hardware — a card sale and a void per app, plus one vendor-intent round trip per app proving the <code>TransactionReceiver</code> contracts are untouched.</p></div>
+</section>
+
+<section id="s11">
+  <h2><span class="num">11</span>Open questions for the team</h2><div class="sec-rule"></div>
+  <ol class="q">
+    <li><strong>Release signing &mdash; answered.</strong> Intentional. A manufacturer signing layer is applied before upload to TMS, distribution does not go via the Play Store, and switching <code>release</code> to a separate CI keystore would break in-place updates on deployed terminals. See B3.</li>
+    <li><strong>Android 7 fleet &mdash; answered.</strong> Yes, terminals on Android 7 are still in the field, so <code>:core</code> stays at <strong>minSdk 24</strong> as a hard constraint. Shared code must compile and run at API 24; <code>java.time</code> and other API 26+ APIs stay out of <code>:core</code> unless desugaring is introduced deliberately.</li>
+    <li><strong>Feature reconciliation (R6) &mdash; mostly answered.</strong> <strong>BNPL</strong> and <strong>Oxpay</strong> stay MF919-only (part of why MF919 carries 21 tables to Pro's 19). <strong>MDB / vending is to be ported into Pro</strong> &mdash; ~1217 LOC across <code>MdbController</code> and <code>MorefunMdbTransport</code> plus 5 consumer sites; Pro already declares <code>UiEvent.MdbStateChange</code> and <code>MdbVendingPrice</code> in <code>AppBus</code> but has no controller behind them, so this is net-new feature work to scope separately from the <code>:core</code> phases. <strong>SR800 remains open</strong> &mdash; 14 files gate on <code>ServiceHolder.SR800_MODEL</code>.</li>
+    <li><strong><code>SHC007</code> &mdash; answered.</strong> MF919's wording wins and the cause is appended. <code>ResponseCode</code> stays <code>SHC007</code>; <code>ResponseDescription</code> stays <strong>Terminal System Error</strong> (31 sites today vs Pro's 14, so string-matching vendors are unaffected); and when the call arrives via POS integration / App-to-App with the product unavailable it becomes <strong>Terminal System Error (Product Is Not Configured)</strong>. Pro's standalone wording becomes a parenthetical qualifier rather than a replacement. Lands with A3 in Phase 3.</li>
+  </ol>
+</section>
+
+<section id="s12">
+  <h2><span class="num">12</span>Decision — repos and models stay per-app</h2><div class="sec-rule"></div>
+  <div class="verdict-line"><b>Decided 2026-09-07.</b><span>Shared storage engine, separate repositories and models.</span></div>
+
+  <p><code>kotlin/database/repo</code> (19 MF919 / 16 Pro) and <code>kotlin/database/model</code> (19 / 17) <strong>do not move into <code>:core</code></strong>. Both apps share the storage engine — <code>DbHandler</code> behind the <code>DbTable</code> / <code>DbSchema</code> seam, already in <code>:core</code> — but each keeps its own repositories and models, because the two products are expected to diverge in data design.</p>
+
+  <h3>What that settles about the ISO stack</h3>
+  <p>ISO imports back into its own app on both sides:</p>
+  <div class="tw"><table>
+    <thead><tr><th>ISO imports</th><th class="num c-old">MF919</th><th class="num c-pro">Pro</th></tr></thead>
+    <tbody>
+      <tr><td><code>java.activity.*</code> — Utils, base classes</td><td class="num">31</td><td class="num">30</td></tr>
+      <tr><td><code>kotlin.database.repo.*</code></td><td class="num">22</td><td class="num">22</td></tr>
+      <tr><td><code>kotlin.database.model.*</code></td><td class="num">7</td><td class="num">7</td></tr>
+      <tr><td><code>kotlin.data_enum.variables.*</code> — <code>TransData</code></td><td class="num">5</td><td class="num">5</td></tr>
+    </tbody>
+  </table></div>
+  <p>With repos and models staying per-app, ISO <strong>cannot move by relocation</strong>. It can only be shared behind a data seam, the way MDB was shared behind <code>MdbHost</code> — and the surface is small enough for that to be realistic: about <strong>15 distinct operations</strong>, against <code>MdbHost</code>'s 14. <code>IsoBatchInfoRepo.getBatchInfo</code> alone accounts for 88 of MF919's calls and 52 of Pro's.</p>
+  <div class="callout">
+    <span class="lbl">But the two stacks disagree on counter allocation</span>
+    <p>That has to be resolved before any sharing — see <span class="rid">R8</span> in the register and section 13. Until it is, ISO stays per-app.</p>
+  </div>
+</section>
+
+<section id="s13">
+  <h2><span class="num">13</span>ISO stack — forming separates, sending does not</h2><div class="sec-rule"></div>
+  <p>Section 03's hard tier names <code>IsoActivity</code>, and the measurement below <em>confirms</em> that placement. What it never classified is the four <strong><code>IsoStepsNew</code></strong> files — they appear in the audit only inside <span class="eid">A1</span>, as the sites holding a copy-pasted <code>maskTrack2()</code>. This section tiers them, and they land at the opposite end of the scale from <code>IsoActivity</code>.</p>
+
+  <div class="figs">
+    <div class="fig"><div class="v">93<span style="font-size:15px">%</span></div><div class="l">identical cross-app, per acquirer file</div></div>
+    <div class="fig"><div class="v">~1140</div><div class="l">diff lines <em>between</em> acquirers — real protocol differences</div></div>
+    <div class="fig"><div class="v">5.8k</div><div class="l">lines per app that become shareable</div></div>
+    <div class="fig"><div class="v">3</div><div class="l">functional differences to reconcile</div></div>
+  </div>
+
+  <div class="tw"><table>
+    <thead><tr><th>unit</th><th class="num">cross-app diff</th><th class="num">of</th><th>share?</th></tr></thead>
+    <tbody>
+      <tr><td><code>CardDataTags.kt</code></td><td class="num">8</td><td class="num">68</td><td>yes, trivially</td></tr>
+      <tr><td><code>bsn/IsoStepsNew.kt</code></td><td class="num">90</td><td class="num">1460</td><td><strong>yes</strong></td></tr>
+      <tr><td><code>bsn_cardzone/IsoStepsNew.kt</code></td><td class="num">106</td><td class="num">1460</td><td><strong>yes</strong></td></tr>
+      <tr><td><code>gobiz/IsoStepsNew.kt</code></td><td class="num">119</td><td class="num">1463</td><td><strong>yes</strong></td></tr>
+      <tr><td><code>paydee/IsoStepsNew.kt</code></td><td class="num">115</td><td class="num">1448</td><td><strong>yes</strong></td></tr>
+      <tr><td><code>IsoHelperNew.kt</code></td><td class="num">195</td><td class="num">243</td><td>no — 80% drifted</td></tr>
+      <tr><td><code>IsoActivity.kt</code></td><td class="num">1103</td><td class="num">3044</td><td>later — the <em>sending</em> half</td></tr>
+      <tr><td><em>for contrast:</em> <code>HTTPServer.kt</code></td><td class="num">2535</td><td class="num">~2000</td><td>no — more different than same</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>The four acquirer variants differ from <strong>each other</strong> by ~1,130–1,166 lines. Those are genuine protocol differences and stay separate. But each differs from its Pro twin by only ~100 lines, which decompose into exactly three functional items — and Pro is ahead on all three:</p>
+  <ul>
+    <li><code>certLog { }</code> — a lazy, cert-only lambda — versus an unconditional <code>helperLog.appendLine</code>.</li>
+    <li><code>LogRedact.track2()</code> from <code>:core</code> versus a local <code>maskTrack2()</code> copy — <span class="eid">A1</span>.</li>
+    <li><code>IsoBatchInfoRepo.allocateCounter</code> versus open-coded get/increment/put — <span class="rid">R8</span>.</li>
+  </ul>
+  <p>The remainder is comments and imports.</p>
+
+  <div class="callout">
+    <span class="lbl">The prerequisite is R8, not a seam</span>
+    <p>Once MF919 allocates counters atomically and uses the shared redactor, these five files are shareable nearly verbatim — roughly <strong>5,800 lines per app</strong>, at a fraction of <code>HTTPServer</code>'s risk. <code>IsoActivity</code> is the sending/orchestration half and holds the 22 repository calls, so it needs the ~15-method data seam from section 12 — which the repos-stay-per-app decision makes mandatory rather than optional.</p>
+  </div>
+  <p><strong>Ordering:</strong> <span class="rid">R8</span> → <span class="eid">A1</span> in MF919 → share the forming files → seam + <code>IsoActivity</code>. <code>IsoHelperNew</code> needs its own reconciliation before it can go either way.</p>
+</section>
+
+<section id="s14">
+  <h2><span class="num">14</span>Infrastructure audit</h2><div class="sec-rule"></div>
+  <p><strong>Closed since the original audit:</strong> CI exists and runs both apps (<span class="eid">B2</span>); version catalog adopted, 60 entries; orphan jars gone — <code>core/libs</code> holds 4, all declared; Compose BOM removed (<span class="eid">A4</span>); signing resolved and documented (<span class="eid">B3</span>).</p>
+
+  <div class="tw"><table>
+    <thead><tr><th>#</th><th>finding</th><th>severity</th></tr></thead>
+    <tbody>
+      <tr><td class="rid">I1</td><td><strong>CI builds 1 of 10 client flavors</strong> — <code>sharecomm</code> only. Nine flavors have their own <code>src/</code> source sets — oxpay, bsn, glypay, rm, baguspos, paydibs, payex, rnd — and none is ever compiled by CI. Flavor source sets are exactly where per-client bugs hide, so this is the weakest point in the pipeline.</td><td><span class="sev high">high</span></td></tr>
+      <tr><td class="rid">I2</td><td><code>special</code> flavor declared in both apps with no <code>src/special/</code> directory. Open since the original audit — give it sources or delete the flavor.</td><td><span class="sev low">low</span></td></tr>
+      <tr><td class="rid">I3</td><td><span class="eid">B4</span> variant filter not done — 10 flavors × 3 build types × 2 apps = <strong>60 variants</strong>.</td><td><span class="sev med">medium</span></td></tr>
+      <tr><td class="rid">I4</td><td>No lint or static-analysis step in CI.</td><td><span class="sev med">medium</span></td></tr>
+      <tr><td class="rid">I5</td><td>JDK drift — CI pins 17, local builds run on Android Studio's bundled JDK 21, <code>compileOptions</code> targets Java 11. All three satisfy AGP 8.13, but the combination is untested.</td><td><span class="sev low">low</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Local builds were reporting FAILED on success</h3>
+  <div class="note"><p>Gradle's experimental HTML problems report writes to a single file in the <strong>root</strong> project's build directory. Any process holding it open makes every build exit non-zero with <code>AccessDeniedException: build/reports/problems/problems-report.html</code> — long after all real work has succeeded — and Android Studio's daemon holds it. A CLI build run with the IDE open therefore reported <code>FAILED</code> on a green build, which on payment code is worse than no signal: it hides genuine failures. Disabled via <code>org.gradle.problems.report=false</code> in <code>gradle.properties</code>, with the reasoning recorded there. <strong>CI was never affected</strong> — it runs no IDE — so the pipeline has been honest throughout.</p></div>
+</section>
+
+<section id="s15">
+  <h2><span class="num">15</span><code>SHC007</code> — recommendation</h2><div class="sec-rule"></div>
+  <p>The <span class="eid">A3</span> decision settled product-not-configured. A <em>separate</em> collision remains: <code>SHC007</code> carries four descriptions, and one of them wants the opposite client behaviour from the others. The question a vendor actually needs answered is <em>“might the transaction have been processed?”</em>, because that decides whether a retry is safe.</p>
+
+  <div class="tw"><table>
+    <thead><tr><th>code + description</th><th>processed?</th><th>correct client action</th></tr></thead>
+    <tbody>
+      <tr><td><code>SHC000</code> System Busy</td><td><strong>no</strong> — rejected outright</td><td>retry immediately, safe</td></tr>
+      <tr><td><code>SHC007</code> Terminal System Error</td><td>probably not</td><td>escalate</td></tr>
+      <tr><td><code>SHC007</code> Unexpected Error</td><td>probably not</td><td>escalate</td></tr>
+      <tr><td><code>SHC007</code> <strong>Terminal Response Timeout</strong> <em>(Pro only)</em></td><td><strong>possibly yes</strong></td><td><strong>query first, then retry</strong></td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout">
+    <span class="lbl">Why the obvious shortcut is worse</span>
+    <p>Folding the timeout into <code>SHC000</code> would tell a vendor that a <em>possibly completed</em> transaction is safe to retry blindly — risking double charges. That is worse than the present ambiguity.</p>
+  </div>
+
+  <h3>Recommended, in order</h3>
+  <ol class="q">
+    <li><strong>Now — documentation only, no code change.</strong> State in the vendor integration guide that <code>SHC007</code> with description <code>Terminal Response Timeout</code> means <em>query before retry</em>. Zero risk, zero contract change, and it resolves the ambiguity for any integrator who reads the guide. <code>enums.EnumResponseCode</code> already records the collision, and <code>EnumResponseCodeTest</code> asserts that it <em>currently exists</em> — so the issue fails loudly when someone resolves it, rather than being quietly forgotten.</li>
+    <li><strong>At the next planned contract revision — give the timeout its own code</strong> (e.g. <code>SHC012</code>), with notice to integrators. This is the correct end state, but it is a vendor-visible addition and a strict code whitelist would reject an unknown value, so it needs coordination rather than a quiet edit.</li>
+  </ol>
+  <p><strong>Not recommended:</strong> a parallel <code>Retryable</code> field. It splits the contract across two places, existing vendors ignore it, and step 2 would still be needed eventually.</p>
+</section>
+
+
+<footer>
+  <p><strong>How these numbers were produced.</strong> Divergence counts come from <code>norm.sh</code>, which ships beside this document and writes <code>ident.txt</code>, <code>near.txt</code>, <code>oldonly.txt</code> and <code>proonly.txt</code> beside itself — re-run it at any time.</p>
+  <p>All file paths, line numbers and version numbers were re-checked against the working trees on 2026-09-03. Verified directly: OLD has <strong>0</strong> occurrences of any new-integration token; both projects' <code>release</code> build type uses <code>signingConfigs.debug</code>; the 5 duplicate <code>maskTrack2</code>/<code>maskPanLike</code> copies in OLD; PRO manifest line 82 and OLD manifest line 215.</p>
+  <p><strong>Provenance.</strong> Neither source project's working tree was ever modified and nothing was committed in either repo. The merge itself lives in a third repository; sections 12–15 record measurements and decisions taken there between 2026-09-04 and 2026-09-07, while phases 0–2 were landing and phase 3 was in progress.</p>
+</footer>
+
+</div>
+
+</body></html>

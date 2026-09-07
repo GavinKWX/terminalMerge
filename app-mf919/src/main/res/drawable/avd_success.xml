@@ -1,0 +1,12 @@
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_success_vector">
+
+    <target
+        android:name="circle"
+        android:animation="@animator/circle_draw"/>
+
+    <target
+        android:name="tick"
+        android:animation="@animator/tick_draw"/>
+
+</animated-vector>

@@ -1,0 +1,16 @@
+merchantName1=ShareCommerce
+merchantAddr1=D-02-07 Aurora Place
+mid_1=000000000012251
+tid_1=20003707
+ip1=nac0.gobiz.com.my
+port1=5005
+ip2=nac0.gobiz.com.my
+port2=5005
+timeoutms=30000
+settlet1=000000
+settlet2=000000
+settlet3=000000
+waitcardms=60000
+qrUrl=
+qrMid=
+qrTid=

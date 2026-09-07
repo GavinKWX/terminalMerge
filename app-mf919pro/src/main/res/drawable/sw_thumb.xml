@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true">
+        <layer-list>
+            <item>
+                <shape android:shape="oval">
+                    <padding android:bottom="5dp"
+                        android:top="5dp"
+                        android:right="5dp"
+                        android:left="5dp"/>
+                    <solid android:color="@color/colorTransparent"/>
+                    <size android:height="30dp"
+                        android:width="30dp"/>
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="oval">
+                    <gradient android:type="linear"
+                        android:startColor="#F0F0F0"
+                        android:endColor="#9E9E9E"/>
+                    <stroke android:color="#FEFEFE"
+                        android:width="0.5dp"/>
+                    <padding android:bottom="3dp"
+                        android:top="3dp"
+                        android:right="3dp"
+                        android:left="3dp"/>
+                    <size android:height="30dp"
+                        android:width="30dp"/>
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="oval">
+                    <gradient android:type="linear"
+                        android:startColor="#D5D4D4"
+                        android:endColor="#D5D4D4"/>
+                    <stroke android:color="#D5D4D4"
+                        android:width="1dp"/>
+                    <size android:height="30dp"
+                        android:width="30dp"/>
+                </shape>
+            </item>
+
+
+        </layer-list>
+    </item>
+    <item android:state_checked="false">
+        <layer-list>
+            <item>
+                <shape android:shape="oval">
+                    <padding android:bottom="5dp"
+                        android:top="5dp"
+                        android:right="5dp"
+                        android:left="5dp"/>
+                    <solid android:color="@color/colorTransparent"/>
+                    <size android:height="30dp"
+                        android:width="30dp"/>
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="oval">
+                    <gradient android:type="linear"
+                        android:startColor="#F0F0F0"
+                        android:endColor="#9E9E9E"/>
+                    <stroke android:color="#FEFEFE"
+                        android:width="0.5dp"/>
+                    <corners android:radius="100dp"/>
+                    <padding android:bottom="3dp"
+                        android:top="3dp"
+                        android:right="3dp"
+                        android:left="3dp"/>
+                    <size android:height="30dp"
+                        android:width="30dp"/>
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="oval">
+                    <gradient android:type="linear"
+                        android:startColor="#D5D4D4"
+                        android:endColor="#D5D4D4"/>
+                    <stroke android:color="#D5D4D4"
+                        android:width="1dp"/>
+                    <size android:height="30dp"
+                        android:width="30dp"/>
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+</selector>

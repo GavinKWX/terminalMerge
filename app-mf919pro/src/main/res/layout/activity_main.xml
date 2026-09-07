@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".kotlin.activity.MainActivity">
+
+    <!-- Fragment container -->
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/nav_host_fragment"
+        android:name="androidx.navigation.fragment.NavHostFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:defaultNavHost="true" />
+
+    <!-- Wrapper for nav + home button -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/bottomNavWrapper"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:visibility="gone">
+
+        <!-- Background + side buttons + text -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/bottomNavGroup"
+            android:layout_width="match_parent"
+            android:layout_height="90dp"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <!-- Background image -->
+            <ImageView
+                android:id="@+id/bottomNavImageView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="fitXY"
+                android:src="@drawable/ai_navbg" />
+
+            <!-- More button (left) -->
+            <ImageView
+                android:id="@+id/mfDeskBtn"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_marginStart="40dp"
+                android:layout_marginBottom="20dp"
+                android:src="@drawable/ai_icon07"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
+            <!-- Settings button (right) -->
+            <ImageView
+                android:id="@+id/settingBtn"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_marginEnd="40dp"
+                android:layout_marginBottom="20dp"
+                android:src="@drawable/ai_icon08"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+            <!-- Terminal info -->
+            <TextView
+                android:id="@+id/termInfoTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="3dp"
+                android:gravity="center"
+                android:text="Serial No - \nVersion - "
+                android:textColor="@color/black"
+                android:textSize="10sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- Floating home button (center, overlapping) -->
+        <LinearLayout
+            android:id="@+id/homeBtnContainer"
+            android:layout_width="95dp"
+            android:layout_height="95dp"
+            android:layout_marginBottom="30dp"
+            android:background="@drawable/ai_circle_theme_bg"
+            android:gravity="center"
+            android:elevation="10dp"
+            app:layout_constraintBottom_toBottomOf="@id/bottomNavGroup"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <ImageView
+                android:id="@+id/homeBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="20dp"
+                android:src="@drawable/ai_home" />
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

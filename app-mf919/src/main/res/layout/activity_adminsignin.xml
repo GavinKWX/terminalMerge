@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/layout_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/LayoutColor"
+    android:gravity="center">
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@color/colorTransparent_1"
+        android:gravity="center">
+
+        <LinearLayout
+            android:id="@+id/LayoutMain_1"
+            android:layout_width="match_parent"
+            android:layout_height="107dp"
+            android:background="@mipmap/logo"
+            android:orientation="vertical">
+        </LinearLayout>
+
+        <androidx.gridlayout.widget.GridLayout
+            android:id="@+id/gridLayout2"
+            android:layout_width="match_parent"
+            android:layout_height="300dp"
+            app:columnCount="2">
+
+            <LinearLayout
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:gravity="center"
+                android:orientation="vertical"
+                app:layout_columnWeight="1"
+                app:layout_rowWeight="1"
+                android:background="@drawable/custom_ripple_with_stoke"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="5dp"
+                android:layout_marginRight="5dp"
+                android:layout_marginLeft="5dp">
+
+                <ImageView
+                    android:id="@+id/imageEdit"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:background="@mipmap/attend_icon"
+                    android:contentDescription="@string/todo"
+                    android:padding="100dp" />
+
+                <TextView
+                    android:id="@+id/textViewTerminalPay1"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:gravity="center"
+                    android:text="@string/attend_machine"
+                    android:textColor="@color/dialogMsg"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:gravity="center"
+                android:orientation="vertical"
+                app:layout_columnWeight="1"
+                app:layout_rowWeight="1"
+                android:background="@drawable/custom_ripple_with_stoke"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="5dp"
+                android:layout_marginRight="5dp"
+                android:layout_marginLeft="5dp">
+
+                <ImageView
+                    android:id="@+id/imageIso"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:background="@mipmap/unattended_icon"
+                    android:contentDescription="@string/todo" />
+
+                <TextView
+                    android:id="@+id/textViewTerminalPay2"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:gravity="center"
+                    android:text="@string/unattended_machine"
+                    android:textColor="@color/ButtonWordColor"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:gravity="center"
+                android:orientation="vertical"
+                app:layout_columnWeight="1"
+                app:layout_rowWeight="1"
+                android:background="@drawable/custom_ripple_with_stoke"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="5dp"
+                android:layout_marginRight="5dp"
+                android:layout_marginLeft="5dp">
+
+                <ImageView
+                    android:id="@+id/imageMpos"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:background="@mipmap/unattended_icon"
+                    android:contentDescription="@string/todo" />
+
+                <TextView
+                    android:id="@+id/textViewMPos"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:gravity="center"
+                    android:text="@string/mobile_pos"
+                    android:textColor="@color/ButtonWordColor"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+        </androidx.gridlayout.widget.GridLayout>
+
+
+        <!--ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="540dp"
+            android:layout_marginTop="20dp">
+
+            <androidx.gridlayout.widget.GridLayout
+                android:id="@+id/GL1"
+                android:layout_width="match_parent"
+                android:layout_height="540dp"
+                android:scrollbars="vertical"
+                app:columnCount="2"
+                android:layout_gravity="center_horizontal">
+
+                <LinearLayout
+                    android:id="@+id/LLSale"
+                    android:layout_width="180dp"
+                    android:layout_height="120dp"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageButton
+                        android:id="@+id/imageButton1"
+                        android:layout_width="60dp"
+                        android:layout_height="60dp"
+                        android:background="@mipmap/sale_icon"
+                        android:contentDescription="@string/todo"
+                        android:onClick="startSale" />
+
+                    <TextView
+                        android:id="@+id/textViewTerminalPay"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="@string/sale1"
+                        android:textColor="@color/colorWhite"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/LLSettle"
+                    android:layout_width="180dp"
+                    android:layout_height="120dp"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageButton
+                        android:id="@+id/imageButtonSettel"
+                        android:layout_width="60dp"
+                        android:layout_height="60dp"
+                        android:background="@mipmap/settle_2"
+                        android:contentDescription="@string/todo"
+                        android:onClick="startSettle" />
+
+                    <TextView
+                        android:id="@+id/textViewScanPay"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="@string/settlement"
+                        android:textColor="@color/colorWhite"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/LLVoid"
+                    android:layout_width="180dp"
+                    android:layout_height="120dp"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageButton
+                        android:id="@+id/imageButtonVoid"
+                        android:layout_width="60dp"
+                        android:layout_height="60dp"
+                        android:background="@mipmap/void23"
+                        android:contentDescription="@string/todo"
+                        android:onClick="startVoid" />
+
+                    <TextView
+                        android:id="@+id/textViewVoid"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="@string/voids"
+                        android:textColor="@color/colorWhite"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/LLRefund"
+                    android:layout_width="180dp"
+                    android:layout_height="120dp"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageButton
+                        android:id="@+id/imageRefundSale"
+                        android:layout_width="62dp"
+                        android:layout_height="60dp"
+                        android:background="@mipmap/refund_3"
+                        android:contentDescription="@string/todo"
+                        android:onClick="startRefund" />
+
+                    <TextView
+                        android:id="@+id/textViewRefund"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="@string/refund"
+                        android:textColor="@color/colorWhite"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/LLPreAuth"
+                    android:layout_width="180dp"
+                    android:layout_height="120dp"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageButton
+                        android:id="@+id/imagePreAu"
+                        android:layout_width="60dp"
+                        android:layout_height="60dp"
+                        android:background="@mipmap/preauth_21"
+                        android:contentDescription="@string/todo"
+                        android:onClick="startPreAuth" />
+
+                    <TextView
+                        android:id="@+id/textPreAu"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="@string/pre_auth"
+                        android:textColor="@color/colorWhite"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/LLSetting"
+                    android:layout_width="180dp"
+                    android:layout_height="120dp"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageButton
+                        android:id="@+id/imageButton2"
+                        android:layout_width="60dp"
+                        android:layout_height="60dp"
+                        android:background="@mipmap/setting_31"
+                        android:contentDescription="@string/todo"
+                        android:onClick="go2Setting" />
+
+                    <TextView
+                        android:id="@+id/textViewSetting"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:baselineAligned="false"
+                        android:gravity="center"
+                        android:text="@string/setting"
+                        android:textColor="@color/colorWhite"
+                        android:textSize="22sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+            </androidx.gridlayout.widget.GridLayout>
+
+        </ScrollView-->
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/dialogBackground"
+            android:orientation="vertical"
+            android:padding="10dp"
+            tools:ignore="UselessParent">
+
+            <TextView
+                android:id="@+id/textView1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/enter_your_password"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:textColor="@color/dialogTitle" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@mipmap/input_password02"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/editTextDialogUserInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPassword"
+                    android:autofillHints=""
+                    tools:ignore="LabelFor">
+                    <requestFocus />
+                </EditText>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+
+    </LinearLayout>
+
+</RelativeLayout>

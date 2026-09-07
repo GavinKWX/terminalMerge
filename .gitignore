@@ -1,0 +1,36 @@
+# Built application files
+*.apk
+*.ap_
+*.aab
+
+# Dex / class files
+*.dex
+*.class
+
+# Generated
+bin/
+gen/
+build/
+**/build/
+/captures
+.externalNativeBuild
+.cxx
+
+# Local configuration (sdk path, etc)
+local.properties
+
+# Gradle / IDE
+.gradle/
+.idea/
+*.iml
+*.iws
+.classpath
+.project
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Claude Code settings
+.claude/settings.json
+.claude/settings.local.json

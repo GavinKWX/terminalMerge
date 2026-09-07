@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/LayoutColor">
+
+    <androidx.gridlayout.widget.GridLayout
+        android:id="@+id/gridLayout2"
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:layout_marginTop="40dp"
+        app:columnCount="3"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.0">
+
+        <LinearLayout
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:gravity="center"
+            android:orientation="vertical"
+            app:layout_columnWeight="1"
+            app:layout_rowWeight="1"
+            android:background="@drawable/button_border"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="5dp"
+            android:layout_marginRight="5dp"
+            android:layout_marginLeft="5dp"
+            android:onClick="startEditor">
+
+            <ImageButton
+                android:id="@+id/imageEdit"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:background="@mipmap/parameterediticon"
+                android:contentDescription="@string/todo"
+                android:onClick="startEditor"
+                android:padding="100dp" />
+
+            <TextView
+                android:id="@+id/textViewTerminalPay1"
+                android:layout_width="match_parent"
+                android:layout_height="72dp"
+                android:gravity="center"
+                android:text="@string/edit_parameter"
+                android:textColor="@color/ButtonWordColor"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:gravity="center"
+            android:orientation="vertical"
+            app:layout_columnWeight="1"
+            app:layout_rowWeight="1"
+            android:background="@drawable/button_border"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="5dp"
+            android:layout_marginRight="5dp"
+            android:layout_marginLeft="5dp"
+            android:onClick="startIso">
+
+            <ImageButton
+                android:id="@+id/imageIso"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:background="@mipmap/isomsgicon"
+                android:contentDescription="@string/todo"
+                android:onClick="startIso" />
+
+            <TextView
+                android:id="@+id/textViewTerminalPay2"
+                android:layout_width="match_parent"
+                android:layout_height="72dp"
+                android:gravity="center"
+                android:text="@string/last_iso_message"
+                android:textColor="@color/ButtonWordColor"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:gravity="center"
+            android:orientation="vertical"
+            app:layout_columnWeight="1"
+            app:layout_rowWeight="1"
+            android:background="@drawable/button_border"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="5dp"
+            android:layout_marginRight="5dp"
+            android:layout_marginLeft="5dp"
+            android:onClick="start2EditTable">
+
+            <ImageButton
+                android:id="@+id/imageAddTable"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:background="@mipmap/tableviewericon"
+                android:contentDescription="@string/todo"
+                android:onClick="start2EditTable" />
+
+            <TextView
+                android:id="@+id/textViewTerminalPay3"
+                android:layout_width="match_parent"
+                android:layout_height="72dp"
+                android:gravity="center"
+                android:text="@string/edit_table"
+                android:textColor="@color/ButtonWordColor"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:gravity="center"
+            android:orientation="vertical"
+            app:layout_columnWeight="1"
+            app:layout_rowWeight="1"
+            android:background="@drawable/button_border"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="5dp"
+            android:layout_marginRight="5dp"
+            android:layout_marginLeft="5dp"
+            android:onClick="startClear">
+
+            <ImageButton
+                android:id="@+id/imageclear"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:background="@mipmap/cleardatabaseicon"
+                android:contentDescription="@string/todo"
+                android:onClick="startClear" />
+
+            <TextView
+                android:id="@+id/textViewTerminalPay5"
+                android:layout_width="match_parent"
+                android:layout_height="72dp"
+                android:gravity="center"
+                android:text="@string/database_clear"
+                android:textColor="@color/ButtonWordColor"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:gravity="center"
+            android:orientation="vertical"
+            app:layout_columnWeight="1"
+            app:layout_rowWeight="1"
+            android:background="@drawable/button_border"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="5dp"
+            android:layout_marginRight="5dp"
+            android:layout_marginLeft="5dp"
+            android:onClick="startFileTransfer">
+
+            <ImageButton
+                android:id="@+id/imagefileTrans"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:background="@mipmap/filetrans_icon"
+                android:contentDescription="@string/todo"
+                android:onClick="startFileTransfer" />
+
+            <TextView
+                android:id="@+id/textViewTerminalPay7"
+                android:layout_width="match_parent"
+                android:layout_height="72dp"
+                android:gravity="center"
+                android:text="@string/transfer_file"
+                android:textColor="@color/ButtonWordColor"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:gravity="center"
+            android:orientation="vertical"
+            app:layout_columnWeight="1"
+            app:layout_rowWeight="1"
+            android:background="@drawable/button_border"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="5dp"
+            android:layout_marginRight="5dp"
+            android:layout_marginLeft="5dp"
+            android:onClick="setKey">
+
+            <ImageButton
+                android:id="@+id/imagekey"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:background="@mipmap/keyicon"
+                android:contentDescription="@string/todo"
+                android:onClick="setKey" />
+
+            <TextView
+                android:id="@+id/textKey"
+                android:layout_width="match_parent"
+                android:layout_height="72dp"
+                android:gravity="center"
+                android:text="@string/change_password"
+                android:textColor="@color/ButtonWordColor"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+    </androidx.gridlayout.widget.GridLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="270dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="10dp"
+        android:gravity="top"
+        app:layout_columnWeight="1"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/gridLayout2"
+        app:layout_constraintVertical_bias="0.0">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:gravity="top"
+            android:orientation="vertical">
+
+            <androidx.appcompat.widget.SwitchCompat
+                style="@style/SwitchCompatStyle"
+                android:id="@+id/debugMsg"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginRight="10dp"
+                android:onClick="onDebugMsg"
+                android:text="@string/debug_message"
+                android:textColor="@color/WordColor"
+                android:textSize="19sp"
+                android:textStyle="bold"/>
+
+            <androidx.appcompat.widget.SwitchCompat
+                style="@style/SwitchCompatStyle"
+                android:id="@+id/userInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginRight="10dp"
+                android:onClick="onUserInput"
+                android:text="@string/user_input"
+                android:textColor="@color/WordColor"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                style="@style/SwitchCompatStyle"
+                android:id="@+id/hostURL"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginRight="10dp"
+                android:onClick="onHostURL"
+                android:text="@string/host_url"
+                android:textColor="@color/WordColor"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                style="@style/SwitchCompatStyle"
+                android:id="@+id/gkash"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginRight="10dp"
+                android:onClick="onGkash"
+                android:text="@string/enable_gkash"
+                android:textColor="@color/WordColor"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                style="@style/SwitchCompatStyle"
+                android:id="@+id/ipay"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginRight="10dp"
+                android:onClick="onIpay88"
+                android:text="@string/enable_ipay"
+                android:textColor="@color/WordColor"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                style="@style/SwitchCompatStyle"
+                android:id="@+id/waz2pay"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginRight="10dp"
+                android:onClick="onWaz2Pay"
+                android:text="@string/enable_waz2pay"
+                android:textColor="@color/WordColor"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

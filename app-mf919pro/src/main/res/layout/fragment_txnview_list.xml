@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/LayoutColor">
+
+    <!--<Toolbar
+        android:id="@+id/toolbarCP"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/BoxColor"
+        android:title=""
+        android:titleTextColor="@color/white"
+        tools:ignore="NewApi">
+
+        <TextView
+            android:id="@+id/header"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/transaction_view"
+            android:layout_gravity="center"
+            android:textAlignment="center"
+            android:textColor="@color/white"
+            android:textSize="25sp"/>
+
+        <LinearLayout
+            android:id="@+id/moreOption"
+            android:layout_width="60dp"
+            android:layout_height="50dp"
+            android:orientation="horizontal"
+            android:layout_marginTop="4.5dp"
+            android:layout_marginStart="2.5dp"
+            android:layout_gravity="right"
+            android:visibility="gone"
+            android:onClick="moreOption" >
+
+            <ImageView
+                android:layout_width="50dp"
+                android:layout_height="24dp"
+                android:layout_marginEnd="9dp"
+                android:layout_gravity="center_vertical"
+                app:srcCompat="@drawable/menu_btn"
+                android:clickable="false"/>
+
+        </LinearLayout>
+    </Toolbar>-->
+    <Toolbar
+        android:id="@+id/appToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:background="@drawable/ai_round_theme_bg"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/textHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="@string/card_history"
+            android:textAlignment="center"
+            android:textColor="@color/white"
+            android:textSize="25sp" />
+
+        <!--<TextView
+            android:id="@+id/textCountDown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:text=""
+            android:layout_marginEnd="20dp"
+            android:textColor="@color/white"
+            android:textSize="20sp" />-->
+        <ImageButton
+            android:id="@+id/toolbarFooterButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:padding="20dp"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/ic_baseline_menu_24"
+            android:backgroundTint="@color/white"
+            android:contentDescription="TODO" />
+    </Toolbar>
+
+    <androidx.gridlayout.widget.GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:columnCount="2">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4.5dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            app:layout_columnWeight="1">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="3"
+                android:layout_gravity="center"
+                android:text="Sale Count"
+                android:textColor="@color/black"
+                android:textSize="12sp"/>
+
+            <TextView
+                android:id="@+id/sale_count"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_gravity="center"
+                android:textColor="@color/black"
+                android:text="@string/_0"
+                android:textSize="12sp"
+                android:textAlignment="viewEnd"
+                tools:ignore="RtlCompat" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4.5dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            app:layout_columnWeight="1">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_gravity="center"
+                android:textColor="@color/black"
+                android:text="Sale Amt(RM)"
+                android:textSize="12sp"/>
+
+            <TextView
+                android:id="@+id/sale_amt"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_gravity="center"
+                android:textColor="@color/black"
+                android:text="@string/amount"
+                android:textSize="12sp"
+                android:textAlignment="viewEnd"
+                tools:ignore="RtlCompat"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4.5dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            app:layout_columnWeight="1">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="3"
+                android:layout_gravity="center"
+                android:textColor="@color/black"
+                android:text="Void Count"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/void_count"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_gravity="center"
+                android:textColor="@color/black"
+                android:text="@string/_0"
+                android:textSize="12sp"
+                android:textAlignment="viewEnd"
+                tools:ignore="RtlCompat"/>
+        </LinearLayout>
+
+<!--        <LinearLayout-->
+<!--            android:layout_width="170dp"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:orientation="horizontal"-->
+<!--            android:layout_marginLeft="2.5dp"-->
+<!--            android:layout_marginRight="2.5dp"-->
+<!--            android:weightSum="4">-->
+
+<!--            <TextView-->
+<!--                android:layout_width="0dp"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:layout_weight="3"-->
+<!--                android:layout_gravity="center"-->
+<!--                android:textColor="@color/black"-->
+<!--                android:text="PreAuth Count"-->
+<!--                android:textSize="12sp"/>-->
+
+<!--            <TextView-->
+<!--                android:id="@+id/preauth_count"-->
+<!--                android:layout_width="0dp"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:layout_weight="1"-->
+<!--                android:layout_gravity="center"-->
+<!--                android:textColor="@color/black"-->
+<!--                android:text="999"-->
+<!--                android:textSize="12sp"-->
+<!--                android:textAlignment="viewEnd"-->
+<!--                tools:ignore="RtlCompat"/>-->
+<!--        </LinearLayout>-->
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4.5dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
+            app:layout_columnWeight="1">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_gravity="center"
+                android:textColor="@color/black"
+                android:text="Batch No"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/batch_no"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_gravity="center"
+                android:textColor="@color/black"
+                android:text="@string/_0"
+                android:textSize="12sp"
+                android:textAlignment="viewEnd"
+                tools:ignore="RtlCompat"/>
+        </LinearLayout>
+    </androidx.gridlayout.widget.GridLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:gravity="center_vertical"
+        android:weightSum="3">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@color/black"
+            android:text="@string/inv_no"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/inv"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="left"
+            android:layout_weight="2"
+            android:textColor="@color/black"
+            android:textSize="10dp"
+            android:textAlignment="viewEnd"
+            android:maxLength="6"
+            android:inputType="number"
+            tools:ignore="RtlCompat" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/trxHistoryRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginHorizontal="5dp"
+        android:layout_marginVertical="15dp"
+        android:clipToPadding="false"
+        android:paddingBottom="8dp" />
+</LinearLayout>
+
+
+

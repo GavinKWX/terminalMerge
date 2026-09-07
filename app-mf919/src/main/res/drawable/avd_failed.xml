@@ -1,0 +1,16 @@
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_failed_vector">
+
+    <target
+        android:name="circle"
+        android:animation="@animator/circle_draw"/>
+
+    <target
+        android:name="cross1"
+        android:animation="@animator/cross_draw"/>
+
+    <target
+        android:name="cross2"
+        android:animation="@animator/cross_draw"/>
+
+</animated-vector>

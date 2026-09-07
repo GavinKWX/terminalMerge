@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.CLOUDPOS_EMV" />
+    <uses-permission android:name="android.permission.CLOUDPOS_MSR" /> <!-- Printer -->
+    <uses-permission android:name="android.permission.CLOUDPOS_PRINTER" /> <!-- LED -->
+    <uses-permission android:name="android.permission.CLOUDPOS_LED" /> <!-- Pinpad -->
+    <uses-permission android:name="android.permission.CLOUDPOS_PINPAD" />
+    <uses-permission android:name="android.permission.CLOUDPOS_PIN_GET_PIN_BLOCK" />
+    <uses-permission android:name="android.permission.CLOUDPOS_PIN_MAC" />
+    <uses-permission android:name="android.permission.CLOUDPOS_PIN_ENCRYPT_DATA" />
+    <uses-permission android:name="android.permission.CLOUDPOS_PIN_UPDATE_USER_KEY" />
+    <uses-permission android:name="android.permission.CLOUDPOS_PIN_UPDATE_MASTER_KEY" /> <!-- SAFE_MODULE -->
+    <uses-permission android:name="android.permission.CLOUDPOS_SAFE_MODULE_READONLY" />
+    <uses-permission android:name="android.permission.CLOUDPOS_SAFE_MODULE" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CLOUDPOS_SMARTCARD" />
+    <uses-permission android:name="android.permission.CLOUDPOS_CONTACTLESS_CARD" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Android 12 and below -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <!-- Android 13+ (API 33+) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
+    <!--Bind YSDK services require this permission if you targetSDKVersion is higher then 30-->
+    <queries>
+        <package android:name="com.morefun.ysdk"/>
+    </queries>
+
+    <application
+        android:name=".java.MF919"
+        android:allowBackup="true"
+        android:hardwareAccelerated="true"
+        android:label="${appNameSuffix}${appName}"
+        android:largeHeap="true"
+        android:requestLegacyExternalStorage="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MF919">
+        <!--<service
+            android:name=".java.activity.AppServices"
+            android:enabled="true" />-->
+        <service
+            android:name=".kotlin.activity.AppServices"
+            android:enabled="true" />
+        <activity android:name=".java.activity.Utils" />
+        <activity android:name=".java.activity.VendorOption" />
+        <activity android:name=".java.activity.ParameterEditor" />
+        <activity android:name=".java.activity.IsoMessageView" />
+        <activity android:name=".java.activity.ViewTableContain" />
+        <activity android:name=".java.activity.ParameterEditor_1" />
+
+
+        <!--Kotlin Start-->
+        <!-- clearTaskOnLaunch: killProcess destroys the process but NOT the task record, so
+             relaunching from the icon used to restore the task's TOP activity rather than this
+             one. After a crash on TransactionResultActivity that meant coming back to the Result
+             screen, which then re-ran onCreate against a TransData singleton the process death had
+             reset to defaults, and crashed again. Resetting the task to its root on every launch
+             means both crash recovery and a manual icon tap always land here, and this activity
+             routes on to the configured home screen. -->
+        <activity
+            android:name=".kotlin.activity.MainActivity"
+            android:clearTaskOnLaunch="true"
+            android:theme="@style/splashScreenTheme"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.SCREEN_OFF"/>
+                <action android:name="android.intent.action.SCREEN_ON"/>
+            </intent-filter>
+        </activity>
+        <!-- Runs in its own process so it OUTLIVES the crashing one. The crash handler starts it
+             while the app is still foreground (the only window in which Android 10+ permits an
+             activity start), then dies; this process holds the screen and relaunches MainActivity
+             as a foreground start, which is legal on 7/10/13 alike.
+             singleInstance + its own taskAffinity keep it out of the crashed app's task, and
+             excludeFromRecents keeps it out of the recents list. -->
+        <activity
+            android:name=".kotlin.activity.CrashRecoveryActivity"
+            android:process=":recovery"
+            android:launchMode="singleInstance"
+            android:taskAffinity="${applicationId}.recovery"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:theme="@style/Theme.MF919" />
+        <activity
+            android:name=".kotlin.activity.UpdateAppAlertDialog"
+            android:launchMode="singleInstance"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
+        <activity
+            android:name=".kotlin.activity.UpdateAppInitialDialog"
+            android:launchMode="singleInstance"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
+        <activity android:name=".kotlin.helper_common.BaseActivity" />
+        <activity android:name=".kotlin.activity.AboutActivity" />
+        <!-- noHistory moved into GenerateQrActivity.onStop(). Same reason as CardPaymentActivity
+             below: the App2App / ECR requirement (a backgrounded payment screen must never come
+             back holding a previous transaction, and for QR that screen shows a live payable code)
+             is unchanged, but the framework applied it unconditionally and would tear the screen
+             down mid host call, discarding a response that may already say "paid". onStop() keeps
+             the finish-on-background default and defers only for that window. -->
+        <activity android:name=".kotlin.activity.GenerateQrActivity"
+            android:excludeFromRecents="true"/>
+        <activity android:name=".kotlin.activity.GenerateQrSubProductActivity" />
+        <activity android:name=".kotlin.activity.QrScanActivity"
+            android:excludeFromRecents="true"/>
+        <!-- noHistory moved into CardPaymentActivity.onStop(). The App2App / ECR requirement it
+             encoded is unchanged and still enforced there: backgrounding this screen finishes it,
+             so a later launch can never surface a leftover screen holding a previous transaction's
+             amount and cached state. What had to change is that the framework applied it
+             unconditionally, including while a 0200 was on the wire, finishing the activity with no
+             callback we can intercept (not onBackPressed, not customOnBackPress). That destroyed
+             the card screen mid-authorization and dropped the operator back on the amount keypad
+             with the amount pre-filled; pressing OK again reset the global TransData under the live
+             transaction, and the approval then landed on corrupted TransData.
+             See obsidian FIX-2026-08-04-noHistory-MidAuthorization-Teardown. -->
+        <activity android:name=".kotlin.activity.CardPaymentActivity"
+            android:excludeFromRecents="true"/>
+        <!-- excludeFromRecents on the activities below: TransactionReceiver launches every one of
+             them with NEW_TASK, so on a cold App2App (no com.sc.mf919 task yet) each becomes its
+             own TASK ROOT, and only at the root does excludeFromRecents take effect. Verified on
+             device 2026-08-04: cold App2App created tasks rooted at VoidSaleActivity (t183, t185)
+             which were NOT excluded, while CardPayment/GenerateQr/QrScan correctly showed nothing.
+             In the warm case these are never the root, so the attribute is a no-op there: it
+             costs nothing and closes the cold path.
+             See obsidian FIX-2026-08-04-noHistory-MidAuthorization-Teardown. -->
+        <activity android:name=".kotlin.activity.SettlementActivity"
+            android:excludeFromRecents="true"/>
+        <activity android:name=".kotlin.activity.SettlementQrActivity"
+            android:excludeFromRecents="true"/>
+        <activity android:name=".kotlin.activity.VoidQrActivity"
+            android:excludeFromRecents="true"/>
+        <activity android:name=".kotlin.activity.VoidSaleActivity"
+            android:excludeFromRecents="true"/>
+        <activity android:name=".kotlin.activity.KeypadActivity" />
+        <activity android:name=".kotlin.activity.TerminalConfigActivity" />
+        <activity android:name=".kotlin.activity.BnplAcquirerActivity" />
+        <activity android:name=".kotlin.activity.BnplProductActivity" />
+        <activity android:name=".kotlin.activity.BnplScanActivity" />
+        <activity android:name=".kotlin.activity.BnplIoupayViewDetailsActivity" />
+        <activity android:name=".kotlin.activity.PrintResultBnplActivity" />
+        <activity android:name=".kotlin.activity.TransactionResultBnplActivity" />
+        <activity android:name=".kotlin.activity.TransactionViewBnplActivity" />
+        <activity android:name=".kotlin.activity.SettlementBnplActivity" />
+        <activity android:name=".kotlin.activity.TransactionDetailsActivity" />
+        <activity android:name=".kotlin.activity.TransactionDetailsQrActivity" />
+        <activity android:name=".kotlin.activity.TransactionDetailsBnplActivity" />
+        <activity android:name=".kotlin.activity.EppAcquirerActivity"
+            android:excludeFromRecents="true"/>
+        <activity android:name=".kotlin.activity.EppProductActivity" />
+        <activity android:name=".kotlin.activity.BsnKeyDownloadActivity" />
+        <activity android:name=".kotlin.activity.MerchantConfigActivity" />
+        <activity android:name=".kotlin.activity.AttendActivity" />
+        <activity android:name=".kotlin.activity.UnattendActivity" />
+        <activity android:name=".kotlin.activity.KeypadActivitySaleCom"
+            android:excludeFromRecents="true"/>
+        <activity android:name=".kotlin.activity.VoidPreauthActivity"
+            android:excludeFromRecents="true"/>
+        <activity android:name=".kotlin.activity.VoidOffSaleActivity"
+            android:excludeFromRecents="true"/>
+        <activity android:name=".kotlin.activity.SettingsActivity" />
+        <activity android:name=".kotlin.activity.AdminActivity" />
+        <activity android:name=".kotlin.activity.MotoSaleActivity"
+            android:excludeFromRecents="true"/>
+        <activity android:name=".kotlin.activity.AdjustmentActivity" />
+        <activity android:name=".kotlin.activity.TransactionResultActivity" />
+        <activity android:name=".kotlin.activity.TransactionResultQrActivity" />
+        <activity android:name=".kotlin.activity.PrintsActivity" />
+        <activity android:name=".kotlin.activity.TransactionViewBnplCustomActivity" />
+        <activity android:name=".kotlin.activity.TransactionViewListActivity" />
+        <activity android:name=".kotlin.activity.TransactionViewCardDetailsActivity" />
+        <activity android:name=".kotlin.activity.TransactionViewListQrActivity" />
+        <activity android:name=".kotlin.activity.TransactionViewQrDetailsActivity" />
+        <activity android:name=".kotlin.activity.AttendActivityOxpay" />
+        <activity android:name=".kotlin.activity.SettingsActivityOxpay" />
+        <activity android:name=".kotlin.activity.KeypadActivityCashOut" />
+        <activity android:name=".kotlin.activity.HostConfigActivity" />
+
+        <!-- Denomination Activity-->
+        <activity android:name=".kotlin.activity.AttendDenominationActivity" />
+        <activity android:name=".kotlin.activity.DenominationPaymentOptionActivity" />
+        <activity android:name=".kotlin.activity.DenominationTransactionResultActivity" />
+
+        <activity
+            android:name=".kotlin.activity.zxing.CaptureActivity"
+            android:screenOrientation="fullSensor"
+            android:stateNotNeeded="true"
+            android:windowSoftInputMode="stateAlwaysHidden" />
+        <!--Kotlin End-->
+
+        <!--APP To APP-->
+        <activity
+            android:name=".java.activity.TransactionReceiver"
+            android:noHistory="true"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="image/*" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".java.activity.TransactionTransmitter"
+            android:noHistory="true"
+            android:excludeFromRecents="true"/>
+        <!--APP To APP-->
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/provider_paths" />
+        </provider>
+
+        <receiver
+            android:name=".java.activity.StartMyServiceAtBootReceiver"
+            coreApp="true"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.PACKAGE_INSTALL" />
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <action android:name="android.intent.action.ACTION_REBOOT" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
+
+        <receiver android:name=".kotlin.helper_common.NotificationUpdateReceiver" />
+    </application>
+
+</manifest>

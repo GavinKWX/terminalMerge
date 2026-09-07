@@ -1,0 +1,211 @@
+package com.sc.mf919.kotlin.database.infrastructure
+
+import database.DbTable
+
+import kotlin.collections.listOf
+
+/**
+ * Canonical schema (createSql) and default rows (seedData) per table.
+ * seedData mirrors the rows shipped in the preloaded asset DB — when self-healing
+ * recreates a table, these rows are re-inserted so ISO processing keeps working
+ * (see DbHandler.seedTableDefaults). Keep in sync with assets/isoengine_gobiz.db.
+ */
+enum class DatabaseTables (
+    override val id: String,
+    override val createSql: List<String> = listOf(),
+    override val seedData: List<Triple<String, String, String>> = listOf(), // (tag, subtag, value)
+    override val holdsSecrets: Boolean = false
+) : DbTable {
+    MERCHANT_CONFIGURATION("MerchantConfiguration",
+        listOf("MerchantName TEXT", "MerchantAddress TEXT", "AutoSettleT1 TEXT", "AutoSettleT2 TEXT", "AutoSettleT3 TEXT", "WaitCardMs TEXT", "QrMid TEXT", "QrTid TEXT", "McVer TEXT", "AcqCode TEXT", "AcqMid TEXT", "AcqTid TEXT", "PrimaryHostIp TEXT", "PrimaryHostPort TEXT", "PrimaryHostSSL TEXT", "SecondaryHostIp TEXT", "SecondaryHostPort TEXT", "SecondaryHostSSL TEXT", "TPDU TEXT", "NII TEXT", "HostTimeoutMs TEXT", "LastSettlementBatchNo TEXT", "LastStan TEXT", "LastInvoiceNo TEXT", "Customization TEXT", "Marketing TEXT", "Advertisement TEXT", "AcquirerLogo TEXT", "Action1 TEXT", "Action2 TEXT", "Action3 TEXT", "Action4 TEXT", "SkipTxnValidation TEXT", "IsTpaAccount TEXT", "TpaMerchantLogoUrl TEXT", "ScMid TEXT", "ScTid TEXT")
+    ),
+    TERMINAL_CONFIGURATION("TerminalConfiguration",
+        listOf("Contact TEXT", "Contactless TEXT", "MagStripe TEXT", "ForcePin TEXT", "IsoPrint TEXT", "ReceiptPrint TEXT", "Sale TEXT", "Void TEXT", "PreAuth TEXT", "SaleCom TEXT", "SaleComOnline TEXT", "Refund TEXT", "OptIn TEXT", "TmsReceipt TEXT", "TmsEnable TEXT", "AutoSettle TEXT", "QrPay " + "TEXT", "PoweredBy TEXT", "PoweredByBW TEXT", "HomeLogo REAL", "MC_VER TEXT", "DEV_PROJECT TEXT", "DEV_LOCATION TEXT", "DEV_LANE_ID TEXT", "VOID_WITH_PIN TEXT", "MOTO TEXT", "TIMEOUT_SECONDS TEXT", "SETTLEMENT_WITH_PIN TEXT", "REMOTE_DOWNLOAD_BSN_KEY TEXT", "EWALLET_PRODUCT_LIST " + "TEXT", "FORCE_LOCK_HOME TEXT", "FORCE_SETTLEMENT TEXT", "UNATTENDED_MODE TEXT", "CABLE_CONNECTION TEXT", "FORCE_SETTLEMENT_DAILY TEXT", "CASHOUT TEXT", "ISO_WEBSOCKET TEXT", "WEBSOCKET TEXT", "SALES_CARD TEXT", "SALES_EWALLET TEXT", "DENOMINATION TEXT")
+    ),
+    RECEIPT_UPLOAD("ReceiptUpload",
+        listOf( "SEQ_NO TEXT", "TXN_DT TEXT", "TXN_TYPE TEXT", "MID TEXT", "TID TEXT", "MTI TEXT", "NII TEXT", "SCHEME_ID TEXT", "AID TEXT", "CARD_MASKED TEXT", "CARD_HASHED TEXT", "RRN TEXT", "APPR_CODE TEXT", "RRN_ORI TEXT", "APPR_CODE_ORI TEXT", "TXN_AMT TEXT", "INV_NO TEXT", "STAN TEXT", "BATCH_NO TEXT", "RESP_CODE TEXT", "APP_VER TEXT", "SN TEXT", "ENTRY_TYPE TEXT", "ARQC TEXT", "TVR TEXT", "POS_REF_NO TEXT", "PAYMENT_PRODUCT_ID TEXT", "CVM TEXT", "CARD_LABEL TEXT", "EPP_DETAIL TEXT", "BATCHNO_PREAUTH TEXT", "CASHOUT_AMT TEXT", "QrRefId TEXT", "QrType TEXT", "CreationDate TEXT", "LastUpdateDt TEXT", "IsProcessing TEXT", "IsSend TEXT")
+    ),
+    SECURE_DATA("secureData",
+        listOf("id INTEGER PRIMARY KEY AUTOINCREMENT", "tag TEXT NOT NULL", "subtag TEXT", "value TEXT"),
+        holdsSecrets = true
+    ),
+    ISO_BATCH_INFO("IsoBatchInfo",
+        listOf("id INTEGER PRIMARY KEY AUTOINCREMENT", "tag TEXT NOT NULL", "subtag TEXT", "value TEXT"),
+        listOf(
+            Triple("stan", "visam", "000001"),
+            Triple("invoiceNo", "pos", "000001"),
+            Triple("txnTotal", "visam", "0"),
+            Triple("txnCount", "visam", "0"),
+            Triple("batchNo", "visam", "000001"),
+            Triple("schemeTag", "12", "visam"),
+            Triple("schemeTag", "0", "visam"),
+            Triple("isoTpduHeader", "visam", "6006110000"),
+            Triple("isoTpduHeaderTle", "visam", "6006110000"),
+            Triple("tleActivated", "visam", "0"),
+            Triple("nii", "visam", "0611"),
+            Triple("niiTle", "visam", "0611"),
+            Triple("posCondition", "pos", "0011"),
+            Triple("posEntryMode", "pos", "0071"),
+            Triple("mid", "visam", "000000000006527"),
+            Triple("tid", "visam", "20002690"),
+            Triple("udk", "pbb", "11223344556677888877665544332211"),
+            Triple("schemeTag", "21", "visam"),
+            Triple("stan", "master", "000001"),
+            Triple("txnTotal", "master", "0"),
+            Triple("txnCount", "master", "0"),
+            Triple("batchNo", "master", "000001"),
+            Triple("isoTpduHeader", "master", "6001190003"),
+            Triple("isoTpduHeaderTle", "master", "6001190004"),
+            Triple("tleActivated", "master", "0"),
+            Triple("nii", "master", "0119"),
+            Triple("niiTle", "master", "0119"),
+            Triple("mid", "master", "5500000033"),
+            Triple("tid", "master", "11870004"),
+            Triple("posEntryMode", "mccs", "0271"),
+            Triple("schemeTag", "81", "mccs"),
+            Triple("stan", "mccs", "000001"),
+            Triple("txnTotal", "mccs", "0"),
+            Triple("txnCount", "mccs", "0"),
+            Triple("batchNo", "mccs", "000001"),
+            Triple("isoTpduHeader", "mccs", "6002523000"),
+            Triple("isoTpduHeaderTle", "mccs", "6002523000"),
+            Triple("tleActivated", "mccs", "1"),
+            Triple("nii", "mccs", "0111"),
+            Triple("niiTle", "mccs", "0111"),
+            Triple("mid", "mccs", "109340082007580"),
+            Triple("tid", "mccs", "10758012"),
+            Triple("schemeTag", "20", "visam"),
+            Triple("schemeTag", "11", "visam"),
+            Triple("isoTpduHeader", "rec", "6002630000"),
+            Triple("posEntryMode", "master", "0071"),
+            Triple("posEntryMode", "visam", "0071"),
+            Triple("posCondition", "pos-PreAuth", "0611"),
+            Triple("posCondition", "pos-OffSale", "0611"),
+            Triple("isoTpduHeader", "mccs-sale", "6001123003"),
+            Triple("nii", "mccs-sale", "0111"),
+            Triple("schemeTag", "71", "visam"),
+            Triple("schemeTag", "91", "visam"),
+            Triple("schemeTag", "92", "visam"),
+            Triple("schemeTag", "98", "mccs"),
+            Triple("schemeTag", "9B-4", "visam"),
+            Triple("schemeTag", "98-5", "visam"),
+            Triple("posEntryMode", "visam-91", "0051"),
+            Triple("posEntryMode", "mccs-98", "0261"),
+            Triple("schemeTag", "97", "visam"),
+            Triple("lastSettleDt", "cube", "1409160A291302"),
+            Triple("buTxnTotal", "visam", "0"),
+            Triple("buTxnCount", "visam", "0"),
+            Triple("posEntryMode", "visam-92", "0051"),
+            Triple("posEntryMode", "visam-20", "0801"),
+            Triple("posEntryMode", "visam-12", "0801"),
+            Triple("posEntryMode", "visam-97", "0021"),
+            Triple("schemeTag", "22", "visam"),
+            Triple("posEntryMode", "visam-22", "0081"),
+            Triple("voidTxnTotal", "visam", "0"),
+            Triple("voidTxnCount", "visam", "0"),
+            Triple("txnTotal", "visam-master", "0"),
+            Triple("txnCount", "visam-master", "0"),
+            Triple("voidTxnTotal", "visam-master", "0"),
+            Triple("voidTxnCount", "visam-master", "0"),
+            Triple("txnTotal", "visam-visa", "0"),
+            Triple("txnCount", "visam-visa", "0"),
+            Triple("voidTxnTotal", "visam-visa", "0"),
+            Triple("voidTxnCount", "visam-visa", "0"),
+            Triple("txnTotal", "visam-upi", "0"),
+            Triple("txnCount", "visam-upi", "0"),
+            Triple("voidTxnTotal", "visam-upi", "0"),
+            Triple("voidTxnCount", "visam-upi", "0"),
+            Triple("posCondition", "pos-CtPreAuth", "0611"),
+            Triple("posCondition", "pos-CtOffSale", "0611"),
+            Triple("tcCount", "visam", "0"),
+            Triple("preauthTxnCount", "visam", "0"),
+            Triple("schemeTag", "30", "visam"),
+            Triple("schemeTag", "31", "visam"),
+            Triple("schemeTag", "93", "visam"),
+            Triple("posEntryMode", "visam-30", "0801"),
+            Triple("posEntryMode", "visam-93", "0051"),
+            Triple("posEntryMode", "visam-Moto", "0010"),
+            Triple("posCondition", "pos-Moto", "0811"),
+            Triple("ksn", "visam", "FFF00000000000000000"),
+            Triple("ksn", "visam-pin", "FFF00000000000000000"),
+            Triple("posEntryMode", "mccs-82", "0071"),
+            Triple("posEntryMode", "mccs-99", "0051"),
+            Triple("schemeTag", "82", "mccs"),
+            Triple("schemeTag", "99", "mccs")
+        )
+    ),
+    ISO_BATCH_LONG_INFO("IsoBatchLongInfo",
+        listOf("id INTEGER PRIMARY KEY AUTOINCREMENT", "tag TEXT NOT NULL", "subtag TEXT", "value TEXT"),
+        listOf(
+            Triple("revDes", "visa", ""),
+            Triple("revIsoDb", "visa", ""),
+            Triple("revIsoOri", "visa", ""),
+            Triple("revDes", "master", ""),
+            Triple("revIsoDb", "master", ""),
+            Triple("revIsoOri", "master", ""),
+            Triple("revDes", "mccs", ""),
+            Triple("revIsoDb", "mccs", ""),
+            Triple("revIsoOri", "mccs", ""),
+            Triple("revDes", "visam", ""),
+            Triple("revIsoDb", "visam", ""),
+            Triple("revIsoOri", "visam", ""),
+            Triple("revType", "mccs", ""),
+            Triple("revType", "visam", ""),
+            Triple("revSchemeTag", "visam", ""),
+            Triple("revSchemeId", "visam", ""),
+            Triple("txnType", "last", ""),
+            Triple("schemeTag", "last", ""),
+            Triple("schemeId", "last", ""),
+            Triple("batchNo", "last", ""),
+            Triple("apprCode", "last", ""),
+            Triple("txnAmt", "last", ""),
+            Triple("batchRecId", "last", "")
+        )
+    ),
+    PRODUCT_LIST("ProductList",
+        listOf("Id INTEGER PRIMARY KEY AUTOINCREMENT", "Product TEXT", "AcqCode TEXT", "AcqMid TEXT", "AcqTid TEXT", "QrProductCode TEXT", "ProductName TEXT", "EppProductCode TEXT", "EppTenure TEXT", "EppTenureCode TEXT", "IsSettlement TEXT", "IsSettled TEXT", "BatchNo TEXT", "IsActive TEXT", "Ksn TEXT", "PinKsn TEXT", "IsTpaAccount TEXT")
+    ),
+    QR_PAY_TABLE("qrPayTable",
+        listOf("id INTEGER PRIMARY KEY AUTOINCREMENT", "postingDt TEXT NOT NULL", "txnType TEXT", "payBrand TEXT", "txnDt TEXT", "seqNo TEXT", "mid TEXT", "tid TEXT", "txnAmt TEXT", "refId TEXT", "hostRefNo TEXT", "txnRefNo TEXT", "status TEXT NOT NULL", "addInfo TEXT", "acqCode TEXT", "txnApprCode TEXT", "type TEXT", "productCode TEXT", "productName TEXT", "isUnionPayTxn TEXT", "upiVoucherCode TEXT", "upiDiscountAmt TEXT", "upiMarkupFee TEXT")
+    ),
+    PRINT_RECEIPT_QR("printReceiptQr",
+        listOf("id INTEGER PRIMARY KEY", "postingDt TEXT", "txnType TEXT", "payBrand TEXT", "txnDt TEXT", "mid TEXT", "tid TEXT", "txnAmt TEXT", "refId TEXT", "hostRefNo TEXT", "txnRefNo TEXT", "respCode TEXT", "status TEXT", "addInfo TEXT", "printInfo TEXT", "acqCode TEXT", "txnApprCode TEXT", "type TEXT", "productCode TEXT", "productName TEXT", "isUnionPayTxn TEXT", "upiVoucherCode TEXT", "upiDiscountAmt TEXT", "upiMarkupFee TEXT")
+    ),
+    SETTLEMENT_SUMMARY("SettlementSummary",
+        listOf("id INTEGER PRIMARY KEY AUTOINCREMENT", "acq_code TEXT", "mid TEXT", "tid TEXT", "tag TEXT", "subtag TEXT", "value TEXT", "is_settle TEXT")
+    ),
+    LAST_SETTLEMENT("lastSettlement",
+        listOf( "mid TEXT", "tid TEXT", "settleInfo TEXT", "isTpaAccount TEXT", "settleDt TEXT")
+    ),
+    BATCH_TABLE("batchTable",
+        listOf("id INTEGER PRIMARY KEY AUTOINCREMENT", "postingDt TEXT NOT NULL", "txnType TEXT NOT NULL", "stan TEXT NOT NULL", "invNo TEXT NOT NULL", "batchData TEXT NOT NULL", "schemeTag TEXT", "schemeId TEXT", "refId INTEGER", "status TEXT NOT NULL", "batchNo TEXT", "mid TEXT", "tid TEXT", "posRefNo TEXT")
+    ),
+    BNPL_PAY_TABLE("bnplPayTable",
+        listOf("id INTEGER PRIMARY KEY AUTOINCREMENT", "postingDt TEXT NOT NULL", "txnType TEXT", "payBrand TEXT", "payBrandDesc TEXT", "txnDt TEXT", "seqNo TEXT", "mid TEXT", "tid TEXT", "txnAmt TEXT", "refId TEXT", "hostRefNo TEXT", "txnRefNo TEXT", "status TEXT", "addInfo TEXT", "acqCode TEXT", "txnApprCode TEXT", "packageCode TEXT", "paymentType TEXT", "tenure TEXT", "tenureDesc TEXT", "bnplResp TEXT")
+    ),
+    PRINT_RECEIPT_BNPL("printReceiptBnpl",
+        listOf( "id INTEGER PRIMARY KEY AUTOINCREMENT", "postingDt TEXT", "txnType TEXT", "payBrand TEXT", "payBrandDesc TEXT", "txnDt TEXT", "mid TEXT", "tid TEXT", "txnAmt TEXT", "refId TEXT", "hostRefNo TEXT", "txnRefNo TEXT", "respCode TEXT", "status TEXT", "addInfo TEXT", "printInfo TEXT", "acqCode TEXT", "txnApprCode TEXT", "tenure TEXT", "tenureDesc TEXT", "bnplResp TEXT")
+    ),
+    PREAUTH_TABLE("preauthTable",
+        listOf("id INTEGER PRIMARY KEY AUTOINCREMENT", "postingDt TEXT NOT NULL", "cardData TEXT NOT NULL", "schemeTag TEXT", "apprCode TEXT", "rrn TEXT", "invNo TEXT", "status TEXT NOT NULL", "addInfo TEXT")
+    ),
+    OFFSALE_TABLE("offSaleTable",
+        listOf("id INTEGER PRIMARY KEY AUTOINCREMENT", "cardData TEXT NOT NULL", "apprCode TEXT", "schemeTag TEXT", "status TEXT NOT NULL", "addInfo TEXT")
+    ),
+    REVERSAL_BATCH_TABLE("revBatchTable",
+        listOf("id INTEGER PRIMARY KEY AUTOINCREMENT", "postingDt TEXT", "txnType TEXT", "stan TEXT", "invNo TEXT", "batchData TEXT", "schemeTag TEXT", "schemeId TEXT", "refId TEXT", "status TEXT", "batchNo TEXT", "mid TEXT", "tid TEXT")
+    ),
+    PRINT_RECEIPT("printReceipt",
+        listOf( "id INTEGER PRIMARY KEY AUTOINCREMENT", "postingDt TEXT NOT NULL", "txnDt TEXT NOT NULL", "txnType TEXT NOT NULL", "cardMasked TEXT", "schemeId TEXT", "txnAmt TEXT", "invoiceNo TEXT", "stan TEXT", "txnApprCode TEXT", "receiptInfo TEXT", "isTpaAccount TEXT", "respCode TEXT")
+    ),
+    TRANSACTION_QR("TransactionQr",
+        listOf("id INTEGER PRIMARY KEY AUTOINCREMENT", "txnType TEXT", "txnDateTime TEXT", "voidDateTime TEXT", "txnAmount TEXT", "payChannel TEXT", "payBrand TEXT", "productCode TEXT", "productName TEXT", "mid TEXT", "tid TEXT", "acqCode TEXT", "refId TEXT", "hostRefNo TEXT", "txnRefNo TEXT", "approvalCode TEXT", "respCode TEXT", "respDesc TEXT", "isUnionPayTxn TEXT", "upiVoucherCode TEXT", "upiDiscountAmt TEXT", "upiMarkupFee TEXT", "posRefNo TEXT", "isTpaAccount TEXT")
+    ),
+    DENOMINATION_LIST("DenominationList",
+        listOf("Id INTEGER PRIMARY KEY AUTOINCREMENT", "PackageId TEXT", "Desc TEXT", "Amount TEXT", "Ref1 TEXT", "Ref2 TEXT", "Ref3 TEXT", "Ref4 TEXT", "Ref5 TEXT", "Remark TEXT", "MaintenanceSchedule TEXT", "DisplayMenutype TEXT")
+    ),
+    DENOMINATION_UPLOAD("DenominationUpload",
+        listOf("Id INTEGER PRIMARY KEY AUTOINCREMENT", "Type TEXT", "DataString TEXT", "CreationDate TEXT", "LastUpdateDt TEXT", "IsProcessing TEXT", "IsSend TEXT")
+    );
+}
+

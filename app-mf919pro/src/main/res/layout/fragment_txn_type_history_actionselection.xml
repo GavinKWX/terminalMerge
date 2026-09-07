@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:id="@+id/action_cancel_btn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginBottom="30dp"
+            android:paddingBottom="30dp"
+            android:layout_alignParentBottom="true"
+            android:clickable="true">
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@color/colorTransparent"
+                android:src="@drawable/ic_simple_line_close"
+                android:layout_centerHorizontal="true"
+                android:layout_marginBottom="16dp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/ewButton"
+            android:layout_above="@id/action_cancel_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:orientation="vertical"
+            android:padding="15dp"
+            android:layout_marginBottom="20dp"
+            android:clickable="true"
+            android:background="@drawable/payment_selection_background_4">
+            <TextView
+                android:layout_width="180dp"
+                android:layout_height="wrap_content"
+                android:text="E-WALLET"
+                android:textColor="@color/white"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:paddingLeft="10dp"
+                android:paddingRight="10dp"
+                android:textSize="16dp">
+            </TextView>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/cardButton"
+            android:layout_above="@id/ewButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:orientation="vertical"
+            android:padding="15dp"
+            android:layout_marginBottom="20dp"
+            android:clickable="true"
+            android:background="@drawable/payment_selection_background_4">
+            <TextView
+                android:layout_width="180dp"
+                android:layout_height="wrap_content"
+                android:text="CREDIT / DEBIT CARD"
+                android:textColor="@color/white"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:paddingLeft="10dp"
+                android:paddingRight="10dp"
+                android:textSize="14dp">
+            </TextView>
+        </LinearLayout>
+
+    </RelativeLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

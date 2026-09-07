@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/LayoutColor">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginLeft="20dp"
+        android:layout_marginRight="20dp"
+        android:orientation="vertical"
+        android:gravity="center_vertical"
+        android:background="@drawable/divider">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="start"
+            android:textSize="20sp"
+            android:text="TERMINAL CONFIGURATION"/>
+
+    </LinearLayout>
+
+    <ScrollView
+        android:id="@+id/terminalConfigScroll"
+        android:layout_width="match_parent"
+        android:layout_height="527dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <Switch
+                android:id="@+id/contact"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE CONTACT"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/contactless"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE CONTACTLESS"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/megStripe"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE MAG STRIPE"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/qrPay"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE QR PAY"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/forcePin"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE FORCE PIN"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/printIso"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE ISO PRINT"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/printReceipt"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE RECEIPT PRINT"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/optIn"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE OPT IN"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/SaleCompOnline"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE SALE COMP ONL"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/autoSettle"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE AUTO SETTLE"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/sale"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE SALE"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/void1"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE VOID"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/preauth"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE PRE-AUTH"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/SaleComp"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE SALE COMP"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/refund"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE REFUND"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/cashout"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE CASH OUT"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/receiptTms"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE TMS RECEIPT"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/deviceTms"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE DEVICE TMS"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/forceSettlementCheck"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE FORCE SETTLEMENT"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/forceSettlementDaily"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE FORCE SETTLEMENT DAILY"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
+                android:id="@+id/forceLockHome"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE DOCKER MODE"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

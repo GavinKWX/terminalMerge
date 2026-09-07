@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/LayoutColor">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="210dp"
+            android:layout_height="50dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginRight="10dp"
+            android:layout_marginLeft="10dp"
+            android:orientation="vertical"
+            android:layout_gravity="center_horizontal"
+            android:gravity="center">
+
+        <ImageView
+            android:layout_width="200dp"
+            android:layout_height="54dp"
+            android:layout_marginTop="5dp"
+            android:background="@mipmap/printerport"
+            android:contentDescription="@string/todo" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/tableLayout2TR"
+            android:layout_width="300dp"
+            android:layout_height="550dp"
+            android:layout_marginBottom="10dp"
+            android:layout_marginRight="10dp"
+            android:layout_marginLeft="10dp"
+            android:background="@drawable/border3"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.1"
+            android:layout_gravity="center_horizontal"
+            android:gravity="center">
+
+            <ImageView
+                android:layout_width="200dp"
+                android:layout_height="54dp"
+                android:layout_marginTop="5dp"
+                android:background="@mipmap/logo_1"
+                android:contentDescription="@string/todo" />
+
+            <TextView
+                android:id="@+id/MerchantName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textSize="10sp"
+                android:layout_marginLeft="10dp"
+                android:layout_marginRight="10dp"
+                tools:ignore="SmallSp"
+                android:textAlignment="center"/>
+
+            <TextView
+                android:id="@+id/MerchantAdd"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginRight="10dp"
+                android:layout_marginBottom="5dp"
+                android:gravity="center"
+                android:textSize="10sp"
+                tools:ignore="SmallSp"
+                android:textAlignment="center"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="2"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tableLayout2">
+
+            <Button
+                android:id="@+id/backtomain"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/ok"
+                android:textSize="18sp"
+                android:onClick="back2Main"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:layout_marginLeft="8dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginRight="8dp"
+                android:layout_marginBottom="8dp"
+                android:textColor="@color/ButtonWordColor"
+                android:background="@drawable/custom_ripple_with_stoke"
+                tools:ignore="ButtonStyle" />
+
+            <Button
+                android:id="@+id/customerCp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/print_copy"
+                android:textSize="18sp"
+                android:onClick="customerCopy"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:layout_marginLeft="8dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="8dp"
+                android:layout_marginRight="8dp"
+                android:layout_marginBottom="8dp"
+                android:textColor="@color/ButtonWordColor"
+                android:background="@drawable/custom_ripple_with_stoke"
+                tools:ignore="ButtonStyle" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

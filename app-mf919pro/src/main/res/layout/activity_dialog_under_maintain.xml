@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="300dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_rounded_orange"
+    android:padding="24dp"
+    android:gravity="center">
+
+    <ImageView
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/icon_maintenance"
+        android:contentDescription="Maintenance Icon"
+        app:tint="@android:color/white" />
+
+    <TextView
+        android:id="@+id/tvMaintenance"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="UNDER MAINTENANCE..."
+        android:textColor="@android:color/white"
+        android:textStyle="bold"
+        android:layout_marginTop="16dp"
+        android:textSize="18sp" />
+</LinearLayout>

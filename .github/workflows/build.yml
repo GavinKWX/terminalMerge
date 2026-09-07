@@ -1,0 +1,58 @@
+name: build
+
+# Audit item B2. Neither source project had any CI; this is the structural
+# payoff of the monorepo -- one pipeline that proves a change compiles for
+# BOTH fleets, so a fix can no longer land in one app and be forgotten in
+# the other (14 duplicate commit subjects in 2026 alone).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # :core must stay compilable at minSdk 24 -- it is the constraint that
+      # keeps the Android 7 MF919 fleet buildable. Build it on its own first
+      # so a violation fails here rather than inside an app build.
+      - name: Build :core
+        run: ./gradlew :core:assembleDebug
+
+      - name: Unit tests
+        run: ./gradlew :core:testDebugUnitTest
+
+      - name: Build MF919
+        run: ./gradlew :app-mf919:assembleSharecommDebug
+
+      - name: Build MF919 Pro
+        run: ./gradlew :app-mf919pro:assembleSharecommDebug
+
+      - name: Upload APKs
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apks
+          path: |
+            app-mf919/build/outputs/apk/**/*.apk
+            app-mf919pro/build/outputs/apk/**/*.apk
+          retention-days: 14
+          if-no-files-found: error

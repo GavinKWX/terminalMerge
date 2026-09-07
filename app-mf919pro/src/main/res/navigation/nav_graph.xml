@@ -1,0 +1,547 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph">
+
+    <!-- About Fragment -->
+    <fragment
+        android:id="@+id/aboutFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.AboutFragment"
+        android:label="About" >
+    </fragment>
+
+    <!-- Admin Fragment -->
+    <fragment
+        android:id="@+id/adminFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.AdminFragment"
+        android:label="Admin" >
+        <action
+            android:id="@+id/action_admin_to_terminalConfig"
+            app:destination="@id/terminalConfig" />
+        <action
+            android:id="@+id/action_admin_to_merchantConfig"
+            app:destination="@id/merchantConfig" />
+        <action
+            android:id="@+id/action_admin_to_hostConfig"
+            app:destination="@id/hostConfig" />
+    </fragment>
+
+    <!-- Attend Fragment -->
+    <fragment
+        android:id="@+id/attendFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.AttendFragment"
+        android:label="Attend">
+        <action
+            android:id="@+id/action_attend_to_transactionViewList"
+            app:destination="@id/transactionViewListFragment" />
+        <action
+            android:id="@+id/action_attend_to_transactionViewListQr"
+            app:destination="@id/transactionViewListQrFragment" />
+        <action
+            android:id="@+id/action_attend_to_settings"
+            app:destination="@id/settingsFragment" />
+        <action
+            android:id="@+id/action_attend_to_keypad"
+            app:destination="@id/keypadFragment" />
+        <action
+            android:id="@+id/action_attend_to_settlement"
+            app:destination="@id/settleOptionFragment" />
+        <action
+            android:id="@+id/action_attend_to_voidOption"
+            app:destination="@id/voidOptionFragment" />
+        <action
+            android:id="@+id/action_attend_to_about"
+            app:destination="@id/aboutFragment" />
+        <action
+            android:id="@+id/action_attend_to_contactus"
+            app:destination="@id/contactUsFragment" />
+    </fragment>
+
+    <!-- AttendDenomination Fragment -->
+    <fragment
+        android:id="@+id/attendDenominationFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.AttendDenominationFragment"
+        android:label="AttendDenomination">
+        <action
+            android:id="@+id/action_attendDenomination_to_settings"
+            app:destination="@id/settingsFragment" />
+        <action
+            android:id="@+id/action_attendDenomination_to_denominationPaymentOption"
+            app:destination="@id/denominationPaymentOptionFragment" />
+    
+        <!-- Auto-void after a failed vend. The VMC took payment but did not dispense, so the
+             terminal voids the captured sale unattended. Card sales are found by invoice in the
+             card batch; QR sales only exist in the QR table keyed by refId, so they need their
+             own destination. navigateSafe() requires a declared action, not just a destination. -->
+        <action
+            android:id="@+id/action_attendDenomination_to_voidSale"
+            app:destination="@id/voidSaleFragment" />
+        <action
+            android:id="@+id/action_attendDenomination_to_voidQr"
+            app:destination="@id/voidQrFragment" />
+    </fragment>
+
+    <!-- CardPayment Fragment -->
+    <fragment
+        android:id="@+id/cardPaymentFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.CardPaymentFragment"
+        android:label="CardPayment">
+        <action
+            android:id="@+id/action_cardPayment_to_transactionResult"
+            app:destination="@id/transactionResultFragment" />
+    </fragment>
+
+    <!-- DenominationPaymentOption Fragment -->
+    <fragment
+        android:id="@+id/denominationPaymentOptionFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.DenominationPaymentOptionFragment"
+        android:label="DenominationPaymentOption">
+        <action
+            android:id="@+id/action_denominationPaymentOption_to_cardPayment"
+            app:destination="@id/cardPaymentFragment" />
+        <action
+            android:id="@+id/action_denominationPaymentOption_to_generateQrSubProduct"
+            app:destination="@id/generateQrSubProductFragment" />
+    </fragment>
+
+    <!-- FragmentResult -->
+    <fragment
+        android:id="@+id/FragmentResult"
+        android:name="com.sc.mf919pro.kotlin.fragment.FragmentResult"
+        android:label="FragmentResult" >
+    </fragment>
+
+    <!-- FragmentReceipt -->
+    <fragment
+        android:id="@+id/FragmentReceipt"
+        android:name="com.sc.mf919pro.kotlin.fragment.FragmentReceipt"
+        android:label="FragmentReceipt" >
+    </fragment>
+
+    <!-- FragmentResultQr -->
+    <fragment
+        android:id="@+id/FragmentResultQr"
+        android:name="com.sc.mf919pro.kotlin.fragment.FragmentResultQr"
+        android:label="FragmentResultQr" >
+    </fragment>
+
+    <!-- FragmentReceiptQr -->
+    <fragment
+        android:id="@+id/FragmentReceiptQr"
+        android:name="com.sc.mf919pro.kotlin.fragment.FragmentReceiptQr"
+        android:label="FragmentReceiptQr" >
+    </fragment>
+
+    <!-- GenerateQr Fragment -->
+    <fragment
+        android:id="@+id/generateQrSubProductFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.GenerateQrSubProductFragment"
+        android:label="GenerateQrSubProduct">
+        <action
+            android:id="@+id/action_genQrSubProduct_to_keypad"
+            app:destination="@id/keypadFragment" />
+        <action
+            android:id="@+id/action_genQrSubProduct_to_generateQr"
+            app:destination="@id/generateQrFragment" />
+        <action
+            android:id="@+id/action_genQrSubProduct_to_scanQr"
+            app:destination="@id/scanQrFragment" />
+    </fragment>
+
+    <!-- GenerateQr Fragment -->
+    <fragment
+        android:id="@+id/generateQrFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.GenerateQrFragment"
+        android:label="GenerateQr">
+        <action
+            android:id="@+id/action_generateQr_to_transactionResultQr"
+            app:destination="@id/transactionResultQrFragment" />
+    </fragment>
+
+    <!-- HostConfig Fragment -->
+    <fragment
+        android:id="@+id/hostConfig"
+        android:name="com.sc.mf919pro.kotlin.fragment.HostConfigFragment"
+        android:label="HostConfig" >
+    </fragment>
+
+    <!-- Keypad Fragment -->
+    <fragment
+        android:id="@+id/keypadFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.KeypadFragment"
+        android:label="Keypad">
+        <action
+            android:id="@+id/action_keypadNew_to_cardPayment"
+            app:destination="@id/cardPaymentFragment" />
+        <action
+            android:id="@+id/action_keypadNew_to_generateQrSubProduct"
+            app:destination="@id/generateQrSubProductFragment" />
+        <action
+            android:id="@+id/action_keypadNew_to_scanQr"
+            app:destination="@id/scanQrFragment" />
+        <action
+            android:id="@+id/action_keypadNew_to_phoneNumber"
+            app:destination="@id/phoneNumberFragment" />
+    </fragment>
+
+    <!-- MerhcantConfig Fragment -->
+    <fragment
+        android:id="@+id/merchantConfig"
+        android:name="com.sc.mf919pro.kotlin.fragment.MerchantConfigFragment"
+        android:label="MerchantConfig" >
+    </fragment>
+
+    <!-- ScanQr Fragment -->
+    <fragment
+        android:id="@+id/scanQrFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.ScanQrFragment"
+        android:label="ScanQr">
+        <action
+            android:id="@+id/action_scanQr_to_transactionResultQr"
+            app:destination="@id/transactionResultQrFragment" />
+    </fragment>
+
+    <!-- PhoneNumber Fragment (FoodLink) -->
+    <fragment
+        android:id="@+id/phoneNumberFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.PhoneNumberFragment"
+        android:label="PhoneNumber">
+        <action
+            android:id="@+id/action_phoneNumber_to_cardPayment"
+            app:destination="@id/cardPaymentFragment" />
+        <action
+            android:id="@+id/action_phoneNumber_to_generateQrSubProduct"
+            app:destination="@id/generateQrSubProductFragment" />
+        <action
+            android:id="@+id/action_phoneNumber_to_scanQr"
+            app:destination="@id/scanQrFragment" />
+    </fragment>
+
+    <!-- Settings Fragment -->
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.SettingsFragment"
+        android:label="Settings">
+        <action
+            android:id="@+id/action_settings_to_admin"
+            app:destination="@id/adminFragment" />
+        <action
+            android:id="@+id/action_settings_to_settlement"
+            app:destination="@id/settlementFragment" />
+        <action
+            android:id="@+id/action_settings_to_settlementQrPreview"
+            app:destination="@id/settlementQrPreviewFragment" />
+        <action
+            android:id="@+id/action_setting_to_keypadPreAuth"
+            app:destination="@id/keypadPreAuthFragment" />
+        <action
+            android:id="@+id/action_setting_to_voidPreAuth"
+            app:destination="@id/voidPreAuthFragment" />
+        <action
+            android:id="@+id/action_setting_to_voidSaleComp"
+            app:destination="@id/voidSaleCompletionFragment" />
+        <action
+            android:id="@+id/action_settings_to_about"
+            app:destination="@id/aboutFragment" />
+        <action
+            android:id="@+id/action_settings_to_keypadMoto"
+            app:destination="@id/keypadMotoFragment" />
+        <action
+            android:id="@+id/action_settings_to_eppAcquirer"
+            app:destination="@id/eppAcquirerFragment" />
+    </fragment>
+
+    <!-- SettleOption Fragment -->
+    <fragment
+        android:id="@+id/settleOptionFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.SettleOptionFragment"
+        android:label="SettlementOption">
+        <action
+            android:id="@+id/action_settleOption_to_settlePreview"
+            app:destination="@id/settlementFragment" />
+    </fragment>
+
+    <!-- Settlement Fragment (merged: settlement summary display/print + preview) -->
+    <fragment
+        android:id="@+id/settlementFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.SettlementFragment"
+        android:label="Settlement">
+        <action
+            android:id="@+id/action_settlePreview_to_settleQrPreview"
+            app:destination="@id/settlementQrPreviewFragment" />
+        <action
+            android:id="@+id/action_settlePreview_to_settleOption"
+            app:destination="@id/settleOptionFragment" />
+    </fragment>
+
+    <!-- SettlementQrPreview Fragment -->
+    <fragment
+        android:id="@+id/settlementQrPreviewFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.SettlementQrPreviewFragment"
+        android:label="SettlementQrPreview">
+        <action
+            android:id="@+id/action_settleQrPreview_to_settlePreview"
+            app:destination="@id/settlementFragment" />
+        <action
+            android:id="@+id/action_settleQrPreview_to_settleOption"
+            app:destination="@id/settleOptionFragment" />
+    </fragment>
+
+    <!-- TerminalConfig Fragment -->
+    <fragment
+        android:id="@+id/terminalConfig"
+        android:name="com.sc.mf919pro.kotlin.fragment.TerminalConfigFragment"
+        android:label="TerminalConfig" >
+    </fragment>
+
+    <!-- TransactionResult Fragment -->
+    <fragment
+        android:id="@+id/transactionResultFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.TransactionResultFragment"
+        android:label="TransactionResult" >
+        <action
+            android:id="@+id/action_result"
+            app:destination="@id/FragmentResult" />
+        <action
+            android:id="@+id/action_receipt"
+            app:destination="@id/FragmentReceipt" />
+    </fragment>
+
+    <!-- TransactionResultQr Fragment -->
+    <fragment
+        android:id="@+id/transactionResultQrFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.TransactionResultQrFragment"
+        android:label="TransactionResultQr" >
+        <action
+            android:id="@+id/action_resultQr"
+            app:destination="@id/FragmentResultQr" />
+        <action
+            android:id="@+id/action_receiptQr"
+            app:destination="@id/FragmentReceiptQr" />
+    </fragment>
+
+    <!-- TransactionViewList Fragment -->
+    <fragment
+        android:id="@+id/transactionViewListFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.TransactionViewListFragment"
+        android:label="TransactionViewList" >
+        <action
+            android:id="@+id/action_viewCardDetails"
+            app:destination="@id/transactionViewCardDetailsFragment" />
+        <action
+            android:id="@+id/action_historyList_to_result"
+            app:destination="@id/transactionResultFragment" />
+        <action
+            android:id="@+id/action_historyList_to_list_detail"
+            app:destination="@id/transactionViewListDetailFragment" />
+        <action
+            android:id="@+id/action_historyList_to_settlement_preview"
+            app:destination="@id/settlementFragment" />
+    </fragment>
+
+    <!-- TransactionViewCardDetails Fragment -->
+    <fragment
+        android:id="@+id/transactionViewCardDetailsFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.TransactionViewCardDetailsFragment"
+        android:label="TransactionViewCardDetails" >
+        <action
+            android:id="@+id/action_details_to_list"
+            app:destination="@id/transactionViewListFragment" />
+    </fragment>
+
+    <!-- TransactionViewListQr Fragment -->
+    <fragment
+        android:id="@+id/transactionViewListQrFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.TransactionViewListQrFragment"
+        android:label="TransactionViewListQr" >
+        <action
+            android:id="@+id/action_viewQrDetails"
+            app:destination="@id/transactionViewQrDetailsFragment" />
+        <action
+            android:id="@+id/action_qrHistoryList_to_result"
+            app:destination="@id/transactionResultQrFragment" />
+        <action
+            android:id="@+id/action_historyList_to_list_qr_detail"
+            app:destination="@id/transactionViewListQrDetailFragment" />
+        <action
+            android:id="@+id/action_historyQrList_to_settlement_preview"
+            app:destination="@id/settlementQrPreviewFragment" />
+    </fragment>
+
+    <!-- TransactionViewQrDetails Fragment -->
+    <fragment
+        android:id="@+id/transactionViewQrDetailsFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.TransactionViewQrDetailsFragment"
+        android:label="TransactionViewQrDetails" >
+        <action
+            android:id="@+id/action_details_to_listQr"
+            app:destination="@id/transactionViewListQrFragment" />
+    </fragment>
+
+    <!-- VoidOption Fragment -->
+    <fragment
+        android:id="@+id/voidOptionFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.VoidOptionFragment"
+        android:label="VoidOptionFragment">
+        <action
+            android:id="@+id/action_voidOption_to_voidSale"
+            app:destination="@id/voidSaleFragment" />
+        <action
+            android:id="@+id/action_voidOption_to_voidQr"
+            app:destination="@id/voidQrFragment" />
+    </fragment>
+
+    <!-- VoidSale Fragment -->
+    <fragment
+        android:id="@+id/voidSaleFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.VoidSaleFragment"
+        android:label="VoidSaleFragment">
+        <action
+            android:id="@+id/action_voidSale_to_transactionResult"
+            app:destination="@id/transactionResultFragment" />
+    </fragment>
+
+    <!-- VoidQR Fragment -->
+    <fragment
+        android:id="@+id/voidQrFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.VoidQrFragment"
+        android:label="VoidQrFragment">
+        <action
+            android:id="@+id/action_voidQr_to_transactionResultQr"
+            app:destination="@id/transactionResultQrFragment" />
+    </fragment>
+
+    <!-- KeypadPreAuth Fragment -->
+    <fragment
+        android:id="@+id/keypadPreAuthFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.KeypadPreAuthFragment"
+        android:label="KeypadPreAuthFragment">
+        <action
+            android:id="@+id/action_keypadPreAuth_to_cardPayment"
+            app:destination="@id/cardPaymentFragment" />
+        <action
+            android:id="@+id/action_keypadPreAuth_to_saleCompletion"
+            app:destination="@id/keypadSaleCompletionFragment" />
+        <action
+            android:id="@+id/action_keypadPreAuth_to_keypadCashout"
+            app:destination="@id/keypadCashoutFragment" />
+    </fragment>
+
+    <!-- KeypadSaleCompletion Fragment -->
+    <fragment
+        android:id="@+id/keypadSaleCompletionFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.KeypadSaleCompFragment"
+        android:label="KeypadSaleCompFragment">
+        <action
+            android:id="@+id/action_keypadCompletion_to_transactionResult"
+            app:destination="@id/transactionResultFragment" />
+    </fragment>
+
+    <!-- VoidPreAuth Fragment -->
+    <fragment
+        android:id="@+id/voidPreAuthFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.VoidPreAuthFragment"
+        android:label="VoidPreauthFragment">
+        <action
+            android:id="@+id/action_voidPreAuth_to_transactionResult"
+            app:destination="@id/transactionResultFragment" />
+    </fragment>
+
+    <!-- VoidSaleCompletion Fragment -->
+    <fragment
+        android:id="@+id/voidSaleCompletionFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.VoidSaleCompFragment"
+        android:label="VoidSaleCompFragment">
+        <action
+            android:id="@+id/action_voidCompletion_to_transactionResult"
+            app:destination="@id/transactionResultFragment" />
+    </fragment>
+
+    <!-- KeypadMoto Fragment -->
+    <fragment
+        android:id="@+id/keypadMotoFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.KeypadMotoFragment"
+        android:label="keypadMotoFragment">
+        <action
+            android:id="@+id/action_moto_to_transactionResult"
+            app:destination="@id/transactionResultFragment" />
+    </fragment>
+
+    <!-- Keypad Fragment -->
+    <fragment
+        android:id="@+id/keypadCashoutFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.KeypadCashoutFragment"
+        android:label="KeypadCashoutFragment">
+        <action
+            android:id="@+id/action_keypadCashout_to_cardPayment"
+            app:destination="@id/cardPaymentFragment" />
+    </fragment>
+
+    <!-- Epp Acquirer Fragment -->
+    <fragment
+        android:id="@+id/eppAcquirerFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.EppAcquirerFragment"
+        android:label="EppAcquirerFragment">
+        <action
+            android:id="@+id/action_appAcquirer_to_eppKeypad"
+            app:destination="@id/eppKeypadFragment" />
+    </fragment>
+
+    <!-- Epp Keypad Fragment -->
+    <fragment
+        android:id="@+id/eppKeypadFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.EppKeypadFragment"
+        android:label="EppKeypadFragment">
+        <action
+            android:id="@+id/action_eppKeypad_to_eppProduct"
+            app:destination="@id/eppProductFragment" />
+    </fragment>
+
+    <!-- Epp Product Fragment -->
+    <fragment
+        android:id="@+id/eppProductFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.EppProductFragment"
+        android:label="EppProductFragment">
+        <action
+            android:id="@+id/action_eppProduct_to_cardPayment"
+            app:destination="@id/cardPaymentFragment" />
+    </fragment>
+
+    <!-- Transaction View List Detail Fragment -->
+    <fragment
+        android:id="@+id/transactionViewListDetailFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.TransactionViewListDetailFragment"
+        android:label="TransactionViewListDetailFragment">
+    </fragment>
+
+    <!-- Transaction View List Qr Detail Fragment -->
+    <fragment
+        android:id="@+id/transactionViewListQrDetailFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.TransactionViewListQrDetailFragment"
+        android:label="TransactionViewListQrDetailFragment">
+    </fragment>
+
+    <fragment
+        android:id="@+id/unAttendFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.UnAttendFragment"
+        android:label="UnAttendFragment">
+        <action
+            android:id="@+id/action_unattend_to_settlement"
+            app:destination="@id/settleOptionFragment" />
+        <action
+            android:id="@+id/action_unattend_to_attend"
+            app:destination="@id/attendFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/contactUsFragment"
+        android:name="com.sc.mf919pro.kotlin.fragment.ContactUsFragment"
+        android:label="ContactUsFragment">
+    </fragment>
+
+    <!-- Global Action (reusable from any fragment) -->
+    <action
+        android:id="@+id/action_global_to_attend"
+        app:destination="@id/attendFragment" />
+</navigation>
