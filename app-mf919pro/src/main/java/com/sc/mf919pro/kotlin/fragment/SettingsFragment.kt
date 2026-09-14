@@ -38,7 +38,7 @@ import com.sc.mf919pro.kotlin.helper_common.TmsHelper.getMerchantConfiguration
 import com.sc.mf919pro.kotlin.helper_common.TmsHelper.getTerminalConfiguration
 import com.sc.mf919pro.kotlin.helper_common.TmsHelper.uploadAllTerminalLog
 import com.sc.mf919pro.kotlin.helper_common.iso.IsoActivity
-import com.sc.mf919pro.kotlin.helper_common.iso.IsoHelperNew
+import iso.IsoHelperNew
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperCommon.Companion.getSession

@@ -1,4 +1,5 @@
 package com.sc.mf919.kotlin.activity
+import enums.EnumResponseCode
 
 import android.annotation.SuppressLint
 import android.app.KeyguardManager
@@ -50,7 +51,7 @@ import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.autoSettlementI
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.getTerminalConfig
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.txnType
 import com.sc.mf919.kotlin.helper_common.iso.IsoActivity
-import com.sc.mf919.kotlin.helper_common.iso.IsoHelperNew
+import iso.IsoHelperNew
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperLog
@@ -289,13 +290,13 @@ class SettlementActivity : BaseActivity() {
 				val jsonObject = JSONObject()
 				helperLog.appendLine(helperLogClassName, "REJECT :: auto settlement already running, ResponseCode :: [SHC002]")
 				Toast.makeText(applicationContext, "Auto Settlement is running", Toast.LENGTH_SHORT).show()
-				txnMap["ResponseCode"] = "SHC002"
-				txnMap["ResponseDescription"] = "Auto Settlement is running"
+				txnMap["ResponseCode"] = EnumResponseCode.AUTO_SETTLEMENT_RUNNING.code
+				txnMap["ResponseDescription"] = EnumResponseCode.AUTO_SETTLEMENT_RUNNING.description
 				txnMap["TransactionType"] = txnType.toString()
 				txnMapList.add(txnMap)
 				try {
-					jsonObject.put("ResponseCode", "SHC002")
-					jsonObject.put("ResponseDescription", "Auto Settlement is running")
+					jsonObject.put("ResponseCode", EnumResponseCode.AUTO_SETTLEMENT_RUNNING.code)
+					jsonObject.put("ResponseDescription", EnumResponseCode.AUTO_SETTLEMENT_RUNNING.description)
 					jsonObject.put("TransactionType", txnType.toString())
 				} catch (e: JSONException) {
 					e.printStackTrace()
@@ -654,6 +655,18 @@ class SettlementActivity : BaseActivity() {
 	}
 
 	fun customOnBackPress() {
+		// D8 -- a settlement issues several host calls (settlement, trailer, batch upload) and the
+		// responses land in the global TransData. Leaving here mid-flight abandons a batch the host
+		// may already have closed. The non-cancelable progress dialog normally swallows the press
+		// before it reaches us, so this is the belt to that braces -- and the only thing that makes
+		// the requirement the settlement screen's own rather than a shared dialog's side effect.
+		if (IsoActivity.isHostRequestInFlight) {
+			helperLog.appendLine(helperLogClassName, "IGNORE OnBack Press :: host request in flight, cannot leave settlement")
+			helperLog.logToFile(EnumLogFileName.TerminaLogException)
+			Toast.makeText(mContext, "Processing, please wait", Toast.LENGTH_SHORT).show()
+			return
+		}
+
 		helperLog.appendLine(helperLogClassName, "User Cancel :: back pressed, leaving settlement screen")
 		helperLog.appendLine(helperLogClassName, "Validation passed :: navigate -> HomeScreen")
 		helperLog.logToFile(EnumLogFileName.TerminaLog)
@@ -1157,23 +1170,23 @@ class SettlementActivity : BaseActivity() {
 			}
 		} else {
 			if (iResp == -8001) {
-				txnMap["ResponseCode"] = "SHC003"
-				txnMap["ResponseDescription"] = "No Batch to Settle"
+				txnMap["ResponseCode"] = EnumResponseCode.NO_BATCH_TO_SETTLE.code
+				txnMap["ResponseDescription"] = EnumResponseCode.NO_BATCH_TO_SETTLE.description
 				txnMap["TransactionType"] = txnType.toString()
 				try {
-					jsonObject.put("ResponseCode", "SHC003")
-					jsonObject.put("ResponseDescription", "No Batch to Settle")
+					jsonObject.put("ResponseCode", EnumResponseCode.NO_BATCH_TO_SETTLE.code)
+					jsonObject.put("ResponseDescription", EnumResponseCode.NO_BATCH_TO_SETTLE.description)
 					jsonObject.put("TransactionType", txnType.toString())
 				} catch (e: JSONException) {
 					e.printStackTrace()
 				}
 			} else {
-				txnMap["ResponseCode"] = "SHC004"
-				txnMap["ResponseDescription"] = "Settlement Fail"
+				txnMap["ResponseCode"] = EnumResponseCode.SETTLEMENT_FAILED.code
+				txnMap["ResponseDescription"] = EnumResponseCode.SETTLEMENT_FAILED.description
 				txnMap["TransactionType"] = txnType.toString()
 				try {
-					jsonObject.put("ResponseCode", "SHC004")
-					jsonObject.put("ResponseDescription", "Settlement Fail")
+					jsonObject.put("ResponseCode", EnumResponseCode.SETTLEMENT_FAILED.code)
+					jsonObject.put("ResponseDescription", EnumResponseCode.SETTLEMENT_FAILED.description)
 					jsonObject.put("TransactionType", txnType.toString())
 				} catch (e: JSONException) {
 					e.printStackTrace()

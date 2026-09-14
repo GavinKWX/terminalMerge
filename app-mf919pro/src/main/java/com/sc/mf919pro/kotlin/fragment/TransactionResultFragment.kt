@@ -13,7 +13,7 @@ import androidx.activity.OnBackPressedCallback
 import com.library.terminal.Utility
 import com.sc.mf919pro.R
 import com.sc.mf919pro.databinding.FragmentTransactionresultBinding
-import com.sc.mf919pro.java.activity.Global
+import constants.TerminalConstants
 import com.sc.mf919pro.java.activity.Utils
 import com.sc.mf919pro.kotlin.activity.TransactionTransmitter
 import com.sc.mf919pro.kotlin.data_enum.AcquirerLogoDataEnum
@@ -50,13 +50,22 @@ class TransactionResultFragment : BaseFragment(),  FragmentResult.OnFragmentInte
 
     private var _binding: FragmentTransactionresultBinding? = null
     private val binding get() = _binding!!
+
+    // D11 — the card registration in force when this screen appeared, i.e. this transaction's.
+    // Taken here rather than in onDestroyView because by then the NEXT transaction may already
+    // have registered, and clearing then would wipe its data instead of ours.
+    private var cardDataGeneration = 0L
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        cardDataGeneration = LogRedact.currentGeneration()
         _binding = FragmentTransactionresultBinding.inflate(inflater, container, false)
         return binding.root
     }
     override fun onDestroyView() {
         // D7 — the in-flight card data must not outlive the transaction.
-        LogRedact.clearCardData()
+        // D11 — but only if it is still ours; a void started while this screen was going away
+        // has already registered its own, and that must survive.
+        LogRedact.clearCardData(cardDataGeneration)
         super.onDestroyView()
         _binding = null
         // Final boundary for this screen. Everything appended since the last flush is only
@@ -145,7 +154,7 @@ class TransactionResultFragment : BaseFragment(),  FragmentResult.OnFragmentInte
         // bus -- a duplicate VEND APPROVED after an auto-void, or a second VEND DENIED
         // behind the one a VMC cancel already sent.
         if (MdbController.isVending) {
-            if (transData.transResult == Global.iso.err.txnApproved || transData.qrRespCode == "0000") {
+            if (transData.transResult == TerminalConstants.iso.err.txnApproved || transData.qrRespCode == "0000") {
                 helperLog.appendLine(helperLogClassName,
                     "Vend APPROVED :: notifying VMC, invoice=${transData.invoiceNo}")
                 MdbController.sendVendApproved()
@@ -159,7 +168,7 @@ class TransactionResultFragment : BaseFragment(),  FragmentResult.OnFragmentInte
 
         val transactionResult = transData.transResult
         helperLog.appendLine(helperLogClassName, "Transaction Result :: ", "$transactionResult")
-        if(transactionResult == Global.iso.err.txnApproved){
+        if(transactionResult == TerminalConstants.iso.err.txnApproved){
             helperLog.appendLine(helperLogClassName, "Transaction Approved...")
             processApprovedTransaction()
         } else {
@@ -188,7 +197,7 @@ class TransactionResultFragment : BaseFragment(),  FragmentResult.OnFragmentInte
 
             try {
                 val isCZ = transData.acqCode.equals("BSN_CARDZONE", true)
-                val eppDetail = transData.getFromTransactionDb(Global.cube.CUBE_TAG_EPP_DETAILS, 256)
+                val eppDetail = transData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_EPP_DETAILS, 256)
                 val respCode = Utility.HexString2ASCII(transData.respCode)
                 jsonObject.put("ResponseCode", respCode)
                 jsonObject.put("ResponseDescription", desc)
@@ -204,8 +213,8 @@ class TransactionResultFragment : BaseFragment(),  FragmentResult.OnFragmentInte
                 jsonObject.put("TransactionApplicationLabel", Utils.byteArrayToAsciiString(transData.appLabel, 0, transData.appLabelLen))
                 jsonObject.put("TransactionCardNo", transData.maskedPan)
                 jsonObject.put("TransactionEntryType", transData.entryModeLabel)
-                jsonObject.put("TransactionARQC", transData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ARQC, 16))
-                jsonObject.put("TransactionTVR", transData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_TVR, 16))
+                jsonObject.put("TransactionARQC", transData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, 16))
+                jsonObject.put("TransactionTVR", transData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_TVR, 16))
                 jsonObject.put("TransactionAID", transData.aid)
                 jsonObject.put("TransactionCVM", transData.cvm)
                 jsonObject.put("TransactionTSI", "-")
@@ -227,7 +236,7 @@ class TransactionResultFragment : BaseFragment(),  FragmentResult.OnFragmentInte
             helperLog.appendLine(helperLogClassName, "App Intent task")
             //TODO form and return for app intent request
             val isCZ = transData.acqCode.equals("BSN_CARDZONE", true)
-            val eppDetail = transData.getFromTransactionDb(Global.cube.CUBE_TAG_EPP_DETAILS, 256)
+            val eppDetail = transData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_EPP_DETAILS, 256)
             val respCode = Utility.HexString2ASCII(transData.respCode)
             txn_map["ResponseCode"] = respCode
             txn_map["ResponseDescription"] = desc
@@ -246,8 +255,8 @@ class TransactionResultFragment : BaseFragment(),  FragmentResult.OnFragmentInte
             txn_map["TransactionApplicationLabel"] = Utils.byteArrayToAsciiString(transData.appLabel, 0, transData.appLabelLen)
             txn_map["TransactionCardNo"] = transData.maskedPan
             txn_map["TransactionEntryType"] = transData.entryModeLabel
-            txn_map["TransactionARQC"] = transData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ARQC, 16)
-            txn_map["TransactionTVR"] = transData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_TVR, 16)
+            txn_map["TransactionARQC"] = transData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, 16)
+            txn_map["TransactionTVR"] = transData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_TVR, 16)
             txn_map["TransactionAID"] = transData.aid
             txn_map["TransactionCVM"] = transData.cvm
             txn_map["TransactionTSI"] = "-"

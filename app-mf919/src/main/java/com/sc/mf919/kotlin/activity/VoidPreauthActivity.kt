@@ -1,4 +1,5 @@
 package com.sc.mf919.kotlin.activity
+import enums.EnumResponseCode
 
 
 import android.annotation.SuppressLint
@@ -20,14 +21,14 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.lifecycleScope
 import com.library.terminal.Utility
 import com.sc.mf919.R
-import com.sc.mf919.java.activity.EmvTag
-import com.sc.mf919.java.activity.Global
+import emv.EmvTag
+import constants.TerminalConstants
 import com.sc.mf919.java.activity.Keypad
 import com.sc.mf919.java.activity.TransactionTransmitter
 import com.sc.mf919.java.activity.UploadTMS
 import com.sc.mf919.java.activity.Utils
 import com.sc.mf919.java.activity.onKeypadEventListener
-import com.sc.mf919.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.HexUtil
 import com.sc.mf919.kotlin.data_enum.variables.TransData
 import com.sc.mf919.kotlin.database.model.DbModelPreAuthTable
@@ -172,19 +173,19 @@ class VoidPreauthActivity : BaseActivity() {
 					helperLog.appendLine(helperlogClassName, "REJECT :: MyDebit Preauth Void is not supported")
 					helperLog.logToFile(EnumLogFileName.TerminaLog)
 					runOnUiThread {
-						ToastMake(mContext, "MyDebit Preauth Void is not supported", Toast.LENGTH_SHORT)
+						ToastMake(mContext, EnumResponseCode.MYDEBIT_PREAUTH_VOID_UNSUPPORTED.description, Toast.LENGTH_SHORT)
 					}
 
 					if (ServiceHolder.appIntent) {
 						val txnMap = java.util.HashMap<String, String>()
-						txnMap["ResponseCode"] = "SHC010"
-						txnMap["ResponseDescription"] = "MyDebit Preauth Void is not supported"
+						txnMap["ResponseCode"] = EnumResponseCode.MYDEBIT_PREAUTH_VOID_UNSUPPORTED.code
+						txnMap["ResponseDescription"] = EnumResponseCode.MYDEBIT_PREAUTH_VOID_UNSUPPORTED.description
 						onBackToApp(txnMap)
 					} else if (ServiceHolder.appHTTP) {
 						val jObject = JSONObject()
 						try {
-							jObject.put("ResponseCode", "SHC010")
-							jObject.put("ResponseDescription", "MyDebit Preauth Void is Not Supported")
+							jObject.put("ResponseCode", EnumResponseCode.MYDEBIT_PREAUTH_VOID_UNSUPPORTED.code)
+							jObject.put("ResponseDescription", EnumResponseCode.MYDEBIT_PREAUTH_VOID_UNSUPPORTED.description)
 						} catch (e: JSONException) {
 							e.printStackTrace()
 						}
@@ -205,14 +206,14 @@ class VoidPreauthActivity : BaseActivity() {
 
 				if (ServiceHolder.appIntent) {
 					val txnMap = java.util.HashMap<String, String>()
-					txnMap["ResponseCode"] = "SHC001"
-					txnMap["ResponseDescription"] = "Invalid Transaction Invoice"
+					txnMap["ResponseCode"] = EnumResponseCode.INVALID_TRANSACTION_INVOICE.code
+					txnMap["ResponseDescription"] = EnumResponseCode.INVALID_TRANSACTION_INVOICE.description
 					onBackToApp(txnMap)
 				} else if (ServiceHolder.appHTTP) {
 					val jObject = JSONObject()
 					try {
-						jObject.put("ResponseCode", "SHC001")
-						jObject.put("ResponseDescription", "Invalid Transaction Invoice")
+						jObject.put("ResponseCode", EnumResponseCode.INVALID_TRANSACTION_INVOICE.code)
+						jObject.put("ResponseDescription", EnumResponseCode.INVALID_TRANSACTION_INVOICE.description)
 					} catch (e: JSONException) {
 						e.printStackTrace()
 					}
@@ -247,14 +248,14 @@ class VoidPreauthActivity : BaseActivity() {
 			alertDialog?.dismiss()
 			if (appIntent) {
 				val txn_map = HashMap<String, String>()
-				txn_map["ResponseCode"] = "SHC005"
-				txn_map["ResponseDescription"] = "User Cancel the Transaction"
+				txn_map["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+				txn_map["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
 				onBackToApp(txn_map)
 			} else if (appHTTP) {
 				val jsonObject = JSONObject()
 				try {
-					jsonObject.put("ResponseCode", "SHC005")
-					jsonObject.put("ResponseDescription", "User Cancel the Transaction")
+					jsonObject.put("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+					jsonObject.put("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
 				} catch (e: JSONException) {
 					e.printStackTrace()
 				}
@@ -334,9 +335,9 @@ class VoidPreauthActivity : BaseActivity() {
 			TransData.transactionDbLen = oldTransDb.size - 2
 			TransData.schemeId = TransData.getFromTransactionDb("DA", 16)
 			TransData.batchNo = TransData.getFromTransactionDb("DF60", 256)
-			TransData.entryModeLabel = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
-			TransData.cvm = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_CVM, 16)
-			TransData.aid = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_AID, 16)
+			TransData.entryModeLabel = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
+			TransData.cvm = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM, 16)
+			TransData.aid = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_AID, 16)
 			posReference?.let {
 				TransData.posReference = it
 				helperLog.appendLine(helperlogClassName, "Add Pos Reference >> $it")
@@ -350,7 +351,7 @@ class VoidPreauthActivity : BaseActivity() {
 					IsoActivity.processVoidPreauth(mContext, isNotCompl, helperLog)
 					helperLog.appendLine(helperlogClassName, "Trans Result :: ${TransData.transResult}")
 					helperLog.appendLine(helperlogClassName, "Resp Code :: ${TransData.respCode}")
-					helperLog.appendLine(helperlogClassName, "Void PreAuth result :: ${if (TransData.transResult == Global.iso.err.txnApproved) "APPROVED" else "DECLINED"} for invoice ${TransData.prevInvoice} / RRN ${TransData.prevRRN} / PAN ${TransData.maskedPan}")
+					helperLog.appendLine(helperlogClassName, "Void PreAuth result :: ${if (TransData.transResult == TerminalConstants.iso.err.txnApproved) "APPROVED" else "DECLINED"} for invoice ${TransData.prevInvoice} / RRN ${TransData.prevRRN} / PAN ${TransData.maskedPan}")
 					isNotCompl[0] = false
 				}
 			}.start()
@@ -414,13 +415,13 @@ class VoidPreauthActivity : BaseActivity() {
 		val strPreAuthBatchNo = TransData.getFromTransactionDb("BF60", 256)
 		val strRespCode =  Utility.HexString2ASCII(TransData.respCode)
 		val strAid = TransData.aid
-		val mti = TransData.getFromTransactionDb(Global.iso.tag.MTI, 16)
+		val mti = TransData.getFromTransactionDb(TerminalConstants.iso.tag.MTI, 16)
 		val strNii = TransData.getFromTransactionDb("DF24", 16)
 		val strMaskPanBcd = TransData.maskedPan
 		val strHashedPanBcd = TransData.hashedPan
 		val strEntryType = TransData.entryModeLabel
-		val strARQC = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ARQC, 16)
-		val strTVR = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_TVR, 16)
+		val strARQC = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, 16)
+		val strTVR = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_TVR, 16)
 		val strPosReference = TransData.posReference
 		val strCardLabel = Utils.byteArrayToAsciiString(TransData.appLabel, 0, TransData.appLabelLen)
 		val strCvm = TransData.cvm

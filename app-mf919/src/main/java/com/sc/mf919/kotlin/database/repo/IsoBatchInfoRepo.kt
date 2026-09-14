@@ -29,6 +29,23 @@ class IsoBatchInfoRepo(){
             // at the call sites. See CounterGuard for what it protects against.
             CounterGuard.record(mContext, tag, subtag, value)
 
+            // D3 -- report the real outcome, and create the row when it is absent.
+            //
+            // This table holds stan / invoiceNo / batchNo. The previous version ran the update and
+            // then returned `true` unconditionally, so a failed write read as success -- including
+            // a write against a row that does not exist, which updates nothing at all. For a
+            // counter that means it silently never advanced, and the next transaction reuses the
+            // number it just used. Exactly the failure R8 is about, reached by a different route.
+            //
+            // Pro reached the same conclusion; this mirrors it, but uses getBatchInfo for the
+            // pre-select rather than duplicating the query inline.
+            if (getBatchInfo(mContext, tag, subtag) == null) {
+                return dbHandler.insertToDb(
+                    DatabaseTables.ISO_BATCH_INFO,
+                    DbModelIsoBatchInfo(tag, subtag, value)
+                )
+            }
+
             val updateMap = mutableMapOf<Any,Any>(
                 "value" to value
             )
@@ -37,9 +54,8 @@ class IsoBatchInfoRepo(){
                 "subtag" to subtag
             )
 
-            dbHandler.updateTableValue(DatabaseTables.ISO_BATCH_INFO, updateMap, criteriaMap)
-
-            return true
+            // updateTableValue returns 0 on failure; do not launder that into true.
+            return dbHandler.updateTableValue(DatabaseTables.ISO_BATCH_INFO, updateMap, criteriaMap) > 0
         }
 
         /**
@@ -65,10 +81,12 @@ class IsoBatchInfoRepo(){
          * Wraps at [max] back to 1 and pads to [width], matching the code it replaces exactly.
          * Returns the value already persisted, so the caller just uses it.
          *
-         * Deliberately does NOT insert a missing row, because the sequence it replaces did not
-         * either: these rows are created by the migrations, and adding an insert here would change
-         * behaviour on a path this change is meant to leave alone. If the row is absent the result
-         * is "000001" unpersisted -- same as before.
+         * A missing row is now seeded rather than skipped. The sequence this replaced returned
+         * "000001" and then ran an update that matched nothing, so an absent row meant **every**
+         * transaction was issued 000001 -- a permanent duplicate, not a one-off. Since D3 made
+         * updateBatchInfo insert when the row is absent, the first allocation creates it and the
+         * sequence proceeds normally. This is a deliberate behaviour change on the counter path,
+         * and it removes a duplicate-number case rather than adding one.
          */
         fun allocateCounter(
             mContext: Context,
@@ -77,8 +95,7 @@ class IsoBatchInfoRepo(){
             max: Int = 999999,
             width: Int = 6
         ): String = synchronized(counterLock) {
-            val current = getBatchInfo(mContext, tag, subtag)?.let { Utils.atoi(it.value) }
-            if (current == null) return@synchronized String.format("%0${width}d", 1)
+            val current = getBatchInfo(mContext, tag, subtag)?.let { Utils.atoi(it.value) } ?: 0
             var next = current + 1
             if (next > max) next = 1
             val formatted = String.format("%0${width}d", next)

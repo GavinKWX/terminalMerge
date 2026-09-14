@@ -49,7 +49,6 @@ import java.util.*
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
-
 class BnplIoupayViewDetailsActivity : ActivityBase(), LoaderManager.LoaderCallbacks<Any> {
     lateinit var mContext: Context
     private val SUPERSCRIPT_REGEX = "(?<=\\b\\d{0,9999})(st|nd|rd|th)(?=\\b)"
@@ -261,7 +260,6 @@ class BnplIoupayViewDetailsActivity : ActivityBase(), LoaderManager.LoaderCallba
                         Helper.getInstance().getDpValue(10), Helper.getInstance().getDpValue(5)
                     )
                     productLV.layoutParams = productLVParam
-
 
                     val productLV2 = LinearLayout(applicationContext)
                     val productLV2Param = LinearLayout.LayoutParams(
@@ -534,16 +532,15 @@ class BnplIoupayViewDetailsActivity : ActivityBase(), LoaderManager.LoaderCallba
                 )
                 log.appendLine(logClassName, "IoupayScanEnquiryHandler Response -> ", resp.toString())
 
-
                 /*
                 if (resp == null) {
                     HelperLog.AppendLine(sbLog, "Response: ", "BCBase:Error: Body Message = NULL")
-                    HelperLog.Log(sbLog, HelperLogFileName.TerminaLog)
+                    HelperLog.Log(sbLog, EnumLogFileName.TerminaLog)
                     return false
                 }
                 if (resp.RESP_CODE.toString() != "0000") {
                     HelperLog.AppendLine(sbLog, "Response: ", "ERR:Invalid RESP_CODE")
-                    HelperLog.Log(sbLog, HelperLogFileName.TerminaLog)
+                    HelperLog.Log(sbLog, EnumLogFileName.TerminaLog)
                     return false
                 }
                 * */
@@ -552,7 +549,7 @@ class BnplIoupayViewDetailsActivity : ActivityBase(), LoaderManager.LoaderCallba
                 qrRespRefId = resp.QR_REFID.toString()
                 if (qrRespRefId != qrRefId) {
                     HelperLog.AppendLine(sbLog, "Response: ", "Invalid QR_REFID")
-                    HelperLog.Log(sbLog, HelperLogFileName.TerminaLog)
+                    HelperLog.Log(sbLog, EnumLogFileName.TerminaLog)
                     return false
                 }
                 * */
@@ -619,16 +616,15 @@ class BnplIoupayViewDetailsActivity : ActivityBase(), LoaderManager.LoaderCallba
                 )
                 log.appendLine(logClassName, "QrPaymentAckHandler Response -> ", resp.toString())
 
-
                 /*
                  if (resp == null) {
                      HelperLog.AppendLine(sbLog, "Response: ", "BCBase:Error: Body Message = NULL")
-                     HelperLog.Log(sbLog, HelperLogFileName.TerminaLog)
+                     HelperLog.Log(sbLog, EnumLogFileName.TerminaLog)
                      return false
                  }
                  if (resp.RESP_CODE.toString() != "0000") {
                      HelperLog.AppendLine(sbLog, "Response: ", "ERR:Invalid RESP_CODE")
-                     HelperLog.Log(sbLog, HelperLogFileName.TerminaLog)
+                     HelperLog.Log(sbLog, EnumLogFileName.TerminaLog)
                      return false
                  }
                 * */

@@ -8,7 +8,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.library.terminal.UrlDownload
 import com.sc.mf919pro.R
-import com.sc.mf919pro.java.activity.Encryption
+import crypto.Encryption
 import com.sc.mf919pro.java.activity.Utils
 import com.sc.mf919pro.java.device.DeviceHelper
 import utils.HexUtil
@@ -31,11 +31,9 @@ import java.util.*
 import tms.models.*
 import java.text.SimpleDateFormat
 
-
 object TmsHelper {
 	private var firmID: String = ""
 	private val className: String = (TmsHelper::class.qualifiedName).toString()
-
 
 	private fun compareAndBatchInfo(log: HelperLog, mContext: Context, lastBatchNo: Int, lastInvoiceNo: Int): Boolean {
 		//get current batchNo from db
@@ -81,7 +79,6 @@ object TmsHelper {
 			}
 		}
 
-		log.logToFile(EnumLogFileName.TerminaLog)
 		return true
 	}
 
@@ -104,25 +101,10 @@ object TmsHelper {
 			}
 		}
 
-		log.logToFile(EnumLogFileName.TerminaLog)
 		return true
 	}
 
-	private fun createTemporaryFile(file: File, tempDir: File, tempName: String): File {
-		val newFile = File(tempDir, tempName)
-		var outputChannel: FileChannel? = null
-		var inputChannel: FileChannel? = null
-		try {
-			outputChannel = FileOutputStream(newFile).channel
-			inputChannel = FileInputStream(file).channel
-			inputChannel.transferTo(0, inputChannel.size(), outputChannel)
-			inputChannel.close()
-		} finally {
-			inputChannel?.close()
-			outputChannel?.close()
-		}
-		return newFile
-	}
+
 
 	fun merchantConfigProductModel(
 		product: String,
@@ -193,14 +175,11 @@ object TmsHelper {
 			"true",
 			"",
 			"",
-			if (modelObject.IS_TPA_ACCOUNT == true) "true" else "false"
+			(modelObject.IS_TPA_ACCOUNT ?: false).toString()
 		)
 	}
 
-	private fun generateRandomDigits(n: Int): Int {
-		val m = Math.pow(10.0, (n - 1).toDouble()).toInt()
-		return m + Random().nextInt(9 * m)
-	}
+
 
 	fun checkSettlementSummary(mContext: Context, modelSummary: DbModelSettlementSummary) {
 		val dbData = SettlementSummaryRepo.getSingle(
@@ -256,34 +235,29 @@ object TmsHelper {
 		}
 	}
 
+	@JvmStatic
+	// Around 200 call sites between the two apps, so the name stays put and delegates.
+	fun checkIsConnectedWifi(mContext: Context): Boolean =
+		helpers.HelperNetwork.isConnectedWifi(mContext)
 
 	@JvmStatic
-	fun checkIsConnectedWifi(mContext: Context): Boolean {
-		val connectivityManager = mContext.getSystemService(
-			Context.CONNECTIVITY_SERVICE
-		) as ConnectivityManager
-		val capabilities = connectivityManager.getNetworkCapabilities(
-			connectivityManager.activeNetwork
-		)
-		if (capabilities != null) {
-			return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-		}
-		return false
-	}
 
-	@JvmStatic
 	fun uploadAllTerminalLog(log: HelperLog, mContext: Context, isUploadAll: Boolean = false): Boolean {
 		if (!checkIsConnectedWifi(mContext)) {
+			log.appendLine(className, "TMS UploadLog skipped - no WiFi")
+			log.logToFile(EnumLogFileName.TerminaLog)
 			return false
 		}
 
 		//var result = false
-		log.appendLine(className, "TMS Helper - Uploading Log")
+		log.appendLine(className, "TMS UploadLog [START] :: uploadAll=$isUploadAll")
 		val environmentManager = EnvironmentManager(Helper.getInstance().getPrefs()!!)
 
-		// F7 — sweep stale staging copies before starting. The _COPY file is deleted after a
-		// normal upload, but a process death mid-upload orphans it, and the walk below would
-		// then try to upload the orphan as if it were a log. Fixed names make this sweepable.
+		// Sweep stale staging copies before starting. createTemporaryFile writes <name>_COPY.txt
+		// into this same directory and it is deleted only after a successful upload, so a process
+		// death mid-upload orphans it -- and on the next run EnumLogFileName.valueOf() throws for
+		// "TerminaLog_COPY", so the walk below classifies the orphan as a backup file and uploads
+		// it. Fixed names make it sweepable. Ported from Pro, which already had this.
 		try {
 			File("${ServiceHolder.getContext().filesDir}/Logs").listFiles { f ->
 				f.isFile && f.name.endsWith("_COPY.txt")
@@ -298,6 +272,8 @@ object TmsHelper {
 		File("${ServiceHolder.getContext().filesDir}/Logs").walkTopDown().forEach {
 			if (it.isFile) {
 				if (!checkIsConnectedWifi(mContext)) {
+					log.appendLine(className, "TMS UploadLog [END] :: WiFi lost mid-upload")
+					log.logToFile(EnumLogFileName.TerminaLogException)
 					return false
 				}
 				log.appendLine(className, "Uploading Log -> ", it.name)
@@ -309,7 +285,7 @@ object TmsHelper {
 					fileToUpload = File(it.toURI())
 
 					try {
-						HelperLogFileName.valueOf(fileToUpload.nameWithoutExtension)
+						EnumLogFileName.valueOf(fileToUpload.nameWithoutExtension)
 						if (!isUploadAll) {
 							// continue loop to skip this item
 							return@forEach
@@ -317,7 +293,7 @@ object TmsHelper {
 						isBackupFile = false
 						val tempDir = File("${ServiceHolder.getContext().filesDir}/Logs")
 						val oriFile: File = fileToUpload
-						fileToUpload = createTemporaryFile(
+						fileToUpload = utils.FileOps.createTemporaryFile(
 							oriFile, tempDir, "${it.nameWithoutExtension}_COPY.txt"
 						)
 					} catch (e: IllegalArgumentException) {
@@ -342,10 +318,13 @@ object TmsHelper {
 				}
 				if (!result) {
 					// upload fail exit function
+					log.appendLine(className, "TMS UploadLog [END] :: aborted after a failed upload")
+					log.logToFile(EnumLogFileName.TerminaLogException)
 					return false
 				}
 			}
 		}
+		log.appendLine(className, "TMS UploadLog [END] :: all files uploaded")
 		log.logToFile(EnumLogFileName.TerminaLog)
 		return true
 	}
@@ -353,7 +332,7 @@ object TmsHelper {
 	@JvmStatic
 	fun sendDeviceInfo(log: HelperLog, mContext: Context): Boolean {
 		var result = false
-		log.appendLine(className, "TMS Helper - Send Device Info")
+		log.appendLine(className, "TMS DeviceInfo [START]")
 		val environmentManager = EnvironmentManager(Helper.getInstance().getPrefs()!!)
 		val deviceInfoHandler = DeviceInfoHandler(environmentManager)
 		/*
@@ -384,13 +363,17 @@ object TmsHelper {
 				"-",
 				testCase
 			)
-			log.appendLine(className, "DeviceInfoHandler Response -> ", apiResp.toString())
+			log.appendLine(className, "DeviceInfoHandler Response -> ", helpers.HelperText.oneLine(apiResp.toString()))
 			result = true
+			log.appendLine(className, "TMS DeviceInfo [END] :: RESP_CODE=${apiResp.RESP_CODE} " +
+					"RESP_DESC=${apiResp.RESP_DESC}")
+			log.logToFile(EnumLogFileName.TerminaLog)
 		}catch (ex: Exception) {
 			log.appendLine(className, "DeviceInfoHandler Response (Exception)", ex.toString())
+			log.appendLine(className, "TMS DeviceInfo [END] :: failed")
+			log.logToFile(EnumLogFileName.TerminaLogException)
 		}
 
-		log.logToFile(EnumLogFileName.TerminaLog)
 		return result
 	}
 
@@ -843,7 +826,7 @@ object TmsHelper {
 	@JvmStatic
 	fun getInjectionKey(log: HelperLog, mContext: Context): Boolean {
 		var result = false
-		log.appendLine(className, "TMS Helper - Get Injection Key")
+		log.appendLine(className, "TMS InjectionKey [START]")
 		val environmentManager = EnvironmentManager(Helper.getInstance().getPrefs()!!)
 		val injectionKeyHandler = InjectionKeyHandler(environmentManager)
 
@@ -870,6 +853,7 @@ object TmsHelper {
 
 					if (getInjectKeyTemp != null) {
 						if (keyAcqCode.uppercase() == "BSN_CARDZONE") {
+							//TODO Remove for temporary
 							//SecureDataRepo.truncateTable(mContext)
 							val acqKey = getInjectKeyTemp as BsnCardZoneInjectionKeyModel
 							val strSecureTleScheme = "visam-tle$acqCode-${merchantConfig?.AcqMid}"
@@ -944,6 +928,7 @@ object TmsHelper {
 
 							}
 						} else {
+							//TODO TEMPORARY REMOVE
 							//SecureDataRepo.truncateTable(mContext)
 							val acqKey = getInjectKeyTemp as InjectionKeyModelKeyAcquirerModel
 							/*val insertTMK = DbModelSecureData(
@@ -974,19 +959,47 @@ object TmsHelper {
 					}
 				}
 			}
-			log.appendLine(className, "InjectionKeyHandler Response -> ", injectionKeyRes.toString())
+			// NOT injectionKeyRes.toString(): that data class carries TMK, TAK, MEK, PIN, TLE and
+			// both TMK_Key_Left/Right for every acquirer, so stringifying it wrote the terminal's
+			// entire key set into TerminaLog.txt -- the file uploadAllTerminalLog ships to TMS.
+			// Log only what identifies the exchange; TMKId and KCV elsewhere already let you verify
+			// which key loaded.
+			log.appendLine(className, "InjectionKeyHandler Response -> ",
+				"SEQ_NO=${injectionKeyRes?.SEQ_NO} RESP_CODE=${injectionKeyRes?.RESP_CODE} " +
+				"RESP_DESC=${injectionKeyRes?.RESP_DESC} TMKId=${injectionKeyRes?.TMKId} " +
+				"MC_VER=${injectionKeyRes?.MC_VER} acq=${injectionKeyRes?.KEY?.ACQ_CODE} " +
+				"[key material omitted]")
 			result = true
+			// Boundary line follows the same rule as the response line above: identify the
+			// exchange, never the key.
+			log.appendLine(className, "TMS InjectionKey [END] :: RESP_CODE=${injectionKeyRes?.RESP_CODE} " +
+					"acq=${injectionKeyRes?.KEY?.ACQ_CODE}")
+			log.logToFile(EnumLogFileName.TerminaLog)
 		}catch (ex: Exception) {
-			log.appendLine(className, "InjectionKeyHandler Response (Exception)", ex.toString())
+			// NOT ex.toString(). InjectionKeyHandler throws IOException(resp) carrying the raw
+			// response body, and on this endpoint that body is every acquirer's key material -
+			// the same leak that was just closed on the success line above (its 99999 fallback
+			// wraps the same body inside RESP_DESC, so RESP_DESC is not safe to log either).
+			// Only the exception type and the response code are recorded.
+			log.appendLine(className, "InjectionKeyHandler Response (Exception)",
+				"${ex.javaClass.simpleName} RESP_CODE=${extractRespCode(ex.message)} [response body omitted]")
+			log.appendLine(className, "TMS InjectionKey [END] :: failed")
+			log.logToFile(EnumLogFileName.TerminaLogException)
 		}
-		log.logToFile(EnumLogFileName.TerminaLog)
 		return result
 	}
+
+	/**
+	 * Pull RESP_CODE out of a JSON error body without putting the body in the log. Used on the
+	 * key-injection error path, where the body cannot be logged at all.
+	 */
+	private fun extractRespCode(message: String?): String =
+		Regex("\"RESP_CODE\"\\s*:\\s*\"([^\"]*)\"").find(message ?: "")?.groupValues?.get(1) ?: "-"
 
 	@JvmStatic
 	fun checkTerminalPIN(log: HelperLog, mContext: Context, pin: String, type: String): Boolean {
 		var result = false
-		log.appendLine(className, "TMS Helper - Terminal Pin Validation")
+		log.appendLine(className, "TMS TerminalPIN [START] :: type=$type")
 		val environmentManager = EnvironmentManager(Helper.getInstance().getPrefs()!!)
 
 		try{
@@ -1001,68 +1014,58 @@ object TmsHelper {
 				apiResp = terminalPinHandler.invoke(log, ServiceHolder.getSqnNum(), ServiceHolder.getTerminalSerialNumber(), encodedPIN)
 			}
 
-			log.appendLine(className, "checkTerminalPIN Response", apiResp.toString())
+			// The entered PIN and its encoded form are never logged - only the outcome.
+			log.appendLine(className, "checkTerminalPIN Response", helpers.HelperText.oneLine(apiResp.toString()))
 			result = true
+			log.appendLine(className, "TMS TerminalPIN [END] :: RESP_CODE=${apiResp.RESP_CODE} " +
+					"RESULT=${apiResp.RESULT}")
+			log.logToFile(EnumLogFileName.TerminaLog)
 		} catch (ex: Exception){
 			log.appendLine(className, "checkTerminalPIN Response (Exception)", ex.toString())
+			log.appendLine(className, "TMS TerminalPIN [END] :: failed")
+			log.logToFile(EnumLogFileName.TerminaLogException)
 		}
 
-		log.logToFile(EnumLogFileName.TerminaLog)
 		return result
 	}
 
 	@JvmStatic
 	fun generateEncodedPIN(pin: String): String {
 		val environmentManager = EnvironmentManager(Helper.getInstance().getPrefs()!!)
-		val rnd = Random()
-		val rndDigitFront = rnd.nextInt(10)
-		val rndDigitRear = rnd.nextInt(10)
-
-		var rndFrontNumber = ""
-		var rndRearNumber = ""
-		if (rndDigitFront > 0) {
-			val tempRndFrontNumber = generateRandomDigits(rndDigitFront)
-			rndFrontNumber = tempRndFrontNumber.toString()
-		}
-
-		if (rndDigitRear > 0) {
-			val tempRndRearNumber = generateRandomDigits(rndDigitRear)
-			rndRearNumber = tempRndRearNumber.toString()
-		}
-
-		val finalPIN = String.format("%02d", rndDigitFront) + String.format(
-			"%02d", rndDigitRear
-		) + rndFrontNumber + pin + rndRearNumber
-
-		return Encryption.AESencrypt(
-			finalPIN, environmentManager.get(EnvironmentVariables::serverHashKey)
+		return crypto.TerminalPin.encodePin(
+			pin, environmentManager.get(EnvironmentVariables::serverHashKey)
 		)
 	}
 
 	@JvmStatic
+
 	fun checkServerDateTime(log: HelperLog, mContext: Context) {
-		log.appendLine(className, "TMS Helper - Get Server DateTime")
+		log.appendLine(className, "TMS Ping [START]")
 		try{
 			val tmsPingHandler = TmsPingHandler(EnvironmentManager(Helper.getInstance().getPrefs()!!))
 			val pingResp = tmsPingHandler.invoke(log)
-			log.appendLine(className, "TmsPingHandler Response -> ", pingResp.toString())
+			log.appendLine(className, "TmsPingHandler Response -> ", helpers.HelperText.oneLine(pingResp.toString()))
 
 			val systemDateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSXXX", Locale.getDefault())
 			val systemDate = systemDateFormat.parse(pingResp.systemtime!!)
 
 			val df = SimpleDateFormat(EnumDateFormat.yyyyMMddHHmmss_XDot.dateFormat, Locale.getDefault())
-			DeviceHelper.updateSystemDatetime(df.format(systemDate!!))
+			val newDateTime = df.format(systemDate!!)
+			DeviceHelper.updateSystemDatetime(newDateTime)
+			log.appendLine(className, "TMS Ping [END] :: system datetime set to $newDateTime")
+			log.logToFile(EnumLogFileName.TerminaLog)
 		}catch (ex: Exception){
 			ex.printStackTrace()
 			log.appendLine(className, "TmsPingHandler (Exception) -> ", ex.toString())
+			log.appendLine(className, "TMS Ping [END] :: failed")
+			log.logToFile(EnumLogFileName.TerminaLogException)
 		}
-		log.logToFile(EnumLogFileName.TerminaLog)
 	}
 
 	@JvmStatic
 	fun getDenominationPrice(log: HelperLog, mContext: Context): Boolean {
 		var result = false
-		log.appendLine(className, "TMS Helper - Obtain Denomination Price List")
+		log.appendLine(className, "TMS DenominationPriceList [START]")
 		val environmentManager = EnvironmentManager(Helper.getInstance().getPrefs()!!)
 		val denominationPriceListHandler = DenominationPriceListHandler(environmentManager)
 		val dbMerchantConfig = ServiceHolder.getMerchantInfo()
@@ -1075,13 +1078,12 @@ object TmsHelper {
 				DbModelMerchantConfig.getSafeValue(dbMerchantConfig, "ScMid"),
 				DbModelMerchantConfig.getSafeValue(dbMerchantConfig, "ScTid")
 			)
-			log.appendLine(className, "DenominationPriceListHandler Response", denominationPriceResp.toString())
+			log.appendLine(className, "DenominationPriceListHandler Response", helpers.HelperText.oneLine(denominationPriceResp.toString()))
 			val gson = Gson()
 
 			val maintenanceSchedule = gson.toJson(denominationPriceResp.MAINTENANCE_SCHEDULE ?: "")
 			denominationPriceResp.REMARK?.let {
 				ServiceHolder.remarkFooter = it
-				println("remarkFooter :: ${ServiceHolder.remarkFooter}")
 			}
 			denominationPriceResp.PACKAGE_LIST?.let {
 				val itr = it.iterator()
@@ -1106,16 +1108,20 @@ object TmsHelper {
 				}
 			}
 			result = true
+			log.appendLine(className, "TMS DenominationPriceList [END] :: RESP_CODE=${denominationPriceResp.RESP_CODE} " +
+					"packages=${denominationPriceResp.PACKAGE_LIST?.size ?: 0}")
+			log.logToFile(EnumLogFileName.TerminaLog)
 		}catch (ex: Exception){
 			log.appendLine(className, "DenominationPriceListHandler Response (Exception)", ex.toString())
+			log.appendLine(className, "TMS DenominationPriceList [END] :: failed")
+			log.logToFile(EnumLogFileName.TerminaLogException)
 		}
-		log.logToFile(EnumLogFileName.TerminaLog)
 		return result
 	}
 
 	@JvmStatic
 	fun sendWriteLog(log: HelperLog, action: String) {
-		log.appendLine(className, "TMS Helper - Send Write Log")
+		log.appendLine(className, "TMS WriteLog [START] :: action=$action")
 		val environmentManager = EnvironmentManager(Helper.getInstance().getPrefs()!!)
 		val writeLogHandler = WriteLogHandler(environmentManager)
 
@@ -1125,11 +1131,14 @@ object TmsHelper {
 				ServiceHolder.getTerminalSerialNumber(),
 				action
 			)
-			log.appendLine(className, "WriteLogHandler Response", writeLogResp.toString())
+			log.appendLine(className, "TMS WriteLog [END] :: RESP_CODE=${writeLogResp.RESP_CODE} " +
+					"RESP_DESC=${writeLogResp.RESP_DESC}")
+			log.logToFile(EnumLogFileName.TerminaLog)
 		}catch (ex: Exception){
 			log.appendLine(className, "WriteLogHandler Response (Exception)", ex.toString())
+			log.appendLine(className, "TMS WriteLog [END] :: failed")
+			log.logToFile(EnumLogFileName.TerminaLogException)
 		}
-		log.logToFile(EnumLogFileName.TerminaLog)
 	}
 
 	@JvmStatic
@@ -1176,7 +1185,6 @@ object TmsHelper {
 				Toast.makeText(mContext, failToast, Toast.LENGTH_SHORT).show()
 			}
 		} ?: File(localPath).delete()
-		log.logToFile(EnumLogFileName.TerminaLog)
 	}
 
 	@JvmStatic

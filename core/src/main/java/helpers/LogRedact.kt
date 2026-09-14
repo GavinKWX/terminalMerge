@@ -61,9 +61,31 @@ object LogRedact {
 	@Volatile
 	private var livePanMask: String = ""
 
-	/** Called as soon as the card is read. Safe to call repeatedly with the same value. */
+	/**
+	 * Which registration owns the data above.
+	 *
+	 * D11. Without this, the screen that ENDS one transaction could wipe the card data the NEXT
+	 * transaction had already registered. Measured on Pro: a void registers its PAN at screen
+	 * entry, and the outgoing result screen of the previous sale reached onDestroyView 150 ms
+	 * later -- inside that window -- so every following void line reached the uploaded log
+	 * unmasked. Clearing is now gated on owning the current registration.
+	 */
+	@Volatile
+	private var generation = 0L
+
+	/** The registration in force right now. Snapshot it on screen entry, hand it back to [clearCardData]. */
 	@JvmStatic
-	fun registerCardData(pan: String?, track2: String?) {
+	@Synchronized
+	fun currentGeneration(): Long = generation
+
+	/**
+	 * Called as soon as the card is read. Safe to call repeatedly with the same value.
+	 *
+	 * @return the generation this registration created, for a later [clearCardData].
+	 */
+	@JvmStatic
+	@Synchronized
+	fun registerCardData(pan: String?, track2: String?): Long {
 		val p = pan?.filter { it.isDigit() }
 		if (!p.isNullOrEmpty() && p.length >= 12) {
 			livePan = p
@@ -71,11 +93,21 @@ object LogRedact {
 		}
 		val t = track2?.trim()
 		if (!t.isNullOrEmpty() && t.length >= 12) liveTrack2 = t
+		generation += 1
+		return generation
 	}
 
-	/** Called when a transaction ends; card data must not outlive it. */
+	/**
+	 * Called when a transaction ends; card data must not outlive it.
+	 *
+	 * Only clears if [generation] is still the one in force. A caller holding a stale generation
+	 * is a screen being torn down after a newer transaction already registered -- its clear must
+	 * not take that newer transaction's data with it.
+	 */
 	@JvmStatic
-	fun clearCardData() {
+	@Synchronized
+	fun clearCardData(generation: Long) {
+		if (generation != this.generation) return
 		livePan = null
 		liveTrack2 = null
 		livePanMask = ""

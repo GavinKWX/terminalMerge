@@ -11,7 +11,7 @@ import com.sc.mf919.kotlin.database.model.DbModelSettlementSummary
 import com.sc.mf919.kotlin.database.model.DbModelSettlementSummaryDistinct
 import com.sc.mf919.kotlin.database.repo.SettlementSummaryRepo
 import helpers.HelperLog
-import com.sc.mf919.kotlin.helper_common.HelperLogFileName
+import enums.EnumLogFileName
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import java.lang.StringBuilder
 
@@ -204,7 +204,7 @@ class Migration2200 {
         /* Modify Print Receipt Stan and Approval Code [End] */
 
         HelperLog.appendLine(sbLog, "----------------- Finish Running Migration -------------")
-        HelperLog.logToFile(sbLog, HelperLogFileName.TerminaLog)
+        HelperLog.logToFile(sbLog, EnumLogFileName.TerminaLog)
     }
 
     private fun createTables(tableName: String, tableField: List<String>) {

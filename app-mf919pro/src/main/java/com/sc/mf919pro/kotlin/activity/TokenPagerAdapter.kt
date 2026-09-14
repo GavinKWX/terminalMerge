@@ -19,7 +19,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.gson.Gson
 import com.sc.mf919pro.R
 import com.sc.mf919pro.java.activity.Utils
-import com.sc.mf919pro.java.utils.EmvUtil
+import emv.EmvUtil
 import com.sc.mf919pro.kotlin.database.model.DbModelDenominationList
 import com.sc.mf919pro.kotlin.database.model.ModelMaintenanceSchedule
 import com.sc.mf919pro.kotlin.fragment.BaseFragment

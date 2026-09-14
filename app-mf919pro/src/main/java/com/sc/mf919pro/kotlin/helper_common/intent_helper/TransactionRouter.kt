@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.helper_common.intent_helper
+import enums.EnumResponseCode
 
 import android.content.Context
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
@@ -22,8 +23,8 @@ class TransactionRouter(
     fun route(ctx: Context, req: TxnRequest): Route {
         if(ServiceHolder.autoSettlementIsRunning) {
             return Route.Return(req.raw.apply {
-                put(TxnKeys.RESP_CODE, "SHC002")
-                put(TxnKeys.RESP_DESC, "Auto Settlement is running")
+                put(TxnKeys.RESP_CODE, EnumResponseCode.AUTO_SETTLEMENT_RUNNING.code)
+                put(TxnKeys.RESP_DESC, EnumResponseCode.AUTO_SETTLEMENT_RUNNING.description)
             })
         }
 
@@ -93,8 +94,8 @@ class TransactionRouter(
                     // Was E99 / "TODO" -- a placeholder that shipped. An unmapped type is the
                     // same condition the new-integration branch below already answers, so it
                     // gets the same response rather than a code no vendor can interpret.
-                    put(TxnKeys.RESP_CODE, "SHC001")
-                    put(TxnKeys.RESP_DESC, "Invalid Transaction Type")
+                    put(TxnKeys.RESP_CODE, EnumResponseCode.INVALID_TRANSACTION_TYPE.code)
+                    put(TxnKeys.RESP_DESC, EnumResponseCode.INVALID_TRANSACTION_TYPE.description)
                 })
             }
         } else {
@@ -109,8 +110,8 @@ class TransactionRouter(
                     put(TxnKeys.RESP_DESC, "No Session Running")
                 })
                 else -> Route.Return(req.raw.apply {
-                    put(TxnKeys.RESP_CODE, "SHC001")
-                    put(TxnKeys.RESP_DESC, "Invalid Transaction Type")
+                    put(TxnKeys.RESP_CODE, EnumResponseCode.INVALID_TRANSACTION_TYPE.code)
+                    put(TxnKeys.RESP_DESC, EnumResponseCode.INVALID_TRANSACTION_TYPE.description)
                 })
             }
         }

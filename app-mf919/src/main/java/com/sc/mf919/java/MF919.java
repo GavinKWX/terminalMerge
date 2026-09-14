@@ -28,7 +28,7 @@ import com.sc.mf919.java.device.DeviceHelper;
 import com.sc.mf919.kotlin.activity.AttendActivity;
 import com.sc.mf919.kotlin.activity.AttendActivityOxpay;
 import com.sc.mf919.kotlin.activity.AttendDenominationActivity;
-import com.sc.mf919.kotlin.activity.CrashHandler;
+import helpers.CrashHandler;
 import com.sc.mf919.kotlin.activity.DenominationTransactionResultActivity;
 import com.sc.mf919.kotlin.activity.TransactionResultActivity;
 import com.sc.mf919.kotlin.activity.TransactionResultBnplActivity;
@@ -144,6 +144,10 @@ public class MF919 extends Application {
         // activity, service, receiver or WorkManager worker, so ServiceHolder's
         // context can never be missing regardless of how the process starts.
         ServiceHolder.Companion.setContext(this);
+        // Registered immediately after the context, before anything in onCreate can
+        // read a config file: :core's FileOps resolves every path through this seam and
+        // throws if it is missing.
+        utils.CurrentFiles.register(com.sc.mf919.kotlin.helper_common.Mf919AppFiles.INSTANCE);
 
         // :core cannot reference ServiceHolder or BuildConfig, so hand it the four values the
         // shared TMS handlers need (DEV-SN, APP-VER, the sequence number, and which environment
@@ -164,6 +168,16 @@ public class MF919 extends Application {
         DbSchema.register(java.util.Arrays.asList(DatabaseTables.values()));
         // MDB lives in :core now; this hands it MF919's Activity navigation and screen checks.
         MdbController.register(Mf919MdbHost.INSTANCE);
+
+        // The ISO forming code in :core reads the in-flight transaction through this seam.
+        // TransData stays per app -- each fleet carries its own extra fields.
+        iso.CurrentTxn.register(com.sc.mf919.kotlin.data_enum.variables.TransData.INSTANCE);
+
+        // ...and the persisted side: counters, the acquirer product row, injected keys.
+        // Three repositories, six methods -- the repos themselves stay per app.
+        iso.CurrentStore.register(com.sc.mf919.kotlin.helper_common.Mf919TransactionStore.INSTANCE);
+        iso.CurrentCertStore.register(com.sc.mf919.kotlin.helper_common.Mf919CertStore.INSTANCE);
+        emv.CurrentEmvHost.register(com.sc.mf919.kotlin.helper_common.Mf919EmvHost.INSTANCE);
 
         DbSchema.onMigrationVersionReset(() -> {
             ServiceHolder.Companion.invalidateMigrationVersionCache();
@@ -188,6 +202,9 @@ public class MF919 extends Application {
         // Read the Context-dependent bits of the crash report now, while a failure is survivable.
         // The crash path must not call getIPAddress()/checkIsConnectedWifi() itself -- an NPE in
         // there used to escape the handler and leave the process alive with a dead main thread.
+        // The crash handler lives in :core now; this supplies the app-side bits it needs
+        // (IP, build label, ECR channel, the recovery Activity, reboot).
+        helpers.CurrentCrashHost.register(com.sc.mf919.kotlin.helper_common.Mf919CrashHost.INSTANCE);
         CrashHandler.cacheContext(getApplicationContext());
         // No Context argument by design: nothing on the crash path may need one.
         Thread.setDefaultUncaughtExceptionHandler(new CrashHandler());

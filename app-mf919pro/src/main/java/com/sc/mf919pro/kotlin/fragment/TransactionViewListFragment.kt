@@ -26,7 +26,7 @@ import com.google.gson.Gson
 import com.library.terminal.Utility
 import com.sc.mf919pro.R
 import com.sc.mf919pro.databinding.FragmentTxnviewListBinding
-import com.sc.mf919pro.java.activity.Global
+import constants.TerminalConstants
 import com.sc.mf919pro.java.activity.UploadTMS
 import com.sc.mf919pro.java.activity.Utils
 import utils.HexUtil
@@ -492,13 +492,13 @@ class TransactionViewListFragment : BaseFragment() {
         val strBatchNo = transData.batchNo
         val strRespCode = Utility.HexString2ASCII(transData.respCode)
         val strAid = transData.aid
-        val mti = transData.getFromTransactionDb(Global.iso.tag.MTI, 16)
+        val mti = transData.getFromTransactionDb(TerminalConstants.iso.tag.MTI, 16)
         val strNii = transData.getFromTransactionDb("DF24", 16)
         val strMaskPanBcd = transData.maskedPan
         val strHashedPanBcd = transData.hashedPan
         val strEntryType = transData.entryModeLabel
-        val strARQC = transData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ARQC, 16)
-        val strTVR = transData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_TVR, 16)
+        val strARQC = transData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, 16)
+        val strTVR = transData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_TVR, 16)
         val strPosReference = transData.posReference
         val strCardLabel = Utils.byteArrayToAsciiString(transData.appLabel, 0, transData.appLabelLen)
         val strCvm = transData.cvm

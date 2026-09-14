@@ -67,6 +67,33 @@ class EnumResponseCodeTest {
 	}
 
 	@Test
+	fun `the timeout pair is pinned -- both apps emit these exact bytes`() {
+		// A3b: MF919 and Pro both write this code/description literally into their own HTTPServer,
+		// so the two copies can only stay identical if the text is treated as fixed. Pin it here;
+		// a reword that misses one app puts two different strings on the wire for one event.
+		assertEquals("SHC007", EnumResponseCode.TERMINAL_RESPONSE_TIMEOUT.code)
+		assertEquals("Terminal Response Timeout", EnumResponseCode.TERMINAL_RESPONSE_TIMEOUT.description)
+	}
+
+	@Test
+	fun `the six descriptions found shipping in 2026-09 are pinned`() {
+		// These were on the wire before they were in this enum. They are pinned for the same
+		// reason as everything else here: a vendor may be matching on the text.
+		val expected = mapOf(
+			EnumResponseCode.INVALID_PAYMENT_CHANNEL to "Invalid Payment Channel",
+			EnumResponseCode.INVALID_REF_ID to "Invalid Ref ID",
+			EnumResponseCode.INVALID_POS_REFERENCE_NO to "Invalid PosReference No",
+			EnumResponseCode.INVALID_TRANSACTION_ID to "Invalid Transaction ID",
+			EnumResponseCode.AMOUNT_NOT_POSITIVE to "Trade amount should be greater than 0",
+			EnumResponseCode.AMOUNT_TOO_LARGE to "Trade amount too large",
+		)
+		for ((constant, text) in expected) {
+			assertEquals("$constant description", text, constant.description)
+			assertEquals("$constant code", "SHC001", constant.code)
+		}
+	}
+
+	@Test
 	fun `no two entries share a code AND a description`() {
 		val seen = EnumResponseCode.values().map { it.code to it.description }
 		assertEquals("duplicate code+description pair", seen.size, seen.toSet().size)

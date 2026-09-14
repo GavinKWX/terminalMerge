@@ -109,9 +109,9 @@ class AttendActivityOxpay: ActivityBase() {
         MfHelper.closeNfcUrlInterface()
         val terminalConfig = ServiceHolder.getTerminalConfig()
         if (DbModelTerminalConfig.getBooleanValue(terminalConfig, "FORCE_LOCK_HOME")) {
-            HelperCommon.bottomActionBarEvent(applicationContext, "1")
+            MfHelper.lockStatusBarAndNavigation(true)
         } else {
-            HelperCommon.bottomActionBarEvent(applicationContext, "0")
+            MfHelper.lockStatusBarAndNavigation(false)
         }
 
         if(ServiceHolder.autoSettlementQueue) {

@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.helper_common.intent_helper
+import enums.EnumResponseCode
 
 import android.content.Context
 import androidx.core.os.bundleOf
@@ -18,13 +19,13 @@ class SaleUseCase {
         val txn = req.raw
         val amount = req.amount ?: 0
         if (amount <= 0) {
-            txn[TxnKeys.RESP_CODE] = "SHC001"
-            txn[TxnKeys.RESP_DESC] = "Trade amount should be greater than 0"
+            txn[TxnKeys.RESP_CODE] = EnumResponseCode.AMOUNT_NOT_POSITIVE.code
+            txn[TxnKeys.RESP_DESC] = EnumResponseCode.AMOUNT_NOT_POSITIVE.description
             return Route.Return(txn)
         }
         if (amount > 999_999_999) {
-            txn[TxnKeys.RESP_CODE] = "SHC001"
-            txn[TxnKeys.RESP_DESC] = "Trade amount too large"
+            txn[TxnKeys.RESP_CODE] = EnumResponseCode.AMOUNT_TOO_LARGE.code
+            txn[TxnKeys.RESP_DESC] = EnumResponseCode.AMOUNT_TOO_LARGE.description
             return Route.Return(txn)
         }
 
@@ -38,16 +39,16 @@ class SaleUseCase {
             DbModelTerminalConfig.getBooleanValue(terminalConfig, "SALES_CARD")
         }
         if(!isEnableSales) {
-            txn[TxnKeys.RESP_CODE] = "SHC010"
-            txn[TxnKeys.RESP_DESC] = "Transaction Not Supported"
+            txn[TxnKeys.RESP_CODE] = EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code
+            txn[TxnKeys.RESP_DESC] = EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description
             return Route.Return(txn)
         }
         if(isCard) {
             if(DbModelTerminalConfig.getBooleanValue(terminalConfig, "FORCE_SETTLEMENT") ||
                 DbModelTerminalConfig.getBooleanValue(terminalConfig, "FORCE_SETTLEMENT_DAILY")) {
                 if (ServiceHolder.clearSettlementBatch) {
-                    txn[TxnKeys.RESP_CODE] = "SHC011"
-                    txn[TxnKeys.RESP_DESC] = "Please Run Settlement for Last day Transaction before Proceed"
+                    txn[TxnKeys.RESP_CODE] = EnumResponseCode.SETTLE_PREVIOUS_DAY_FIRST.code
+                    txn[TxnKeys.RESP_DESC] = EnumResponseCode.SETTLE_PREVIOUS_DAY_FIRST.description
                     return Route.Return(txn)
                 }
             }
@@ -153,8 +154,8 @@ class SaleUseCase {
             }
         } catch (_: Exception) {
             Route.Return(txn.apply {
-                put(TxnKeys.RESP_CODE, "SHC007")
-                put(TxnKeys.RESP_DESC, "Terminal System Error (Product Is Not Configured)")
+                put(TxnKeys.RESP_CODE, EnumResponseCode.PRODUCT_NOT_CONFIGURED.code)
+                put(TxnKeys.RESP_DESC, EnumResponseCode.PRODUCT_NOT_CONFIGURED.description)
             })
         }
     }

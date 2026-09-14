@@ -19,12 +19,12 @@ import androidx.activity.OnBackPressedCallback
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.lifecycleScope
 import com.sc.mf919.R
-import com.sc.mf919.java.activity.EmvTag
-import com.sc.mf919.java.activity.Global
+import emv.EmvTag
+import constants.TerminalConstants
 import com.sc.mf919.java.activity.Keypad
 import com.sc.mf919.java.activity.Utils
 import com.sc.mf919.java.activity.onKeypadEventListener
-import com.sc.mf919.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.HexUtil
 import com.sc.mf919.kotlin.data_enum.variables.TransData
 import com.sc.mf919.kotlin.database.model.DbModelBatchTable
@@ -36,7 +36,7 @@ import com.sc.mf919.kotlin.helper_common.BaseActivity
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import com.sc.mf919.kotlin.helper_common.TmsHelper
 import com.sc.mf919.kotlin.helper_common.iso.IsoActivity
-import com.sc.mf919.kotlin.helper_common.iso.IsoHelperNew
+import iso.IsoHelperNew
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperLog
@@ -375,16 +375,16 @@ class AdjustmentActivity: BaseActivity() {
             val oldTransDb = HexUtil.hexStringToByte(batch.batchData)
             oldTransDb.copyInto(TransData.transactionDb, 0, 0, oldTransDb.size)
             TransData.transactionDbLen = oldTransDb.size - 2
-            TransData.entryModeLabel = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
-            TransData.cvm = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_CVM, 16)
-            TransData.aid = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_AID, 16)
+            TransData.entryModeLabel = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
+            TransData.cvm = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM, 16)
+            TransData.aid = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_AID, 16)
 
             //TODO for transaction before revamp version
             if(TransData.aid == "" && TransData.cvm == "") {
-                TransData.aid = TransData.getFromTransactionDb(Global.iso.tag.AID, 16)
+                TransData.aid = TransData.getFromTransactionDb(TerminalConstants.iso.tag.AID, 16)
                 TransData.cvm = "1F0303"
-                TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_AID, TransData.aid)
-                TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_CVM, TransData.cvm)
+                TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_AID, TransData.aid)
+                TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_CVM, TransData.cvm)
             }
 
             val isNotCompl = booleanArrayOf(true)
@@ -420,7 +420,7 @@ class AdjustmentActivity: BaseActivity() {
             }
 
             //Reversal
-            if(TransData.transResult != Global.iso.err.txnApproved && (TransData.transResult == Global.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
+            if(TransData.transResult != TerminalConstants.iso.err.txnApproved && (TransData.transResult == TerminalConstants.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
                 ServiceHolder.isoComm = null
                 isNotCompl[0] = true
                 object : Thread() {

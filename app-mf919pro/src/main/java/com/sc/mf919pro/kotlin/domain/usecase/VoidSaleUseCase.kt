@@ -2,10 +2,10 @@ package com.sc.mf919pro.kotlin.domain.usecase
 
 import android.content.Context
 import com.library.terminal.Utility
-import com.sc.mf919pro.java.activity.EmvTag
-import com.sc.mf919pro.java.activity.Global
+import emv.EmvTag
+import constants.TerminalConstants
 import com.sc.mf919pro.java.activity.Utils
-import com.sc.mf919pro.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.HexUtil
 import com.sc.mf919pro.kotlin.data_enum.variables.TransData
 import com.sc.mf919pro.kotlin.database.model.DbModelMerchantConfig
@@ -14,7 +14,7 @@ import com.sc.mf919pro.kotlin.database.repo.IsoBatchInfoRepo
 import helpers.LogRedact
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
 import com.sc.mf919pro.kotlin.helper_common.iso.IsoActivity
-import com.sc.mf919pro.kotlin.helper_common.iso.IsoHelperNew
+import iso.IsoHelperNew
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -161,15 +161,15 @@ class VoidSaleUseCase {
             val oldTransDb = HexUtil.hexStringToByte(batchTableModel.batchData)
             oldTransDb.copyInto(TransData.transactionDb, 0, 0, oldTransDb.size)
             TransData.transactionDbLen = oldTransDb.size - 2
-            TransData.entryModeLabel = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
-            TransData.cvm = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_CVM, 16)
-            TransData.aid = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_AID, 16)
+            TransData.entryModeLabel = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
+            TransData.cvm = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM, 16)
+            TransData.aid = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_AID, 16)
 
             if (TransData.aid == "" && TransData.cvm == "") {
-                TransData.aid = TransData.getFromTransactionDb(Global.iso.tag.AID, 16)
+                TransData.aid = TransData.getFromTransactionDb(TerminalConstants.iso.tag.AID, 16)
                 TransData.cvm = "1F0303"
-                TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_AID, TransData.aid)
-                TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_CVM, TransData.cvm)
+                TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_AID, TransData.aid)
+                TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_CVM, TransData.cvm)
             }
 
             request.posReference?.let {
@@ -194,7 +194,7 @@ class VoidSaleUseCase {
                     IsoActivity.processVoidSale(context, isNotCompl, helperLog)
                 }
 
-                if (TransData.transResult != Global.iso.err.txnApproved &&
+                if (TransData.transResult != TerminalConstants.iso.err.txnApproved &&
                     TransData.respCode.isEmpty() &&
                     TransData.acqCode.equals("BSN_CARDZONE", true)
                 ) {

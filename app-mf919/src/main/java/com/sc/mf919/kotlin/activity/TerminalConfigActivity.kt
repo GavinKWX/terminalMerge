@@ -20,6 +20,7 @@ import com.sc.mf919.kotlin.helper_common.TmsHelper
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperLog
+import com.sc.mf919.kotlin.helper_common.MfHelper
 
 @SuppressLint("UseSwitchCompatOrMaterialCode")
 class TerminalConfigActivity: ActivityBase() {
@@ -133,9 +134,9 @@ class TerminalConfigActivity: ActivityBase() {
 
 	private fun save() {
 		if (ForceLockHome.isChecked) {
-			HelperCommon.bottomActionBarEvent(applicationContext, "1")
+			MfHelper.lockStatusBarAndNavigation(true)
 		} else {
-			HelperCommon.bottomActionBarEvent(applicationContext, "0")
+			MfHelper.lockStatusBarAndNavigation(false)
 		}
 
 		val updateMap = mutableMapOf<Any,Any>(

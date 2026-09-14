@@ -24,7 +24,6 @@ import com.sc.mf919pro.R;
 import utils.HexUtil;
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder;
 
-import org.apache.commons.lang3.math.NumberUtils;
 import org.threeten.bp.LocalDateTime;
 
 import timber.log.Timber;
@@ -45,12 +44,11 @@ import java.io.OutputStreamWriter;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 public class Utils extends AppCompatActivity {
     private final static String TAG = "Utils";
@@ -176,41 +174,7 @@ public class Utils extends AppCompatActivity {
         }
     }*/
 
-    public static long fileSizeInKb(String fileName) {
-        File file = new File(ServiceHolder.Companion.getContext().getFilesDir(), fileName);
-        long fileSize = file.length();
-        return fileSize / 1024;
-    }
-
-    public static boolean createFolder(String path) {
-        /*String init = "";
-        if (path.charAt(0) == '/') {
-            init = "/";
-            path = path.substring(1);
-        }
-        if (path.charAt(path.length() - 1) == '/') {
-            path = path.substring(0, path.length() - 1);
-        }
-        //GeneralMethod.debugLogPrint(TAG, "createFolder: " + path);
-        int[] loc = findCharWithLoc(path, '/');
-        for (int aLoc : loc) {
-            File F = new File(init + path.substring(0, aLoc));
-            //GeneralMethod.debugLogPrint(TAG, "createFolder: " + init + path.substring(0, aLoc));
-            if (!F.exists()) {
-                if (F.mkdir()) {
-                    Utils.debugLogPrint(TAG, "This folder is create " + init + path.substring(0, aLoc));
-                }
-            }
-        }
-        File F = new File(init + path);
-        if (!F.exists()) {
-            if (F.mkdir()) {
-                Utils.debugLogPrint(TAG, "This folder is create " + init + path);
-            }
-        }
-        return F.exists();*/
-        return true;
-    }
+    public static long fileSizeInKb(String fileName) { return utils.FileOps.fileSizeInKb(fileName); }
 
     public static void downloadApk() {
         new Thread() {
@@ -319,104 +283,17 @@ public class Utils extends AppCompatActivity {
         }.start();
     }
 
-    public static void removeInstallApk(String name) {
-        String[] value = readFromFile("installApk.txt");
-        String[] tmp = new String[value.length];
-        int count = 0;
-        if (value[0] != null) {
-            for (String s : value) {
-                if (!name.equals(s)) {
-                    tmp[count] = s;
-                    count++;
-                }
-            }
+    public static void removeInstallApk(String name) { utils.FileOps.removeInstallApk(name); }
 
-            String[] temp = new String[count];
-            System.arraycopy(tmp, 0, temp, 0, count);
-            write2File(temp, "installApk.txt");
-        }
-    }
+    public static String getInstallApk() { return utils.FileOps.getInstallApk(); }
 
-    public static String getInstallApk() {
-        String[] value = readFromFile("installApk.txt");
-        return value[0];
-    }
+    public static String[] readFromFilePath(String path) { return utils.FileOps.readFromFilePath(path); }
 
-    public static String[] readFromFilePath(String path) {
-        File file = new File(path);
-        if (file.exists()) {
-            String[] ret = new String[0];
-            int count = 0;
-            try {
-                String[] temp = new String[50000];
-                InputStream inputStream = new FileInputStream(file);
-                InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
-                BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
-                String receiveString;
-                while ((receiveString = bufferedReader.readLine()) != null) {
-                    temp[count] = receiveString;
-                    count++;
-                }
-                bufferedReader.close();
-                inputStream.close();
-                ret = new String[count];
-                System.arraycopy(temp, 0, ret, 0, count);
-            } catch (FileNotFoundException e) {
-                printErrorLog(TAG, "readFromFile", e.getMessage());
-            } catch (IOException e) {
-                printErrorLog(TAG, "readFromFile", e.getMessage());
-            }
-            return ret;
-        }
-        return new String[]{null};
-    }
+    public static void writeToFile(String data, String filename) { utils.FileOps.writeToFile(data, filename); }
 
-    public static void writeToFile(String data, String filename) {
-        try {
-            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(ServiceHolder.Companion.getContext().openFileOutput(filename, Context.MODE_APPEND));
-            BufferedWriter bufferedWriter = new BufferedWriter(outputStreamWriter);
-            bufferedWriter.write(data);
-            bufferedWriter.newLine();
-            bufferedWriter.close();
-            outputStreamWriter.close();
-            //Utils.debugLogPrint(TAG, "writeToFile: " + data + "-->" + filename);
-        } catch (IOException e) {
-            printErrorLog(TAG, "writeToFile", e.getMessage());
-        }
-    }
+    public static String[] readFromFile(String filename) { return utils.FileOps.readFromFile(filename); }
 
-    public static String[] readFromFile(String filename) {
-        if (checkFiles(filename)) {
-            String[] ret = new String[0];
-            int count = 0;
-            try {
-                String[] temp = new String[100000];
-                InputStream inputStream = ServiceHolder.Companion.getContext().openFileInput(filename);
-                if (inputStream != null) {
-                    InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
-                    BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
-                    String receiveString;
-                    while ((receiveString = bufferedReader.readLine()) != null) {
-                        temp[count] = receiveString;
-                        count++;
-                    }
-                    bufferedReader.close();
-                    inputStream.close();
-                }
-                ret = new String[count];
-                System.arraycopy(temp, 0, ret, 0, count);
-            } catch (Exception e) {
-                printErrorLog(TAG, "readFromFile", e.getMessage());
-            }
-            return ret;
-        }
-        return new String[]{null};
-    }
-
-    public static boolean checkFiles(String filename) {
-        File file = new File(ServiceHolder.Companion.getContext().getFilesDir(), filename);
-        return file.exists();
-    }
+    public static boolean checkFiles(String filename) { return utils.FileOps.checkFiles(filename); }
 
     static boolean isDataExist() {
         /*String DB_PATH = ServiceHolder.getContext().getApplicationInfo().dataDir + "/databases/";
@@ -504,33 +381,21 @@ public class Utils extends AppCompatActivity {
         return returnValue;
     }
 
-    public static String[] String2ArrayString(String value) {
-        int[] loc = findCharWithLoc(value, '\n');
-        String[] array = new String[loc.length + 1];
-        for (int j = 0; j < loc.length + 1; j++) {
-            if (j == 0) {
-                array[j] = value.substring(0, loc[j]);
-            } else if (j == loc.length) {
-                array[j] = value.substring(loc[j - 1] + 1);
-            } else {
-                array[j] = value.substring(loc[j - 1] + 1, loc[j]);
-            }
-        }
-        return (array);
-    }
+    public static String[] String2ArrayString(String value) { return utils.ByteOps.String2ArrayString(value); }
 
-    public static int[] findCharWithLoc(String data, char value) {
-        int[] loc = new int[data.length()];
-        int numofChar = 0;
-        for (int j = 0; j < data.length(); j++) {
-            if (data.charAt(j) == value) {
-                loc[numofChar] = j;
-                numofChar++;
-            }
+    public static int[] findCharWithLoc(String data, char value) { return utils.ByteOps.findCharWithLoc(data, value); }
+
+    // Still a stub: the real digest below is commented out and every call returns "123".
+    // Its only caller is getChecksum, on the dormant downloadApk path. See the audit doc.
+    public static String hashData(String input, String hash) {
+        try {
+            MessageDigest md = MessageDigest.getInstance(hash);
+            //byte[] messageDigest = md.digest(HexUtil.hexStringToByte(input));
+            //return HexUtil.bytesToHexString(messageDigest);
+            return "123";
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
         }
-        int[] temp = new int[numofChar];
-        System.arraycopy(loc, 0, temp, 0, numofChar);
-        return temp;
     }
 
     private static String getChecksum(String appPaths) {
@@ -554,269 +419,65 @@ public class Utils extends AppCompatActivity {
         return value;
     }
 
-    protected static boolean writeFileInByte(String filename, String value) {
-        String path = ServiceHolder.Companion.getContext().getApplicationInfo().dataDir + "/files/";
-        File file = new File(path, filename);
-        if (file.exists()) {
-            Utils.debugLogPrint(TAG, "Delete Files : (" + file.getName() + ") " + file.delete());
-        }
-        FileOutputStream fos;
-        boolean returnValue = true;
-        try {
-            fos = new FileOutputStream(file);
-            //fos.write(HexUtil.hexStringToByte(value));
-            fos.close();
-        } catch (Exception e) {
-            returnValue = false;
-            e.printStackTrace();
-        }
-        return returnValue;
-    }
+    public static void write2File(String[] arr1, String filename) { utils.FileOps.write2File(arr1, filename); }
 
-    public static String readDataBaseInByte(String filename) {
-        String DB_PATH = ServiceHolder.Companion.getContext().getApplicationInfo().dataDir + "/databases/";
-        File file = new File(DB_PATH, filename);
-        String value = "";
-        byte[] bytesArray = new byte[(int) file.length()];
-        FileInputStream fis = null;
-        try {
-            fis = new FileInputStream(file);
-            int a = fis.read(bytesArray); //read file into bytes[]
-            fis.close();
-            //value = HexUtil.bytesToHexString(bytesArray);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return value;
-    }
-
-    public static boolean writeDataBaseInByte(String value, String filename) {
-        boolean returnValue = true;
-        String DB_PATH = ServiceHolder.Companion.getContext().getApplicationInfo().dataDir + "/databases/";
-        File file = new File(DB_PATH, filename);
-        if (new File(DB_PATH, filename + "-journal").exists()) {
-            new File(DB_PATH, filename + "-journal").delete();
-        }
-        if (file.exists()) {
-            Utils.debugLogPrint(TAG, "Delete Files : (" + file.getName() + ") " + file.delete());
-        }
-        FileOutputStream fos;
-        try {
-            fos = new FileOutputStream(file);
-            //fos.write(HexUtil.hexStringToByte(value));
-            fos.close();
-        } catch (Exception e) {
-            returnValue = false;
-            e.printStackTrace();
-        }
-        return returnValue;
-    }
-
-    public static String readDataBaseInByteFromPath(String filename, String DB_PATH) {
-        File file = new File(DB_PATH, filename);
-        String value = "";
-        byte[] bytesArray = new byte[(int) file.length()];
-        FileInputStream fis = null;
-        try {
-            fis = new FileInputStream(file);
-            int a = fis.read(bytesArray); //read file into bytes[]
-            fis.close();
-            //value = HexUtil.bytesToHexString(bytesArray);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return value;
-    }
-
-    public static String hashCardNum(String input) {
-        return (hashData(input, "MD5"));
-    }
-
-    public static String hashData(String input, String hash) {
-        try {
-            MessageDigest md = MessageDigest.getInstance(hash);
-            //byte[] messageDigest = md.digest(HexUtil.hexStringToByte(input));
-            //return HexUtil.bytesToHexString(messageDigest);
-            return "123";
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static String hashDataWithClearText(String input) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-1");
-            byte[] messageDigest = md.digest(Utility.ASCIItoByte(input));
-            System.out.println(Utility.Bytes2HexString(messageDigest));
-            return HexUtil.bytesToHexString(messageDigest);
-        }catch (NoSuchAlgorithmException var4) {
-            System.out.println("NoSuchAlgorithmException");
-            throw new RuntimeException(var4);
-        }
-    }
+    public static void deleteFiles(String filename) { utils.FileOps.deleteFiles(filename); }
 
 
-    public static void write2File(String[] arr1, String filename) {
-        Utils.deleteFiles(filename);
-        //Utils.debugLogPrint(TAG, "write2File: " + Arrays.toString(arr1));
-        for (String anArr1 : arr1) {
-            Utils.writeToFile(anArr1, filename);
-        }
-        Utils.debugLogPrint(TAG, "Write Files : (" + filename + ")");
-    }
+    public static void DelayMili(int duration) { utils.Util.DelayMili(duration); }
 
-    public static void deleteFiles(String filename) {
-        if (filename.endsWith(".db")) {
-            String DB_PATH = ServiceHolder.Companion.getContext().getApplicationInfo().dataDir + "/databases/";
-            File file = new File(DB_PATH, filename);
-            if (new File(DB_PATH, filename + "-journal").exists()) {
-                new File(DB_PATH, filename + "-journal").delete();
-            }
-            if (file.exists()) {
-                Utils.debugLogPrint(TAG, "Delete Files : (" + file.getName() + ") " + file.delete());
-            }
-        } else {
-            File file = new File(ServiceHolder.Companion.getContext().getFilesDir(), filename);
-            if (file.exists()) {
-                Utils.debugLogPrint(TAG, "Delete Files : (" + file.getName() + ") " + file.delete());
-            }
-        }
-    }
+    public static byte bcd2hex(byte val) { return utils.ByteOps.bcd2hex(val); }
 
+    public static byte hex2bcd(byte val) { return utils.ByteOps.hex2bcd(val); }
 
-    public static void DelayMili(int duration) {
-        try {
-            TimeUnit.MILLISECONDS.sleep(duration);
-        } catch (Exception e) {
-            printErrorLog(TAG, "DelayMili", e.getMessage());
-            e.printStackTrace();
-        }
-    }
+    public static byte hex2bcd(int val) { return utils.ByteOps.hex2bcd(val); }
 
-    public static byte bcd2hex(byte val) {
-        return (byte) ((val & 0x0f) + (val >> 4) * 10);
-    }
+    public static byte hex2bcd(long val) { return utils.ByteOps.hex2bcd(val); }
 
-    public static byte hex2bcd(byte val) {
-        return (byte) (((val / 10) << 4) + val % 10);
-    }
-
-    public static byte hex2bcd(int val) {
-        return (byte) (((val / 10) << 4) + val % 10);
-    }
-
-    public static byte hex2bcd(long val) {
-        return (byte) (((val / 10) << 4) + val % 10);
-    }
-
-    public static int set_ushort(long value, byte[] destbuf, int destbufoffset) {
-        destbuf[destbufoffset++] = (byte) ((value & 0xFF00) >> 8);
-        destbuf[destbufoffset++] = (byte) (value & 0x00FF);
-        return destbufoffset;
-    }
+    // Delegates to :core -- see utils.ByteOps.
+    public static int set_ushort(long value, byte[] destbuf, int destbufoffset) { return utils.ByteOps.set_ushort(value, destbuf, destbufoffset); }
 
     //
     // C functions wrapping
     //
-    public static int strcmp(String string1, String string2) {
-        if (string1 == string2)
-            return 0;
-        else
-            return -1;
-    }
+    public static int strcmp(String string1, String string2) { return utils.ByteOps.strcmp(string1, string2); }
 
-    public static int arrayCopy(byte[] source, int soureoffset, byte[] dest, int destoffset, int len) {
-        System.arraycopy(source, soureoffset, dest, destoffset, len);
-        return destoffset + len;
-    }
+    public static int arrayCopy(byte[] source, int soureoffset, byte[] dest, int destoffset, int len) { return utils.ByteOps.arrayCopy(source, soureoffset, dest, destoffset, len); }
 
-    public static int memcpy(byte[] destBuf, int destBufOffset, byte[] sourceBuf, int sourceBufOffset, int len) {
-        return arrayCopy(sourceBuf, sourceBufOffset, destBuf, destBufOffset, len);
-    }
+    // Delegates to :core -- see utils.ByteOps.
+    public static int memcpy(byte[] destBuf, int destBufOffset, byte[] sourceBuf, int sourceBufOffset, int len) { return utils.ByteOps.memcpy(destBuf, destBufOffset, sourceBuf, sourceBufOffset, len); }
 
-    public static int memcpy(byte[] destBuf, byte[] sourceBuf, int len) {
-        return memcpy(destBuf, 0, sourceBuf, 0, len);
-    }
+    // Delegates to :core -- see utils.ByteOps.
+    public static int memcpy(byte[] destBuf, byte[] sourceBuf, int len) { return utils.ByteOps.memcpy(destBuf, sourceBuf, len); }
 
-    public static int memcmp(byte[] data1, int data1Offset, byte[] data2, int data2Offset, int dataLen) {
-        for (int i = 0; i < dataLen; i++) {
-            if (data1[data1Offset + i] > data2[data2Offset + i])
-                return 1;
-            else if (data1[data1Offset + i] < data2[data2Offset + i])
-                return -1;
-        }
-
-        return 0;
-    }
+    public static int memcmp(byte[] data1, int data1Offset, byte[] data2, int data2Offset, int dataLen) { return utils.ByteOps.memcmp(data1, data1Offset, data2, data2Offset, dataLen); }
 
     public static int memcmp(byte[] data1, int data1Offset, String data2, int dataLen) {
         byte[] byteData2 = data2.getBytes(StandardCharsets.US_ASCII);
         return memcmp(data1, data1Offset, byteData2, 0, dataLen);
     }
 
-    public static int memcmp(byte[] data1, String data2, int dataLen) {
-        byte[] byteData2 = data2.getBytes(StandardCharsets.US_ASCII);
-        return memcmp(data1, 0, byteData2, 0, dataLen);
-    }
+    public static int memcmp(byte[] data1, String data2, int dataLen) { return utils.ByteOps.memcmp(data1, data2, dataLen); }
 
-    public static int arrayFill(byte data, byte[] dest, int destoffset, int len) {
-        while (len-- > 0) {
-            dest[destoffset++] = data;
-        }
+    public static int arrayFill(byte data, byte[] dest, int destoffset, int len) { return utils.ByteOps.arrayFill(data, dest, destoffset, len); }
 
-        return destoffset;
-    }
+    // Delegates to :core -- see utils.ByteOps.
+    public static int memset(byte[] dest, int destOffset, byte setValue, int length) { return utils.ByteOps.memset(dest, destOffset, setValue, length); }
 
-    public static int memset(byte[] dest, int destOffset, byte setValue, int length) {
-        arrayFill(setValue, dest, destOffset, length);
-        return length;
-    }
+    // Delegates to :core -- see utils.ByteOps.
+    public static int memset(byte[] dest, byte setValue, int length) { return utils.ByteOps.memset(dest, setValue, length); }
 
-    public static int memset(byte[] dest, byte setValue, int length) {
-        return memset(dest, 0, setValue, length);
-    }
+    // Delegates to :core -- see utils.ByteOps.
+    public static int set_short(short value, byte[] destbuf) { return utils.ByteOps.set_short(value, destbuf); }
 
-    public static int set_short(short value, byte[] destbuf) {
-        int iPointer = 0;
-        destbuf[iPointer++] = (byte) (0x00FF & (value >> 8));
-        destbuf[iPointer++] = (byte) (0x00FF & (value));
+    // Delegates to :core -- see utils.ByteOps.
+    public static int set_ushort(short value, byte[] destbuf, int destbufoffset) { return utils.ByteOps.set_ushort(value, destbuf, destbufoffset); }
 
-        return iPointer;
-    }
-
-    public static int set_ushort(short value, byte[] destbuf, int destbufoffset) {
-        destbuf[destbufoffset++] = (byte) ((value & 0xFF00) >> 8);
-        destbuf[destbufoffset++] = (byte) (value & 0x00FF);
-        return destbufoffset;
-    }
-
-    public static short get_ushort(byte[] data, int dataoffset) {
-        byte[] bUShort = new byte[2];
-        short usResp = 0;
-
-        bUShort[0] = data[dataoffset++];
-        bUShort[1] += data[dataoffset];
-
-        usResp = (short) HexUtil.bytes2short(bUShort);
-
-        return usResp;
-    }
+    // Delegates to :core -- see utils.ByteOps.
+    public static short get_ushort(byte[] data, int dataoffset) { return utils.ByteOps.get_ushort(data, dataoffset); }
 
     //return index value
-    public static int sscanf(String dataIn, String lookFor, String[] foundValue) {
-        int iIndex = dataIn.indexOf(lookFor);
-        if (iIndex < 0)
-            return iIndex;
-
-        String tempResult = dataIn.substring(iIndex + lookFor.length());
-        int seperatorIndex = tempResult.indexOf(";");
-        if(seperatorIndex > 0)
-            tempResult = tempResult.substring(0, seperatorIndex);
-
-        //foundValue = dataIn.Substring(iIndex);
-        foundValue[0] = tempResult;
-        return iIndex + lookFor.length();
-    }
+    public static int sscanf(String dataIn, String lookFor, String[] foundValue) { return utils.ByteOps.sscanf(dataIn, lookFor, foundValue); }
 
     //return parse value
     public static int sscanf(byte[] dataIn, int dataInOffset, int dataInLength, String lookFor, String[] foundValue) {
@@ -825,47 +486,23 @@ public class Utils extends AppCompatActivity {
         return sscanf(strData, lookFor, foundValue);
     }
 
-    public static int strlen(String data) {
-        if (data == null)
-            return 0;
+    // Delegates to :core -- see utils.ByteOps.
+    public static int strlen(String data) { return utils.ByteOps.strlen(data); }
 
-        return data.length();
-    }
+    public static int atoi(String value) { return utils.ByteOps.atoi(value); }
 
-    public static int atoi(String value) {
-        // Enhanced Integer.parseInt
-        //return Integer.parseInt(value);
-        if (value == null){value = "";}
-        return NumberUtils.toInt(value.replaceAll("\\.", "").replaceAll(",", ""), 0);
-    }
+    public static long convertLong(String value) { return utils.ByteOps.convertLong(value); }
 
-    public static long convertLong(String value) {
-        // Enhanced Integer.parseInt
-        //return Integer.parseInt(value);
-        return NumberUtils.toLong(value, 0);
-    }
+    public static String removeWhiteSpace(String InputText) { return utils.StringUtils.removeWhiteSpace(InputText); }
 
-    public static String removeWhiteSpace(String InputText) {
-        InputText = InputText.trim();
-        InputText = InputText.replace("\t", "");
-        return InputText.replace(" ", "");
-    }
+    // Delegates to :core -- see utils.ByteOps.
+    public static String byteArrayToHexString(byte[] Input, int Offset, int Length, String spacing) { return utils.ByteOps.byteArrayToHexString(Input, Offset, Length, spacing); }
 
-    public static String byteArrayToHexString(byte[] Input, int Offset, int Length, String spacing) {
-        String strO = "";
-        for (int i = Offset; i < Offset + Length; i++)
-            //strO += String.format("{0:x2}", (int) Input[i]) + spacing;
-            strO += String.format("%02x", (int) Input[i]) + spacing;
-        return strO.toUpperCase().trim();
-    }
+    // Delegates to :core -- see utils.ByteOps.
+    public static String byteArrayToHexString(byte[] Input, int Offset, int Length) { return utils.ByteOps.byteArrayToHexString(Input, Offset, Length); }
 
-    public static String byteArrayToHexString(byte[] Input, int Offset, int Length) {
-        return byteArrayToHexString(Input, Offset, Length/*Input.Length*/, "");
-    }
-
-    public static String byteArrayToHexString(byte[] Input) {
-        return byteArrayToHexString(Input, 0, Input.length, "");
-    }
+    // Delegates to :core -- see utils.ByteOps.
+    public static String byteArrayToHexString(byte[] Input) { return utils.ByteOps.byteArrayToHexString(Input); }
 
     /*public static byte[] hexStringToByteArray(String data)
     {
@@ -878,20 +515,8 @@ public class Utils extends AppCompatActivity {
         }
         return endResult;
     }*/
-    public static byte[] hexStringToByteArray(String hex) {
-        if (hex == null || "".equals(hex)) {
-            return null;
-        }
-        hex = hex.toUpperCase();
-        int len = (hex.length() / 2);
-        byte[] result = new byte[len];
-        char[] achar = hex.toCharArray();
-        for (int i = 0; i < len; i++) {
-            int pos = i * 2;
-            result[i] = (byte) (toByte(achar[pos]) << 4 | toByte(achar[pos + 1]));
-        }
-        return result;
-    }
+    // Delegates to :core -- see utils.ByteOps.
+    public static byte[] hexStringToByteArray(String hex) { return utils.ByteOps.hexStringToByteArray(hex); }
 
     /*public int hexStringToByteArray(String data, byte[] HexOut, int HexOutOffset)
     {
@@ -908,10 +533,7 @@ public class Utils extends AppCompatActivity {
         return iLen;
     }*/
 
-    public static byte toByte(char c) {
-        byte b = (byte) "0123456789ABCDEF".indexOf(c);
-        return b;
-    }
+    public static byte toByte(char c) { return utils.ByteOps.toByte(c); }
 
     public byte hexStringToByte(String HexStringByte) {
         char[] achar = HexStringByte.toUpperCase().toCharArray();
@@ -919,67 +541,12 @@ public class Utils extends AppCompatActivity {
         return b;
     }
 
-    public static void bin2bcd(int dataIn, int dataInLength, byte[] outBuffer, int outBufferOffset) {
-        int i = 0;
-        byte[] buffer = new byte[100];
-        for (i = 0; i < dataInLength; i++) {
+    public static void bin2bcd(int dataIn, int dataInLength, byte[] outBuffer, int outBufferOffset) { utils.ByteOps.bin2bcd(dataIn, dataInLength, outBuffer, outBufferOffset); }
 
-            buffer[i] = (byte) (dataIn % 10);
-            dataIn /= 10;
-            buffer[i] |= (byte) (dataIn % 10 << 4);
-            dataIn /= 10;
+    // Delegates to :core -- see utils.ByteOps.
+    public static int bcd2bin(byte[] inBuf, int inBufOffset, int inBufLen) { return utils.ByteOps.bcd2bin(inBuf, inBufOffset, inBufLen); }
 
-        }
-
-        for (i = 0; i < dataInLength; i++) {
-            outBuffer[outBufferOffset + i] = buffer[dataInLength - i - 1];
-        }
-
-    }
-
-    public static int bcd2bin(byte[] inBuf, int inBufOffset, int inBufLen) {
-        int iOutput = 0, i;
-        byte[] buf = new byte[100];
-
-            /*for (i = inBufOffset; i < inBufLen; i++)
-            {
-                iOutput *= 100;
-                iOutput += (10 * (inBuf[i] >> 4));
-                iOutput += inBuf[i] & 0xf;
-            }*/
-
-        for (i = 0; i < inBufLen; i++) {
-            iOutput *= 100;
-
-            if((i+1) == inBufLen){
-                iOutput +=  Integer.parseInt(HexUtil.bytesToHexString(inBuf, i + inBufOffset, 1));
-            }else {
-                iOutput += (10 * (inBuf[i + inBufOffset] >> 4));
-                iOutput += inBuf[i + inBufOffset] & 0xf;
-            }
-        }
-
-        return iOutput;
-    }
-
-    public static int bcd2Int(byte[] bcdData, int bcdDataOffset, int bcdDataLen) {
-        int iMultiplier = 1;
-        int iTotalValue = 0;
-
-        for (int i = bcdDataLen - 1; i >= 0; i--) {
-            byte thisByte = bcdData[bcdDataOffset + i];
-            int iLower = thisByte & 0x0F;
-            int iUpper = (thisByte & 0xF0) >> 4;
-
-            int iThisValue = (iUpper * 10) + iLower;
-            iThisValue = iThisValue * iMultiplier;
-            iTotalValue += iThisValue;
-
-            iMultiplier = iMultiplier * 100;
-        }
-
-        return iTotalValue;
-    }
+    public static int bcd2Int(byte[] bcdData, int bcdDataOffset, int bcdDataLen) { return utils.ByteOps.bcd2Int(bcdData, bcdDataOffset, bcdDataLen); }
 
     public static String byteArrayToAsciiString(byte[] DataIn, int Offset, int Length) {
         byte[] data = new byte[Length];
@@ -995,70 +562,23 @@ public class Utils extends AppCompatActivity {
 
     }
 
-    public static byte[] AsciiToByteArray(String DataIn) {
-        byte[] byteDataInConverted = DataIn.getBytes();
-        //Utils.debugLogPrint(TAG, "AsciiToByteArray: " + (int) byteDataInConverted[0]);
+    public static byte[] AsciiToByteArray(String DataIn) { return utils.ByteOps.AsciiToByteArray(DataIn); }
 
-        return byteDataInConverted;
-    }
+    public static byte[] ASCIItoByte(String info) { return utils.ByteOps.ASCIItoByte(info); }
 
-    public static byte[] ASCIItoByte(String info) {
-        byte[] temp = new byte[info.length()];
-        for (int j = 0; j < info.length(); j++) {
-            temp[j] = (byte) info.charAt(j);
-        }
-        return (temp);
-    }
+    public static String ASCIItoHexString(String info) { return utils.ByteOps.ASCIItoHexString(info); }
 
-    public static String ASCIItoHexString(String info) {
-        byte[] temp = ASCIItoByte(info);
-        //GeneralMethod.debugLogPrint(TAG, "ASCIItoHexString: " + HexUtil.bytesToHexString(temp));
-        return (HexUtil.bytesToHexString(temp));
-    }
+    public static String symbolString(String Symbol, int Len) { return utils.StringUtils.symbolString(Symbol, Len); }
 
-    public static String symbolString(String Symbol, int Len) {
-        StringBuilder returnVal = new StringBuilder();
-        for (int j = 0; j < Len; j++) {
-            returnVal.append(Symbol);
-        }
-        return returnVal.toString();
-    }
+    public static String removeCarNumChar(String CardNu) { return utils.StringUtils.removeCarNumChar(CardNu); }
 
-    public static String removeCarNumChar(String CardNu) {
-        if (CardNu.contains("F")) {
-            int index = CardNu.indexOf("F");
-            CardNu = CardNu.substring(0, index);
+    public static String hideCardDetails(String cdNum) { return utils.Util.hideCardDetails(cdNum); }
 
-        }
-        return CardNu;
-    }
+    public static String hideCardDetails(String CardNu, boolean b) { return utils.Util.hideCardDetails(CardNu, b); }
 
-    public static String hideCardDetails(String cdNum) {
-        return hideCardDetails(cdNum, true);
-    }
+    public static String DateFormat(String date) { return utils.StringUtils.DateFormat(date); }
 
-    public static String hideCardDetails(String CardNu, boolean b) {
-        if (CardNu.length() > 11) {
-            if (b) {
-                CardNu = CardNu.substring(0, 6) + symbolString("*", CardNu.length() - 10) + CardNu.substring(CardNu.length() - 4);
-            } else {
-                CardNu = symbolString("*", CardNu.length() - 4) + CardNu.substring(CardNu.length() - 4);
-            }
-        }
-        return CardNu;
-    }
-
-    public static String DateFormat(String date) {
-        date = date.substring(6, 8) + "-" + date.substring(4, 6)
-                + "-" + date.substring(0, 4);
-        return (date);
-    }
-
-    public static String TimeFormat(String time) {
-        time = time.substring(0, 2) + ":" + time.substring(2, 4)
-                + ":" + time.substring(4, 6);
-        return (time);
-    }
+    public static String TimeFormat(String time) { return utils.StringUtils.TimeFormat(time); }
 
     public static String DateTimeFormat(String datetime) {
         try {
@@ -1080,45 +600,16 @@ public class Utils extends AppCompatActivity {
         return (datetime);
     }
 
-    public static String mask_pan(String value) {
-        value = value.substring(0, 6) + symbolString("0", value.length() - 10) + value.substring(value.length() - 4);
-        value = paddingWith(value, "0", 20, true);
-        return (value);
-    }
+    public static String mask_pan(String value) { return utils.StringUtils.mask_pan(value); }
 
-    public static String spaceBtwNoChar(String value, int space) {
-        String temp = "";
-        while (value.length() > space) {
-            temp = temp.concat(value.substring(0, 4).concat(" "));
-            value = value.substring(4);
-        }
-        temp = temp.concat(value);
-        return (temp);
-    }
+    public static String spaceBtwNoChar(String value, int space) { return utils.StringUtils.spaceBtwNoChar(value, space); }
 
-    public static String blankSpace(int i) {
-        String temp = "";
-        int loop = 1;
-        while (loop < i) {
-            temp = temp.concat(" ");
-            loop++;
-        }
-        return temp;
-    }
+    public static String blankSpace(int i) { return utils.StringUtils.blankSpace(i); }
 
+    // Delegates to :core so the padding logic exists once. crypto.Encryption needed it
+    // and could not depend on this class.
     public static String paddingWith(String pin, String f, int length, boolean end) {
-        if (pin.length() < length) {
-            StringBuilder pinBuilder = new StringBuilder(pin);
-            while (pinBuilder.length() != length) {
-                if (end) {
-                    pinBuilder.append(f);
-                } else {
-                    pinBuilder.insert(0, f);
-                }
-            }
-            pin = pinBuilder.toString();
-        }
-        return pin;
+        return utils.StringUtils.paddingWith(pin, f, length, end);
     }
 
     /*private static class CounterSign {
@@ -1207,188 +698,19 @@ public class Utils extends AppCompatActivity {
         }
     }*/
 
-    public static void cpAssetFile(String filename) {
-        if (!ChangeInFile(filename)) {
-            if (checkFiles(filename)) {
-                String[] exitValue = readFromFile(filename);
-                try {
-                    Utils.debugLogPrint(TAG, "Copy Asset File: " + filename);
-                    InputStream ins;
-                    ins = ServiceHolder.Companion.getContext().getAssets().open(filename);
-                    BufferedReader buf = new BufferedReader(new InputStreamReader(ins));
-                    String str;
-                    while ((str = buf.readLine()) != null) {
-                        boolean update = true;
-                        for (String s : exitValue) {
-                            int loc = str.indexOf("=");
-                            if (s.startsWith(str.substring(0, loc))) {
-                                update = false;
-                                break;
-                            }
-                        }
-                        if (update) {
-                            writeToFile(str, filename);
-                        }
-                    }
-                } catch (Exception e) {
-                    printErrorLog(TAG, "cpAssetFile", e.getMessage());
-                    e.printStackTrace();
-                }
-            } else {
-                try {
-                    Utils.debugLogPrint(TAG, "Copy Asset File: " + filename);
-                    InputStream ins;
-                    ins = ServiceHolder.Companion.getContext().getAssets().open(filename);
-                    BufferedReader buf = new BufferedReader(new InputStreamReader(ins));
-                    String str;
-                    while ((str = buf.readLine()) != null) {
-                        writeToFile(str, filename);
-                    }
-                } catch (Exception e) {
-                    printErrorLog(TAG, "cpAssetFile", e.getMessage());
-                    e.printStackTrace();
-                }
-            }
-        }
+    public static void cpAssetFile(String filename) { utils.FileOps.cpAssetFile(filename); }
 
-    }
-
-    private static boolean ChangeInFile(String filename) {
-        boolean isSame;
-        if (checkFiles(filename)) {
-            String[] a1 = readFromFile(filename);
-            String[] a2 = readFromAssetFile(filename);
-            isSame = (a1.length == a2.length);
-        } else {
-            isSame = false;
-        }
-        Utils.debugLogPrint(TAG, "ChangeInFile: " + isSame);
-        return (isSame);
-    }
-
-    public static String[] readFromAssetFile(String filename) {
-        if (checkFiles(filename)) {
-            String[] ret = new String[0];
-            int count = 0;
-            try {
-                String[] temp = new String[1000];
-                InputStream inputStream = ServiceHolder.Companion.getContext().getAssets().open(filename);
-                InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
-                BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
-                String receiveString;
-                while ((receiveString = bufferedReader.readLine()) != null) {
-                    temp[count] = receiveString;
-                    count++;
-                }
-                bufferedReader.close();
-                inputStream.close();
-                ret = new String[count];
-                System.arraycopy(temp, 0, ret, 0, count);
-            } catch (Exception e) {
-                printErrorLog(TAG, "readFromAssetFile", e.getMessage());
-            }
-            return ret;
-        }
-        return new String[]{null};
-    }
+    public static String[] readFromAssetFile(String filename) { return utils.FileOps.readFromAssetFile(filename); }
 
 
-    public static String getPinBlock(String pin, String pan, int Mode) {
-        pin = Mode + Integer.toString(pin.length()) + pin;
-        String returnVal = "";
-        String substring = pan.substring(pan.length() - 13, pan.length() - 1);
-        switch (Mode) {
-            case 0:
-                pan = substring;
-                pin = paddingWith(pin, "F", 16, true);
-                pan = paddingWith(pan, "0", 16, false);
-                byte[] comb1 = HexUtil.hexStringToByte(pin);
-                byte[] comb2 = HexUtil.hexStringToByte(pan);
-                int result;
-                for (int j = 0; j < comb1.length; j++) {
-                    result = Byte2Int(comb1[j]) ^ Byte2Int(comb2[j]);
-                    returnVal = returnVal.concat(zeroPadding(Integer.toHexString(result), 2));
-                }
-                break;
-            case 1:
-                while (pin.length() == 16) {
-                    Random rand = new Random();
-                    int n = rand.nextInt(16);
-                    pin = pin.concat(Integer.toHexString(n - 1));
-                }
-                returnVal = pin;
-                break;
-            case 2:
-                pin = paddingWith(pin, "F", 16, true);
-                returnVal = pin;
-                break;
-            case 3:
-                while (pin.length() == 16) {
-                    Random rand = new Random();
-                    int n = rand.nextInt(16);
-                    pin = pin.concat(Integer.toHexString(n - 1));
-                }
-                pan = substring;
-                pan = paddingWith(pan, "0", 16, false);
-                byte[] compB11 = HexUtil.hexStringToByte(pin);
-                byte[] compB12 = HexUtil.hexStringToByte(pan);
-                int result1;
-                for (int j = 0; j < compB11.length; j++) {
-                    result1 = Byte2Int(compB11[j]) ^ Byte2Int(compB12[j]);
-                    returnVal = returnVal.concat(zeroPadding(Integer.toHexString(result1), 2));
-                }
-        }
-        return returnVal;
-    }
+    // Delegates to :core -- see utils.ByteOps.
+    public static int Byte2Int(byte b) { return utils.ByteOps.Byte2Int(b); }
 
-    public static int Byte2Int(byte b) {
-        int a = b;
-        if (a < 0) {
-            a = 256 + a;
-        }
-        return (a);
-    }
+    public static String zeroPadding(String s, int LengthOfString) { return utils.AmountFormat.zeroPadding(s, LengthOfString); }
 
-    public static String zeroPadding(String s, int LengthOfString) {
-        if (s.length() < LengthOfString) {
-            while (s.length() != LengthOfString) {
-                s = "0".concat(s);
-            }
-        }
-        return s;
-    }
+    public static String Byte2ASCII(byte[] b) { return utils.ByteOps.Byte2ASCII(b); }
 
-    public static String Byte2ASCII(byte[] b) {
-        StringBuilder temp = new StringBuilder();
-        for (byte aB : b) {
-            char c = (char) aB;
-            temp.append(c);
-        }
-        return (temp.toString());
-    }
-
-    public static String getICCUMobile(String field55) {
-        String[] tags = new String[]{"72", "82", "84", "91", "95", "9A", "9C", "5F2A", "5F30", "5F34", "9F02", "9F03", "9F06", "9F09", "9F10", "9F1A", "9F1E", "9F26", "9F27", "9F28", "9F29", "9F33", "9F34", "9F35", "9F36", "9F37", "9F41", "9F53", "DF31"};
-        String temp = "";
-        TLVData data1 = new TLVData(field55);
-        for (String tag : tags) {
-            String value = data1.getTagMsg(tag);
-            if (!value.isEmpty()) {
-                temp = temp.concat(value);
-            }
-        }
-        return temp;
-    }
-
-    public static String getActualAmount(String value) {
-        if(value.equals("0")) return value;
-        if (value.length() < 3) {
-            value = Utils.zeroPadding(value, 3);
-        }
-        long valueInInt = Long.parseLong(value) / 100;
-        String mAmount = Long.toString(valueInInt);
-        return (mAmount.concat("." + value.substring(value.length() - 2)));
-    }
+    public static String getActualAmount(String value) { return utils.AmountFormat.getActualAmount(value); }
 
     public static String getIPAddress() {
         try {
@@ -1411,60 +733,9 @@ public class Utils extends AppCompatActivity {
     /** Placeholder when the local IP cannot be read; keeps log records shaped the same. */
     public static final String UNKNOWN_IP = "0.0.0.0";
 
-    public static String getPublicIP() {
-        final boolean[] waitTime = {true};
-        final String[] ip = {"0.0.0.0"};
-        final URL[] whatismyip = {null};
-        new Thread() {
-            @Override
-            public void run() {
-                super.run();
-                try {
-                    //whatismyip = new URL("http://checkip.amazonaws.com");
-                    whatismyip[0] = new URL("https://myexternalip.com/raw");
-                    BufferedReader in = new BufferedReader(new InputStreamReader(whatismyip[0].openStream()));
-                    ip[0] = in.readLine(); //you get the IP as a String
-                    //System.out.println(ip[0]);
-                    waitTime[0] = false;
-                } catch (Exception e) {
-                    //e.printStackTrace();\
-                    waitTime[0] = false;
-                }
-            }
-        }.start();
+    public static String getPublicIP() { return helpers.PublicIp.get(); }
 
-        while (waitTime[0]) {
-            Utils.DelayMili(100);
-        }
-        return ip[0];
-    }
-
-    public static String CVMAnalysis(String CVM, String entryMode) {
-        String returnValue;
-        switch (CVM.charAt(1)) {
-            case '1':
-                //if (entryMode.equals(TransFieldConstant.payMethods.sRF)) {
-                //    returnValue = "NO PIN REQUIRED\nNO SIGNATURE REQUIRED";
-                //} else {
-                returnValue = "PIN VERIFIED\nNO SIGNATURE REQUIRED";
-                //}
-                break;
-            case '2':
-                returnValue = "PIN VERIFIED\nNO SIGNATURE REQUIRED";
-                break;
-            case '3':
-            case '5':
-                returnValue = "PIN VERIFIED\n\n\n______________________________\nSign";
-                break;
-            case 'E':
-                returnValue = "\n\n\n______________________________\nSign";
-                break;
-            default:
-                returnValue = "NO PIN REQUIRED\nNO SIGNATURE REQUIRED";
-                break;
-        }
-        return returnValue;
-    }
+    public static String CVMAnalysis(String CVM, String entryMode) { return utils.ReceiptText.CVMAnalysis(CVM, entryMode); }
 
     public static class TextItem {
         private String text;
@@ -1599,38 +870,9 @@ public class Utils extends AppCompatActivity {
         return paint.measureText(text);
     }
 
-    public static String getPayMeythod(String POSEntryCode) {
-        Utils.debugLogPrint("TAG", "getPayMeythod: " + POSEntryCode);
-        String returnVale = "Manual";
-        switch (POSEntryCode) {
-            case ("0260"):
-            case ("0261"):
-            case ("0059"):
-            case ("0051"):
-                returnVale = "Contact";
-                break;
-            case ("0270"):
-            case ("0271"):
-            case ("0081"):
-            case ("0071"):
-                returnVale = "Contactless";
-                break;
-            case ("0021"):
-            case ("0801"):
-                returnVale = "MagStripe";
-                break;
-        }
-        return returnVale;
-    }
+    public static String getPayMeythod(String POSEntryCode) { return utils.ReceiptText.getPayMeythod(POSEntryCode); }
 
-    public static String getTxnType(String txnType) {
-        Utils.debugLogPrint("TAG", "getTxnType: " + txnType);
-        String returnVale = txnType;
-        if(txnType.equalsIgnoreCase("MOTO")){
-            returnVale = "Sale";
-        }
-        return returnVale;
-    }
+    public static String getTxnType(String txnType) { return utils.StringUtils.getTxnType(txnType); }
 
     static String readCardNum(String track2) {
         Utils.debugLogPrint(TAG, "readCardNum: " + track2.indexOf("D") + "  " + track2);
@@ -1665,14 +907,7 @@ public class Utils extends AppCompatActivity {
         }
     }
 
-    public static String maskString(String value, int clearTextRemain) {
-        String resultString = value;
-        int stringLength = value.length();
-        if(stringLength > clearTextRemain){
-            resultString= symbolString("*", stringLength - clearTextRemain) + value.substring(stringLength - clearTextRemain);
-        }
-        return resultString;
-    }
+    public static String maskString(String value, int clearTextRemain) { return utils.StringUtils.maskString(value, clearTextRemain); }
 
     public static String getSchemeName(String schemeId) {
         String schemeName = "";
@@ -1703,17 +938,5 @@ public class Utils extends AppCompatActivity {
         return schemeName;
     }
 
-    public static String maskIp(String ip) {
-        String result = "-";
-        if (!ip.trim().isEmpty()) {
-            String[] parts = ip.split("\\.");
-            int finalDest = 0;
-            if(parts.length > 0) {
-                finalDest = parts.length -1;
-            }
-            result = "xxx.xxx.xxx." + parts[finalDest];
-        }
-
-        return result;
-    }
+    public static String maskIp(String ip) { return utils.StringUtils.maskIp(ip); }
 }

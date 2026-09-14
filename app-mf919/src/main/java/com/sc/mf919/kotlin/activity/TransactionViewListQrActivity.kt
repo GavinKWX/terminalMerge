@@ -190,7 +190,8 @@ class TransactionViewListQrActivity : ActivityBase(), FragmentTxnHistoryQr.OnFra
         processWalletHistoryFragment(filteredTxnList)
     }
 
-    private fun processWalletHistoryFragment(cardTxnList: List<DbModelTransactionQrGet>){
+    private suspend fun processWalletHistoryFragment(cardTxnList: List<DbModelTransactionQrGet>) = withContext(Dispatchers.Main) {
+        // Fragment commits are main-thread only; the caller runs on Dispatchers.IO.
         val bundle = Bundle()
         bundle.putParcelableArrayList("transList", ArrayList(cardTxnList))
         val fragment = FragmentTxnHistoryQr()

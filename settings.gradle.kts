@@ -21,7 +21,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ShareCommerce_Terminal"
+rootProject.name = "Terminal_MF919"
 
 include(":core")
 include(":app-mf919")

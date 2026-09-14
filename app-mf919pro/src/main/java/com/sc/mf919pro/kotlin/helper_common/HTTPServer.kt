@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.helper_common
+import enums.EnumResponseCode
 
 import helpers.IntegrationMode
 
@@ -20,6 +21,7 @@ import com.google.gson.JsonParser
 import com.google.gson.JsonSyntaxException
 import com.library.terminal.Utility
 import com.morefun.yapi.ServiceResult
+import com.morefun.yapi.device.serialport.SerialPort
 import com.morefun.yapi.device.serialport.SerialPortDriver
 import com.sc.mf919pro.R
 import com.sc.mf919pro.java.activity.Utils
@@ -89,7 +91,7 @@ object HTTPServer: NanoHTTPD(8888) {
     // rather than deleted because the feature is finished, not abandoned -- but enabling it
     // changes vendor-visible behaviour: a genuine second sale with a byte-identical body inside
     // the window would be answered from cache instead of being run. That needs a deliberate
-    // decision, not a constant flip. Set to 5_000L to enable.
+    // decision, not a constant flip. Ruled 2026-09-09: stays disabled. Set to 5_000L to enable.
     private const val RETRY_CACHE_WINDOW_MS = 0L
     private val requestLock = Any()
     private var inFlight: InFlight? = null
@@ -125,6 +127,15 @@ object HTTPServer: NanoHTTPD(8888) {
     @Volatile
     private var cableRequest = false
     private var comport = 4
+
+    // RS232 cable, ported from MF919. Selected by CABLE_CONNECTION = "RS232"; the USB mode above
+    // uses SerialPortDriver instead. Both are cable transports feeding the same request path.
+    private var usbSerialPort: SerialPort? = null
+    private var usbPath = "dev/ttyUSB0"
+    private val baudRate = 115200
+    private val dataBits = 8
+    private val stopBits = 1
+    private val parity = 0
     @Volatile
     private var portOpen = false
 
@@ -202,32 +213,61 @@ object HTTPServer: NanoHTTPD(8888) {
         tmpHelperLog.appendLine(helperlogClassName, "Connection Method :: ", connMethod)
         tmpHelperLog.appendLine(helperlogClassName, "portOpen :: $portOpen")
 
-        if(connMethod.equals("USB", true)){
-            socketInterface = 1
-            if(!portOpen) {
-                try {
-                    serialPortDriver = DeviceHelper.getSerialPortDriver(comport)
-                    serialPortDriver?.let {
-                        val connect: Int = serialPortDriver!!.connect("115200,N,8,1")
-                        if (connect == ServiceResult.Success) {
-                            portOpen = true
-                            cableRequest = true
-                            cableConnectionReceiving()
-                        } else {
-                            tmpHelperLog.appendLine(helperlogClassName, "Open Serial Port Fail")
+        when (connMethod.uppercase()) {
+            "USB" -> {
+                socketInterface = 1
+                if(!portOpen) {
+                    try {
+                        serialPortDriver = DeviceHelper.getSerialPortDriver(comport)
+                        serialPortDriver?.let {
+                            val connect: Int = serialPortDriver!!.connect("115200,N,8,1")
+                            if (connect == ServiceResult.Success) {
+                                portOpen = true
+                                cableRequest = true
+                                cableConnectionReceiving(connMethod)
+                            } else {
+                                tmpHelperLog.appendLine(helperlogClassName, "Open Serial Port Fail")
+                            }
                         }
+                    } catch (e: java.lang.Exception) {
+                        e.printStackTrace()
                     }
-                } catch (e: java.lang.Exception) {
-                    e.printStackTrace()
                 }
             }
-        } else {
-            tmpHelperLog.appendLine(helperlogClassName, "reset port from serve cable")
-            if(socketInterface == 1) {
-                socketInterface = -1
-                serialPortDriver?.let {
-                    it.clrBuffer()
-                    it.disconnect()
+            "RS232" -> {
+                socketInterface = 1
+                if(!portOpen) {
+                    try {
+                        usbSerialPort = DeviceHelper.getUsbSerialPort(usbPath)
+                        usbSerialPort?.let {
+                            val connect: Int = usbSerialPort!!.openAndInit(baudRate, dataBits, stopBits, parity)
+                            if (connect == ServiceResult.Success) {
+                                portOpen = true
+                                cableRequest = true
+                                cableConnectionReceiving(connMethod)
+                            } else {
+                                tmpHelperLog.appendLine(helperlogClassName, "Open USB Serial Fail")
+                            }
+                        }
+                    } catch (e: java.lang.Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+            else -> {
+                tmpHelperLog.appendLine(helperlogClassName, "reset port from serve cable")
+                if(socketInterface == 1) {
+                    socketInterface = -1
+                    serialPortDriver?.let {
+                        it.clrBuffer()
+                        it.disconnect()
+                    }
+                    usbSerialPort?.let {
+                        it.clearInputBuffer()
+                        it.close()
+                    }
+                    // Outside the ?.let, as MF919 has it: with a null driver the old code left
+                    // portOpen true, so the receive loop kept spinning on a closed port.
                     portOpen = false
                     cableRequest = false
                 }
@@ -240,17 +280,36 @@ object HTTPServer: NanoHTTPD(8888) {
     fun resetCommunicationPort() {
         //TODO
         if(socketInterface == 1) {
-            serialPortDriver = DeviceHelper.getSerialPortDriver(comport)
-            serialPortDriver?.let {
-                serviceScope?.cancel()
-                it.clrBuffer()
-                it.disconnect()
+            val dbModelTerminalConfig = ServiceHolder.getTerminalConfig()
+            val connMethod = DbModelTerminalConfig.getSafeValue(dbModelTerminalConfig, "CABLE_CONNECTION")
+            // Reconnect only if a cable mode is still configured -- unchanged from before.
+            val reconnect = connMethod.isNotEmpty() && connMethod != "None"
+            when (connMethod.uppercase()) {
+                "RS232" -> {
+                    usbSerialPort = DeviceHelper.getUsbSerialPort(usbPath)
+                    usbSerialPort?.let {
+                        serviceScope?.cancel()
+                        it.clearInputBuffer()
+                        it.close()
 
-                Util.DelayMili(500)
-                val dbModelTerminalConfig = ServiceHolder.getTerminalConfig()
-                val connMethod = DbModelTerminalConfig.getSafeValue(dbModelTerminalConfig, "CABLE_CONNECTION")
-                if (connMethod.isNotEmpty() && connMethod != "None"){
-                    it.connect("115200,N,8,1")
+                        Util.DelayMili(500)
+                        if (reconnect) {
+                            it.openAndInit(baudRate, dataBits, stopBits, parity)
+                        }
+                    }
+                }
+                else -> {
+                    serialPortDriver = DeviceHelper.getSerialPortDriver(comport)
+                    serialPortDriver?.let {
+                        serviceScope?.cancel()
+                        it.clrBuffer()
+                        it.disconnect()
+
+                        Util.DelayMili(500)
+                        if (reconnect) {
+                            it.connect("115200,N,8,1")
+                        }
+                    }
                 }
             }
         } else if (socketInterface == 2) {
@@ -258,13 +317,17 @@ object HTTPServer: NanoHTTPD(8888) {
         }
     }
 
-    private fun cableConnectionReceiving() {
+    private fun cableConnectionReceiving(connMethod: String) {
         bgScope.launch {
             val buffer = StringBuilder()
             val recvBytes = ByteArray(1024)
             while (portOpen) {
                 try {
-                    val read = serialPortDriver!!.recv(recvBytes, recvBytes.size, 1000)
+                    val read = when (connMethod.uppercase()) {
+                        "USB" -> serialPortDriver!!.recv(recvBytes, recvBytes.size, 1000)
+                        "RS232" -> usbSerialPort!!.read(recvBytes, recvBytes.size, 1000)
+                        else -> 0
+                    }
                     if (read > 0) {
                         buffer.append(Utils.byteArrayToAsciiString(recvBytes.copyOf(read)))
                     } else if (buffer.isNotEmpty()) {
@@ -340,9 +403,27 @@ object HTTPServer: NanoHTTPD(8888) {
                 " ua=${session.headers["user-agent"] ?: "-"}"
         )
 
-        val msg = readRequestBody(session)
-        if (msg.isNullOrEmpty()) {
-            helperLog?.appendLine(helperlogClassName, "Empty or unreadable request body")
+        // Both failure modes answer errorJson(1), exactly as before. Only the log tells them
+        // apart: a short read is the POS's transport failing mid-request, a bad content-length is
+        // a malformed request. MF919 answers errorJson(0) for the latter; that is deliberately NOT
+        // adopted here -- "System Busy" for a malformed header is questionable, and it would be an
+        // ECR contract change made for symmetry rather than for a reason.
+        val bodyRead = readRequestBody(session)
+        if (bodyRead is BodyRead.Short) {
+            helperLog?.appendLine(helperlogClassName, "Short Read :: ",
+                "${bodyRead.read}/${bodyRead.expected}")
+            helperLog?.logToFile(EnumLogFileName.TerminaLog)
+            return corsResponse(errorJson(1))
+        }
+        if (bodyRead !is BodyRead.Ok) {
+            helperLog?.appendLine(helperlogClassName, "Missing/Invalid content-length :: ",
+                "${session.headers["content-length"]}")
+            helperLog?.logToFile(EnumLogFileName.TerminaLog)
+            return corsResponse(errorJson(1))
+        }
+        val msg = bodyRead.msg
+        if (msg.isEmpty()) {
+            helperLog?.appendLine(helperlogClassName, "Empty request body")
             helperLog?.logToFile(EnumLogFileName.TerminaLog)
             return corsResponse(errorJson(1))
         }
@@ -461,8 +542,8 @@ object HTTPServer: NanoHTTPD(8888) {
 
     private fun timeoutJson(): String {
         val json = JSONObject()
-        json.put("ResponseCode", "SHC007")
-        json.put("ResponseDescription", "Terminal Response Timeout")
+        json.put("ResponseCode", EnumResponseCode.TERMINAL_RESPONSE_TIMEOUT.code)
+        json.put("ResponseDescription", EnumResponseCode.TERMINAL_RESPONSE_TIMEOUT.description)
         return json.toString()
     }
 
@@ -528,9 +609,20 @@ object HTTPServer: NanoHTTPD(8888) {
      * repositioned to the first body byte and nothing the header parse consumed is lost. Re-check
      * this if the nanohttpd jar is ever upgraded.
      */
-    private fun readRequestBody(session: IHTTPSession): String? {
-        val len = session.headers["content-length"]?.trim()?.toIntOrNull() ?: return null
-        if (len <= 0) return null
+    /**
+     * Outcome of reading the request body. Typed rather than String?: a truncated body and a
+     * malformed content-length are different faults and a reader of the uploaded log needs to
+     * tell them apart. Both still answer the POS identically -- see the caller.
+     */
+    private sealed class BodyRead {
+        data class Ok(val msg: String) : BodyRead()
+        data class Short(val read: Int, val expected: Int) : BodyRead()
+        object NoContentLength : BodyRead()
+    }
+
+    private fun readRequestBody(session: IHTTPSession): BodyRead {
+        val len = session.headers["content-length"]?.trim()?.toIntOrNull() ?: 0
+        if (len <= 0) return BodyRead.NoContentLength
         val buf = ByteArray(len)
         var off = 0
         try {
@@ -541,17 +633,18 @@ object HTTPServer: NanoHTTPD(8888) {
                 off += r
             }
         } catch (ioEx: IOException) {
+            // A timeout or reset mid-body is a short read, not a header problem: the POS declared
+            // len and we received off. Reporting it as "missing content-length" sends whoever
+            // reads the log after the header, which was fine.
             ioEx.printStackTrace()
-            return null
+            return BodyRead.Short(off, len)
         }
         if (off < len) {
-            // A partial body must NOT be parsed as if complete - that is exactly how a short read
-            // turns into a bogus "Invalid Input" against a request the POS sent correctly. Reject it
-            // and say so, so a real truncation is distinguishable from malformed JSON.
-            helperLog?.appendLine(helperlogClassName, "Short Read :: ", "$off/$len")
-            return null
+            // A partial body must NOT be parsed as if complete - that is exactly how a short
+            // read turns into a bogus "Invalid Input" against a request the POS sent correctly.
+            return BodyRead.Short(off, len)
         }
-        return Utility.Byte2ASCII(buf).replace("\n", "").replace("\r", "")
+        return BodyRead.Ok(Utility.Byte2ASCII(buf).replace("\n", "").replace("\r", ""))
     }
 
     // Mirrors the pre-refactor behavior: a TransactionType-0 request received while a
@@ -566,8 +659,8 @@ object HTTPServer: NanoHTTPD(8888) {
             if (appRunningProcess) return null
 
             val jsonResp = JSONObject()
-            jsonResp.put("ResponseCode", "SHC009")
-            jsonResp.put("ResponseDescription", "Payment Session Terminated")
+            jsonResp.put("ResponseCode", EnumResponseCode.PAYMENT_SESSION_TERMINATED.code)
+            jsonResp.put("ResponseDescription", EnumResponseCode.PAYMENT_SESSION_TERMINATED.description)
             val resp = jsonResp.toString()
             mainScope.launch {
                 AppBus.emitWhenSubscribed(UiEvent.EndPaymentSession(true))
@@ -609,24 +702,24 @@ object HTTPServer: NanoHTTPD(8888) {
         try {
             when (type) {
                 0 -> {
-                    jsonResponse.put("ResponseCode", "SHC000")
-                    jsonResponse.put("ResponseDescription", "System Busy")
+                    jsonResponse.put("ResponseCode", EnumResponseCode.SYSTEM_BUSY.code)
+                    jsonResponse.put("ResponseDescription", EnumResponseCode.SYSTEM_BUSY.description)
                 }
                 1 -> {
-                    jsonResponse.put("ResponseCode", "SHC001")
-                    jsonResponse.put("ResponseDescription", "Invalid Input")
+                    jsonResponse.put("ResponseCode", EnumResponseCode.INVALID_INPUT.code)
+                    jsonResponse.put("ResponseDescription", EnumResponseCode.INVALID_INPUT.description)
                 }
                 2 -> {
-                    jsonResponse.put("ResponseCode", "SHC001")
-                    jsonResponse.put("ResponseDescription", "Invalid Request")
+                    jsonResponse.put("ResponseCode", EnumResponseCode.INVALID_REQUEST.code)
+                    jsonResponse.put("ResponseDescription", EnumResponseCode.INVALID_REQUEST.description)
                 }
                 3 -> {
-                    jsonResponse.put("ResponseCode", "SHC002")
-                    jsonResponse.put("ResponseDescription", "Auto Settlement is running")
+                    jsonResponse.put("ResponseCode", EnumResponseCode.AUTO_SETTLEMENT_RUNNING.code)
+                    jsonResponse.put("ResponseDescription", EnumResponseCode.AUTO_SETTLEMENT_RUNNING.description)
                 }
                 else -> {
-                    jsonResponse.put("ResponseCode", "SHC007")
-                    jsonResponse.put("ResponseDescription", "Unexpected Error")
+                    jsonResponse.put("ResponseCode", EnumResponseCode.UNEXPECTED_ERROR.code)
+                    jsonResponse.put("ResponseDescription", EnumResponseCode.UNEXPECTED_ERROR.description)
                 }
             }
         } catch (e: JSONException) {
@@ -679,8 +772,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         if(transType == 0) {
                             isError = false
                             val jsonResp = JSONObject()
-                            jsonResp.put("ResponseCode", "SHC009")
-                            jsonResp.put("ResponseDescription", "Payment Session Terminated")
+                            jsonResp.put("ResponseCode", EnumResponseCode.PAYMENT_SESSION_TERMINATED.code)
+                            jsonResp.put("ResponseDescription", EnumResponseCode.PAYMENT_SESSION_TERMINATED.description)
                             setResponseMessage(jsonResp.toString())
                             //TODO Payment Session Terminated
                             mainScope.launch {
@@ -810,8 +903,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC010")
-                        resultObject.addProperty("ResponseDescription", "Transaction Not Supported")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -822,8 +915,8 @@ object HTTPServer: NanoHTTPD(8888) {
                             handler.post {
                                 Toast.makeText(ServiceHolder.getContext(), "Please Run Settlement for Last day Transaction before Proceed", Toast.LENGTH_SHORT).show()
                             }
-                            resultObject.addProperty("ResponseCode", "SHC011")
-                            resultObject.addProperty("ResponseDescription", "Please Run Settlement for Last day Transaction before Proceed")
+                            resultObject.addProperty("ResponseCode", EnumResponseCode.SETTLE_PREVIOUS_DAY_FIRST.code)
+                            resultObject.addProperty("ResponseDescription", EnumResponseCode.SETTLE_PREVIOUS_DAY_FIRST.description)
                             setResponseMessage(resultObject.toString())
                             return
                         }
@@ -852,8 +945,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         throw Exception()
                     }
@@ -890,8 +983,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -915,8 +1008,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -932,8 +1025,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC010")
-                        resultObject.addProperty("ResponseDescription", "Transaction Not Supported")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -961,8 +1054,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -977,8 +1070,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC010")
-                        resultObject.addProperty("ResponseDescription", "Transaction Not Supported")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1033,8 +1126,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1085,8 +1178,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC010")
-                        resultObject.addProperty("ResponseDescription", "Transaction Not Supported")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1120,8 +1213,8 @@ object HTTPServer: NanoHTTPD(8888) {
                                 handler.post {
                                     Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                                 }
-                                resultObject.addProperty("ResponseCode", "SHC007")
-                                resultObject.addProperty("ResponseDescription", "Terminal System Error (Product Is Not Configured)")
+                                resultObject.addProperty("ResponseCode", EnumResponseCode.PRODUCT_NOT_CONFIGURED.code)
+                                resultObject.addProperty("ResponseDescription", EnumResponseCode.PRODUCT_NOT_CONFIGURED.description)
                                 setResponseMessage(resultObject.toString())
                                 return
                             }
@@ -1129,8 +1222,8 @@ object HTTPServer: NanoHTTPD(8888) {
                             handler.post {
                                 Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                             }
-                            resultObject.addProperty("ResponseCode", "SHC007")
-                            resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                            resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                            resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                             setResponseMessage(resultObject.toString())
                             return
                         }
@@ -1159,8 +1252,8 @@ object HTTPServer: NanoHTTPD(8888) {
                             handler.post {
                                 Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                             }
-                            resultObject.addProperty("ResponseCode", "SHC007")
-                            resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                            resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                            resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                             setResponseMessage(resultObject.toString())
                             return
                         }
@@ -1193,8 +1286,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1247,8 +1340,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC010")
-                        resultObject.addProperty("ResponseDescription", "Transaction Not Supported")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1298,8 +1391,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1323,8 +1416,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC010")
-                        resultObject.addProperty("ResponseDescription", "Transaction Not Supported")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1352,8 +1445,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1388,8 +1481,8 @@ object HTTPServer: NanoHTTPD(8888) {
                                     resultObject.addProperty("TransactionEWalletDescription", transactionQrData.productName)
                                     resultObject.addProperty("TransactionDateTime", transactionDateTime)
                                 } ?: run {
-                                    resultObject.addProperty("ResponseCode", "SHC008")
-                                    resultObject.addProperty("ResponseDescription", "QR Transaction Not Found")
+                                    resultObject.addProperty("ResponseCode", EnumResponseCode.QR_TRANSACTION_NOT_FOUND.code)
+                                    resultObject.addProperty("ResponseDescription", EnumResponseCode.QR_TRANSACTION_NOT_FOUND.description)
                                 }
                             } else {
                                 var desc = "Failed"
@@ -1433,8 +1526,8 @@ object HTTPServer: NanoHTTPD(8888) {
                                 }
                             }
                         } else {
-                            resultObject.addProperty("ResponseCode", "SHC008")
-                            resultObject.addProperty("ResponseDescription", "Transaction Not Found")
+                            resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_FOUND.code)
+                            resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_FOUND.description)
                         }
                     }
                     setResponseMessage(resultObject.toString())
@@ -1529,8 +1622,8 @@ object HTTPServer: NanoHTTPD(8888) {
                                     resultObject.addProperty("TransactionEWalletDescription", transactionQrData.productName)
                                     resultObject.addProperty("TransactionDateTime", transactionDateTime)
                                 } ?: run {
-                                    resultObject.addProperty("ResponseCode", "SHC008")
-                                    resultObject.addProperty("ResponseDescription", "Transaction Not Found")
+                                    resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_FOUND.code)
+                                    resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_FOUND.description)
                                 }
                             } else {
                                 resultObject.addProperty("ResponseCode", dbModelReceiptUpload.RESP_CODE)
@@ -1563,8 +1656,8 @@ object HTTPServer: NanoHTTPD(8888) {
                                 resultObject.addProperty("TransactionEPP", "-")
                             }
                         } else {
-                            resultObject.addProperty("ResponseCode", "SHC008")
-                            resultObject.addProperty("ResponseDescription", "Transaction Not Found")
+                            resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_FOUND.code)
+                            resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_FOUND.description)
                         }
                         setResponseMessage(resultObject.toString())
                     } ?: run {
@@ -1627,8 +1720,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         getBooleanValue(terminalConfig, "SALES_CARD")
                     }
                     if(!isEnableSales) {
-                        resultObject.addProperty("ResponseCode", "SHC010")
-                        resultObject.addProperty("ResponseDescription", "Transaction Not Supported")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description)
                         setResponseMessage(resultObject.toString())
                         throw Exception()
                     }
@@ -1640,8 +1733,8 @@ object HTTPServer: NanoHTTPD(8888) {
                                 handler.post {
                                     Toast.makeText(ServiceHolder.getContext(), "Please Run Settlement for Last day Transaction before Proceed", Toast.LENGTH_SHORT).show()
                                 }
-                                resultObject.addProperty("ResponseCode", "SHC011")
-                                resultObject.addProperty("ResponseDescription", "Please Run Settlement for Last day Transaction before Proceed")
+                                resultObject.addProperty("ResponseCode", EnumResponseCode.SETTLE_PREVIOUS_DAY_FIRST.code)
+                                resultObject.addProperty("ResponseDescription", EnumResponseCode.SETTLE_PREVIOUS_DAY_FIRST.description)
                                 setResponseMessage(resultObject.toString())
                                 return
                             }
@@ -1666,8 +1759,8 @@ object HTTPServer: NanoHTTPD(8888) {
                                 handler.post {
                                     Toast.makeText(ServiceHolder.mContext, "System Error", Toast.LENGTH_SHORT).show()
                                 }
-                                resultObject.addProperty("ResponseCode", "SHC007")
-                                resultObject.addProperty("ResponseDescription", "Terminal System Error (Product Is Not Configured)")
+                                resultObject.addProperty("ResponseCode", EnumResponseCode.PRODUCT_NOT_CONFIGURED.code)
+                                resultObject.addProperty("ResponseDescription", EnumResponseCode.PRODUCT_NOT_CONFIGURED.description)
                                 setResponseMessage(resultObject.toString())
                             }
                         }
@@ -1695,8 +1788,8 @@ object HTTPServer: NanoHTTPD(8888) {
                                 handler.post {
                                     Toast.makeText(ServiceHolder.mContext, "System Error", Toast.LENGTH_SHORT).show()
                                 }
-                                resultObject.addProperty("ResponseCode", "SHC007")
-                                resultObject.addProperty("ResponseDescription", "Terminal System Error (Product Is Not Configured)")
+                                resultObject.addProperty("ResponseCode", EnumResponseCode.PRODUCT_NOT_CONFIGURED.code)
+                                resultObject.addProperty("ResponseDescription", EnumResponseCode.PRODUCT_NOT_CONFIGURED.description)
                                 setResponseMessage(resultObject.toString())
                             }
                         }
@@ -1726,8 +1819,8 @@ object HTTPServer: NanoHTTPD(8888) {
                                 handler.post {
                                     Toast.makeText(ServiceHolder.mContext, "System Error", Toast.LENGTH_SHORT).show()
                                 }
-                                resultObject.addProperty("ResponseCode", "SHC007")
-                                resultObject.addProperty("ResponseDescription", "Terminal System Error (Product Is Not Configured)")
+                                resultObject.addProperty("ResponseCode", EnumResponseCode.PRODUCT_NOT_CONFIGURED.code)
+                                resultObject.addProperty("ResponseDescription", EnumResponseCode.PRODUCT_NOT_CONFIGURED.description)
                                 setResponseMessage(resultObject.toString())
                             }
                         }
@@ -1743,8 +1836,8 @@ object HTTPServer: NanoHTTPD(8888) {
                                 handler.post {
                                     Toast.makeText(ServiceHolder.mContext, "System Error", Toast.LENGTH_SHORT).show()
                                 }
-                                resultObject.addProperty("ResponseCode", "SHC007")
-                                resultObject.addProperty("ResponseDescription", "Terminal System Error (Product Is Not Configured)")
+                                resultObject.addProperty("ResponseCode", EnumResponseCode.PRODUCT_NOT_CONFIGURED.code)
+                                resultObject.addProperty("ResponseDescription", EnumResponseCode.PRODUCT_NOT_CONFIGURED.description)
                                 setResponseMessage(resultObject.toString())
                             }
                         }
@@ -1806,16 +1899,16 @@ object HTTPServer: NanoHTTPD(8888) {
                                     handler.post {
                                         Toast.makeText(ServiceHolder.mContext, "System Error", Toast.LENGTH_SHORT).show()
                                     }
-                                    resultObject.addProperty("ResponseCode", "SHC007")
-                                    resultObject.addProperty("ResponseDescription", "Terminal System Error (Product Is Not Configured)")
+                                    resultObject.addProperty("ResponseCode", EnumResponseCode.PRODUCT_NOT_CONFIGURED.code)
+                                    resultObject.addProperty("ResponseDescription", EnumResponseCode.PRODUCT_NOT_CONFIGURED.description)
                                     setResponseMessage(resultObject.toString())
                                 }
                             } catch (_: Exception) {
                                 handler.post {
                                     Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                                 }
-                                resultObject.addProperty("ResponseCode", "SHC007")
-                                resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                                resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                                resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                                 setResponseMessage(resultObject.toString())
                                 return
                             }
@@ -1824,8 +1917,8 @@ object HTTPServer: NanoHTTPD(8888) {
                             handler.post {
                                 Toast.makeText(ServiceHolder.mContext, "Invalid Payment Channel", Toast.LENGTH_SHORT).show()
                             }
-                            resultObject.addProperty("ResponseCode", "SHC001")
-                            resultObject.addProperty("ResponseDescription", "Invalid Payment Channel")
+                            resultObject.addProperty("ResponseCode", EnumResponseCode.INVALID_PAYMENT_CHANNEL.code)
+                            resultObject.addProperty("ResponseDescription", EnumResponseCode.INVALID_PAYMENT_CHANNEL.description)
                             setResponseMessage(resultObject.toString())
                         }
                     }
@@ -1879,8 +1972,8 @@ object HTTPServer: NanoHTTPD(8888) {
                                 handler.post {
                                     Toast.makeText(ServiceHolder.mContext, "System Error", Toast.LENGTH_SHORT).show()
                                 }
-                                resultObject.addProperty("ResponseCode", "SHC007")
-                                resultObject.addProperty("ResponseDescription", "Terminal System Error (Product Is Not Configured)")
+                                resultObject.addProperty("ResponseCode", EnumResponseCode.PRODUCT_NOT_CONFIGURED.code)
+                                resultObject.addProperty("ResponseDescription", EnumResponseCode.PRODUCT_NOT_CONFIGURED.description)
                                 setResponseMessage(resultObject.toString())
                             }
                         }
@@ -1902,8 +1995,8 @@ object HTTPServer: NanoHTTPD(8888) {
                                 handler.post {
                                     Toast.makeText(ServiceHolder.mContext, "System Error", Toast.LENGTH_SHORT).show()
                                 }
-                                resultObject.addProperty("ResponseCode", "SHC007")
-                                resultObject.addProperty("ResponseDescription", "Terminal System Error (Product Is Not Configured)")
+                                resultObject.addProperty("ResponseCode", EnumResponseCode.PRODUCT_NOT_CONFIGURED.code)
+                                resultObject.addProperty("ResponseDescription", EnumResponseCode.PRODUCT_NOT_CONFIGURED.description)
                                 setResponseMessage(resultObject.toString())
                             }
                         }
@@ -1911,8 +2004,8 @@ object HTTPServer: NanoHTTPD(8888) {
                             handler.post {
                                 Toast.makeText(ServiceHolder.mContext, "Invalid Payment Channel", Toast.LENGTH_SHORT).show()
                             }
-                            resultObject.addProperty("ResponseCode", "SHC001")
-                            resultObject.addProperty("ResponseDescription", "Invalid Payment Channel")
+                            resultObject.addProperty("ResponseCode", EnumResponseCode.INVALID_PAYMENT_CHANNEL.code)
+                            resultObject.addProperty("ResponseDescription", EnumResponseCode.INVALID_PAYMENT_CHANNEL.description)
                             setResponseMessage(resultObject.toString())
                         }
                     }
@@ -1970,8 +2063,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.mContext, "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error (Product Is Not Configured)")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.PRODUCT_NOT_CONFIGURED.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.PRODUCT_NOT_CONFIGURED.description)
                         setResponseMessage(resultObject.toString())
                         throw Exception()
                     }
@@ -1982,8 +2075,8 @@ object HTTPServer: NanoHTTPD(8888) {
                             val terminalConfig = getTerminalConfig()
                             val isEnableSales = getBooleanValue(terminalConfig, "SALES_CARD")
                             if(!isEnableSales) {
-                                resultObject.addProperty("ResponseCode", "SHC010")
-                                resultObject.addProperty("ResponseDescription", "Transaction Not Supported")
+                                resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code)
+                                resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description)
                                 setResponseMessage(resultObject.toString())
                                 throw Exception()
                             }
@@ -2077,8 +2170,8 @@ object HTTPServer: NanoHTTPD(8888) {
                     handler.post {
                         Toast.makeText(ServiceHolder.mContext, "Invalid Transaction Type", Toast.LENGTH_SHORT).show()
                     }
-                    resultObject.addProperty("ResponseCode", "SHC001")
-                    resultObject.addProperty("ResponseDescription", "Invalid Transaction Type")
+                    resultObject.addProperty("ResponseCode", EnumResponseCode.INVALID_TRANSACTION_TYPE.code)
+                    resultObject.addProperty("ResponseDescription", EnumResponseCode.INVALID_TRANSACTION_TYPE.description)
                     setResponseMessage(resultObject.toString())
                 }
             }
@@ -2163,9 +2256,13 @@ object HTTPServer: NanoHTTPD(8888) {
 
     private fun onBackToRS232(msg: String){
         waitingForResponse = false
+        val msgByte = msg.toByteArray()
         serialPortDriver?.let {
-            val msgByte = msg.toByteArray()
             val sendStatus = it.send(msgByte, msgByte.size)
+            helperLog?.appendLine(helperlogClassName, "onBackToRS232 Send Status :: $sendStatus")
+        }
+        usbSerialPort?.let {
+            val sendStatus = it.write(msgByte, msgByte.size, 0)
             helperLog?.appendLine(helperlogClassName, "onBackToRS232 Send Status :: $sendStatus")
         }
     }

@@ -33,7 +33,7 @@ import com.sc.mf919.kotlin.database.repo.ReversalBatchTableRepo
 import com.sc.mf919.kotlin.helper_common.TmsHelper
 import com.sc.mf919.kotlin.helper_common.TmsHelper.checkIsConnectedWifi
 import com.sc.mf919.kotlin.helper_common.iso.IsoActivity
-import com.sc.mf919.kotlin.helper_common.iso.IsoHelperNew
+import iso.IsoHelperNew
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperCommon.Companion.getSession

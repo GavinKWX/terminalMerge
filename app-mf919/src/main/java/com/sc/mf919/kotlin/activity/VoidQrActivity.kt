@@ -1,4 +1,5 @@
 package com.sc.mf919.kotlin.activity
+import enums.EnumResponseCode
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
@@ -16,7 +17,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.gson.Gson
 import com.sc.mf919.R
 import com.sc.mf919.java.activity.*
-import com.sc.mf919.java.utils.EmvUtil
+import emv.EmvUtil
 import com.sc.mf919.kotlin.database.model.*
 import com.sc.mf919.kotlin.database.repo.ReceiptUploadRepo
 import com.sc.mf919.kotlin.database.repo.TransactionQrRepo
@@ -129,14 +130,14 @@ class VoidQrActivity : BaseActivity() {
 						helperLog.logToFile(EnumLogFileName.TerminaLog)
 						if (ServiceHolder.appIntent) {
 							val txnMap = HashMap<String, String>()
-							txnMap["ResponseCode"] = "SHC005"
-							txnMap["ResponseDescription"] = "User Cancel the Transaction"
+							txnMap["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+							txnMap["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
 							onBackToApp(txnMap)
 						} else if (ServiceHolder.appHTTP) {
 							val jObject = JSONObject()
 							try {
-								jObject.put("ResponseCode", "SHC005")
-								jObject.put("ResponseDescription", "User Cancel the Transaction")
+								jObject.put("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+								jObject.put("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
 							} catch (e: JSONException) {
 								e.printStackTrace()
 							}
@@ -196,8 +197,8 @@ class VoidQrActivity : BaseActivity() {
 							//Looper.loop()
 							if (ServiceHolder.appIntent) {
 								val txn_map: HashMap<String, String> = HashMap()
-								txn_map["ResponseCode"] = "SHC001"
-								txn_map["ResponseDescription"] = "Invalid Transaction ID"
+								txn_map["ResponseCode"] = EnumResponseCode.INVALID_TRANSACTION_ID.code
+								txn_map["ResponseDescription"] = EnumResponseCode.INVALID_TRANSACTION_ID.description
 								onBackToApp(txn_map)
 							} else if (ServiceHolder.appHTTP) {
 								val jObject = JSONObject()
@@ -245,14 +246,14 @@ class VoidQrActivity : BaseActivity() {
 				}
 				if (ServiceHolder.appIntent) {
 					val txnMap = HashMap<String, String>()
-					txnMap["ResponseCode"] = "SHC001"
-					txnMap["ResponseDescription"] = "Invalid Ref ID"
+					txnMap["ResponseCode"] = EnumResponseCode.INVALID_REF_ID.code
+					txnMap["ResponseDescription"] = EnumResponseCode.INVALID_REF_ID.description
 					onBackToApp(txnMap)
 				} else if (ServiceHolder.appHTTP) {
 					val jObject = JSONObject()
 					try {
-						jObject.put("ResponseCode", "SHC001")
-						jObject.put("ResponseDescription", "Invalid Ref ID")
+						jObject.put("ResponseCode", EnumResponseCode.INVALID_REF_ID.code)
+						jObject.put("ResponseDescription", EnumResponseCode.INVALID_REF_ID.description)
 					} catch (e: JSONException) {
 						e.printStackTrace()
 					}
@@ -300,14 +301,14 @@ class VoidQrActivity : BaseActivity() {
 			alertDialog?.dismiss()
 			if (ServiceHolder.appIntent) {
 				val txn_map: HashMap<String, String> = HashMap()
-				txn_map["ResponseCode"] = "SHC005"
-				txn_map["ResponseDescription"] = "User Cancel the Transaction"
+				txn_map["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+				txn_map["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
 				onBackToApp(txn_map)
 			} else if (ServiceHolder.appHTTP) {
 				val jObject = JSONObject()
 				try {
-					jObject.put("ResponseCode", "SHC005")
-					jObject.put("ResponseDescription", "User Cancel the Transaction")
+					jObject.put("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+					jObject.put("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
 				} catch (e: JSONException) {
 					e.printStackTrace()
 				}

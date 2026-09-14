@@ -9,7 +9,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.library.terminal.Utility
 import com.sc.mf919.R
-import com.sc.mf919.java.activity.Global
+import constants.TerminalConstants
 import com.sc.mf919.java.activity.TransactionTransmitter
 import com.sc.mf919.java.activity.Utils
 import data_enum.CardErrorDataEnum
@@ -22,6 +22,7 @@ import com.sc.mf919.kotlin.helper_common.TmsHelper
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperLog
+import helpers.LogRedact
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -58,9 +59,15 @@ class TransactionResultActivity : AppCompatActivity(), FragmentResult.OnFragment
         customOnBackPress()
     }
 
+    private var cardDataGeneration = 0L
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // D11 -- the card registration in force when this screen appeared, i.e. this transaction's.
+        // Taken here, not in onDestroy, because by then the next transaction may already have
+        // registered and clearing then would wipe its data instead of ours.
+        cardDataGeneration = LogRedact.currentGeneration()
         setContentView(R.layout.activity_transactionresult)
         /*val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.appToolbar)
         toolbar.setNavigationIcon(R.drawable.ic_baseline_arrow_back_ios_24)
@@ -115,7 +122,7 @@ class TransactionResultActivity : AppCompatActivity(), FragmentResult.OnFragment
         CoroutineScope(Dispatchers.Default).launch {
             val transactionResult = TransData.transResult
             helperLog.appendLine(helperLogClassName, "Transaction Result :: ", "$transactionResult")
-            if(transactionResult == Global.iso.err.txnApproved){
+            if(transactionResult == TerminalConstants.iso.err.txnApproved){
                 helperLog.appendLine(helperLogClassName, "Transaction Approved...")
                 processApprovedTransaction()
             } else {
@@ -128,11 +135,14 @@ class TransactionResultActivity : AppCompatActivity(), FragmentResult.OnFragment
         }
     }
 
-    private fun processApprovedTransaction() {
+    private suspend fun processApprovedTransaction() = withContext(Dispatchers.Main) {
+        // Fragment commits are main-thread only. This ran on the caller's Dispatchers.Default
+        // and raced FragmentManager's back-press callback list -- a ConcurrentModificationException
+        // that killed the app after the sale was already authorised.
         supportFragmentManager.beginTransaction().replace(R.id.transFrameLayout, FragmentReceipt()).addToBackStack(null).commit()
     }
 
-    private fun processDeclinedTransaction() {
+    private suspend fun processDeclinedTransaction() = withContext(Dispatchers.Main) {
         supportFragmentManager.beginTransaction().replace(R.id.transFrameLayout, FragmentResult()).addToBackStack(null).commit()
     }
 
@@ -145,7 +155,7 @@ class TransactionResultActivity : AppCompatActivity(), FragmentResult.OnFragment
 
             try {
                 val isCZ = TransData.acqCode.equals("BSN_CARDZONE", true)
-                val eppDetail = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_EPP_DETAILS, 256)
+                val eppDetail = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_EPP_DETAILS, 256)
                 val respCode = Utility.HexString2ASCII(TransData.respCode)
                 jsonObject.put("ResponseCode", respCode)
                 jsonObject.put("ResponseDescription", desc)
@@ -161,8 +171,8 @@ class TransactionResultActivity : AppCompatActivity(), FragmentResult.OnFragment
                 jsonObject.put("TransactionApplicationLabel", Utils.byteArrayToAsciiString(TransData.appLabel, 0, TransData.appLabelLen))
                 jsonObject.put("TransactionCardNo", TransData.maskedPan)
                 jsonObject.put("TransactionEntryType", TransData.entryModeLabel)
-                jsonObject.put("TransactionARQC", TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ARQC, 16))
-                jsonObject.put("TransactionTVR", TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_TVR, 16))
+                jsonObject.put("TransactionARQC", TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, 16))
+                jsonObject.put("TransactionTVR", TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_TVR, 16))
                 jsonObject.put("TransactionAID", TransData.aid)
                 jsonObject.put("TransactionCVM", TransData.cvm)
                 jsonObject.put("TransactionTSI", "-")
@@ -183,7 +193,7 @@ class TransactionResultActivity : AppCompatActivity(), FragmentResult.OnFragment
         if(ServiceHolder.appIntent) {
             helperLog.appendLine(helperLogClassName, "App Intent task")
             val isCZ = TransData.acqCode.equals("BSN_CARDZONE", true)
-            val eppDetail = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_EPP_DETAILS, 256)
+            val eppDetail = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_EPP_DETAILS, 256)
             val respCode = Utility.HexString2ASCII(TransData.respCode)
 
             txn_map["ResponseCode"] = respCode
@@ -200,8 +210,8 @@ class TransactionResultActivity : AppCompatActivity(), FragmentResult.OnFragment
             txn_map["TransactionApplicationLabel"] = Utils.byteArrayToAsciiString(TransData.appLabel, 0, TransData.appLabelLen)
             txn_map["TransactionCardNo"] = TransData.maskedPan
             txn_map["TransactionEntryType"] = TransData.entryModeLabel
-            txn_map["TransactionARQC"] = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ARQC, 16)
-            txn_map["TransactionTVR"] = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_TVR, 16)
+            txn_map["TransactionARQC"] = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, 16)
+            txn_map["TransactionTVR"] = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_TVR, 16)
             txn_map["TransactionAID"] = TransData.aid
             txn_map["TransactionCVM"] = TransData.cvm
             txn_map["TransactionTSI"] = "-"
@@ -295,6 +305,9 @@ class TransactionResultActivity : AppCompatActivity(), FragmentResult.OnFragment
 
     override fun onDestroy() {
         super.onDestroy()
+        // D7 -- the in-flight card data must not outlive the transaction. D11 -- but only if it is
+        // still ours; a void started while this screen was going away has registered its own.
+        LogRedact.clearCardData(cardDataGeneration)
         if (this::helperLog.isInitialized) {
             helperLog.appendLine(helperLogClassName, "TransactionResultActivity OnDestroy :: transaction result screen ended")
             helperLog.logToFile(EnumLogFileName.TerminaLog)

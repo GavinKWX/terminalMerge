@@ -78,7 +78,6 @@ import com.sc.mf919.kotlin.migration.Migration2217
 import com.sc.mf919.kotlin.migration.Migration2221
 import enums.EnumLogFileName
 import helpers.HelperCommon
-import helpers.HelperCommon.Companion.bottomActionBarEvent
 import helpers.HelperCommon.Companion.getSession
 import helpers.HelperLog
 import helpers.LogSessionMarker
@@ -95,6 +94,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 import com.sc.mf919.kotlin.helper_common.CounterGuard
 import helpers.StorageGuard
+import com.sc.mf919.kotlin.helper_common.MfHelper
 
 
 class MainActivity : AppCompatActivity() {
@@ -463,7 +463,7 @@ class MainActivity : AppCompatActivity() {
 		}
 		val dbModelTerminalConfig = getTerminalConfig()
 		if (getBooleanValue(dbModelTerminalConfig, "FORCE_LOCK_HOME")) {
-			bottomActionBarEvent(this, "0")
+			MfHelper.lockStatusBarAndNavigation(false)
 		}
 		finishAffinity()
 		exitProcess(0)
@@ -691,9 +691,9 @@ class MainActivity : AppCompatActivity() {
 		} finally {
 			// Reached on the happy path, on a throw, and on cancellation -- loadTask runs in
 			// lifecycleScope, so destroying MainActivity mid-load cancels it at the join() above and
-			// none of the straight-line clears run. appFreshLoad gates the ECR entry point and has
-			// no staleness ceiling, so a flag left set here refuses every transaction for the life
-			// of the process.
+			// none of the straight-line clears run. ecrStartupBlocking() now expires a stale claim
+			// after STARTUP_GUARD_CEILING_MS, but that is the backstop -- clearing here is what keeps
+			// ECR from being refused for the two minutes it would otherwise take.
 			ServiceHolder.appFreshLoad = false
 			if (ownsStartupClaim) {
 				// The startup coroutine is not a child of lifecycleScope, so it outlives this

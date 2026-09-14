@@ -5,7 +5,7 @@ import database.DbHandler
 import com.sc.mf919.kotlin.database.repo.IsoBatchInfoRepo
 import com.sc.mf919.kotlin.database.repo.ProductListRepo
 import helpers.HelperLog
-import com.sc.mf919.kotlin.helper_common.HelperLogFileName
+import enums.EnumLogFileName
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import java.lang.StringBuilder
 
@@ -177,7 +177,7 @@ class Migration1404 {
 		ProductListRepo.updateData(ServiceHolder.getContext(), valueHM, criteriaHM)
 
 		HelperLog.appendLine(sbLog, "----------------- Finish Running Migration -------------")
-		HelperLog.logToFile(sbLog, HelperLogFileName.TerminaLog)
+		HelperLog.logToFile(sbLog, EnumLogFileName.TerminaLog)
 	}
 
 	private fun createTables(tableName: String, tableField: List<String>) {

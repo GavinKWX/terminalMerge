@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.helper_common
+import enums.EnumLogFileName
 
 import android.content.Context
 import com.sc.mf919pro.kotlin.database.repo.IsoBatchInfoRepo
@@ -95,12 +96,12 @@ object CounterGuard {
 			}
 			if (repaired > 0) {
 				HelperLog.appendLine(sbLog, "Counters restored", repaired.toString())
-				HelperLog.logToFile(sbLog, HelperLogFileName.TerminaDbException)
+				HelperLog.logToFile(sbLog, EnumLogFileName.TerminaDbException)
 			}
 		} catch (e: Exception) {
 			try {
 				HelperLog.appendLine(sbLog, "DbException", e.toString())
-				HelperLog.logToFile(sbLog, HelperLogFileName.TerminaDbException)
+				HelperLog.logToFile(sbLog, EnumLogFileName.TerminaDbException)
 			} catch (_: Exception) { }
 		}
 		return repaired

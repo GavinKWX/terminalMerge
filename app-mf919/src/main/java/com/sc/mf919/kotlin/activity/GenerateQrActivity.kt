@@ -20,7 +20,7 @@ import com.google.gson.JsonObject
 import com.google.zxing.WriterException
 import com.sc.mf919.R
 import com.sc.mf919.java.activity.Utils
-import com.sc.mf919.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.Util
 import com.sc.mf919.kotlin.data_enum.QrProductDataEnum
 import com.sc.mf919.kotlin.data_enum.QrProductEnumModel

@@ -45,6 +45,7 @@ import com.sc.mf919pro.kotlin.helper_common.ServiceHolder.Companion.appIntent
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder.Companion.getInternalFilesPaths
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder.Companion.getTerminalConfig
 import com.sc.mf919pro.kotlin.helper_common.TmsHelper
+import com.sc.mf919pro.kotlin.helper_common.iso.IsoActivity
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperLog
@@ -749,6 +750,20 @@ class SettlementFragment : BaseFragment() {
     }
 
     private fun customOnBackPress() {
+        // D8 -- gate BEFORE clearing appIntent/appHTTP. A settlement issues several host calls and
+        // the responses land in the global TransData, so leaving mid-flight abandons a batch the
+        // host may already have closed -- and wiping the transport flags on the way out would strand
+        // the caller that asked for the settlement. The non-cancelable progress dialog normally
+        // swallows the press first; this makes the requirement this screen's own.
+        if (IsoActivity.isHostRequestInFlight) {
+            if (this::helperLog.isInitialized && this::helperLogClassName.isInitialized) {
+                helperLog.appendLine(helperLogClassName, "IGNORE OnBack Press :: host request in flight, cannot leave settlement")
+                helperLog.logToFile(EnumLogFileName.TerminaLogException)
+            }
+            showToast("Processing, please wait", Toast.LENGTH_SHORT)
+            return
+        }
+
         appIntent = false
         appHTTP = false
         if (isPreviewSettlement && !isFromHistory) {

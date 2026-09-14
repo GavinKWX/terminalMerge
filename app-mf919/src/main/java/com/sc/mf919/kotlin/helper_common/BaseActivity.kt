@@ -1,4 +1,8 @@
 package com.sc.mf919.kotlin.helper_common
+import emv.EmvUtil
+import emv.Tlv
+
+import constants.TerminalConstants
 
 import android.app.AlertDialog
 import android.content.Context
@@ -32,6 +36,7 @@ import data_enum.SalesModel
 import helpers.HelperCommon
 import java.util.*
 import org.apache.commons.lang3.StringUtils
+import com.sc.mf919.kotlin.helper_common.MfHelper
 
 open class BaseActivity : ActivityBase() {
 	var indexM = 0
@@ -49,7 +54,7 @@ open class BaseActivity : ActivityBase() {
 	protected lateinit var tempContext: Context
 	private lateinit var mAID: String
 	private val send2BankPDIsActive = false
-	protected var payMethod = Global.paymentMethod.Non.toByte()
+	protected var payMethod = TerminalConstants.paymentMethod.Non.toByte()
 	protected var cardDetected: Byte = 0x00
 	private var timeout_cardSearch = 0
 
@@ -142,7 +147,7 @@ open class BaseActivity : ActivityBase() {
 		}
 		runOnUiThread {
 			try {
-				//HelperCommon.bottomActionBarEvent(tempContext, "0")
+				//MfHelper.lockStatusBarAndNavigation(false)
 				if (iccCardReader != null) {
 					iccCardReader!!.stopSearch()
 				}
@@ -152,7 +157,7 @@ open class BaseActivity : ActivityBase() {
 				if (magCardReader != null) {
 					magCardReader!!.stopSearch()
 				}
-				payMethod = Global.paymentMethod.Cancel.toByte()
+				payMethod = TerminalConstants.paymentMethod.Cancel.toByte()
 			} catch (e: RemoteException) {
 				e.printStackTrace()
 			} catch (e: NullPointerException) {
@@ -173,16 +178,6 @@ open class BaseActivity : ActivityBase() {
 			e.printStackTrace()
 		}
 		isNotEnd = false
-	}
-
-	private fun startProgressDialog(title: String, msg: String) {
-		startProgressDialog(tempContext, title, msg)
-		HelperCommon.bottomActionBarEvent(tempContext, "1")
-	}
-
-	private fun stopProgressDialog() {
-		closeProgressDialog()
-		HelperCommon.bottomActionBarEvent(tempContext, "0")
 	}
 
 	/*
@@ -228,69 +223,69 @@ open class BaseActivity : ActivityBase() {
 //		header["Content-Type"] = "application/json"
 //		var strTxnType = Utils.byteArrayToAsciiString(
 //			HexUtil.hexStringToByte(
-//				cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_TXN_TYPE)
+//				cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_TXN_TYPE)
 //			)
 //		)
 //
 //		val strPaymentProductId = Utils.byteArrayToAsciiString(
 //			HexUtil.hexStringToByte(
-//				cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_PYMT_PRODUCT_ID)
+//				cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_PYMT_PRODUCT_ID)
 //			)
 //		)
-//		val strSchemeId = cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_SCHEME_ID)
-//		val strStan = cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_STAN)
-//		val strTxnAmt = cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_TXN_AMT)
+//		val strSchemeId = cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_SCHEME_ID)
+//		val strStan = cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_STAN)
+//		val strTxnAmt = cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_TXN_AMT)
 //		val strRrn = Utils.byteArrayToAsciiString(
 //			HexUtil.hexStringToByte(
-//				cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_RRN)
+//				cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_RRN)
 //			)
 //		)
 //		val strApprCode = Utils.byteArrayToAsciiString(
 //			HexUtil.hexStringToByte(
-//				cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_APPRCODE)
+//				cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_APPRCODE)
 //			)
 //		)
-//		//String strRespCode = cube.tlv_get_value_in_string(Global.cube.CUBE_TAG_RESPCODE);
+//		//String strRespCode = cube.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_RESPCODE);
 //		val strTid = Utils.byteArrayToAsciiString(
 //			HexUtil.hexStringToByte(
-//				cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_TID)
+//				cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_TID)
 //			)
 //		)
 //		val strMid = Utils.byteArrayToAsciiString(
 //			HexUtil.hexStringToByte(
-//				cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_MID)
+//				cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_MID)
 //			)
 //		)
 //		val strBatchNo = Utils.byteArrayToAsciiString(
 //			HexUtil.hexStringToByte(
-//				cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_BATCHNO)
+//				cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_BATCHNO)
 //			)
 //		)
 //		val strRespCode = Utils.byteArrayToAsciiString(
 //			HexUtil.hexStringToByte(
-//				cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_RESPCODE)
+//				cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_RESPCODE)
 //			)
 //		)
 //		val strInvNo = Utils.byteArrayToAsciiString(
 //			HexUtil.hexStringToByte(
-//				cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_INVNO)
+//				cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_INVNO)
 //			)
 //		)
-//		val strAid = cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_AID)
+//		val strAid = cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_AID)
 //		val strNii = isos!!.getIsoComponent("DF24", 16)
 //		val strMaskPanBcd = Utils.byteArrayToAsciiString(
 //			HexUtil.hexStringToByte(
-//				cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_CARDPAN_MASKBCD)
+//				cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARDPAN_MASKBCD)
 //			)
 //		)
 //		val strEntryType = Utils.byteArrayToAsciiString(
 //			HexUtil.hexStringToByte(
-//				cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_ENTRY_MODE)
+//				cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE)
 //			)
 //		)
-//		val strARQC = cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_ARQC)
-//		val strTVR = cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_TVR)
-//		val strPosReference = Utils.byteArrayToAsciiString(HexUtil.hexStringToByte(cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_POS_REFERENCE)))
+//		val strARQC = cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_ARQC)
+//		val strTVR = cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_TVR)
+//		val strPosReference = Utils.byteArrayToAsciiString(HexUtil.hexStringToByte(cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_POS_REFERENCE)))
 //		if (strTxnType == "Pre Authorization") strTxnType = "PreAuth"
 //		else if (strTxnType == "Sale Completion") strTxnType = "SaleCompletion"
 //		else if (strTxnType == "Instalment Sale") strTxnType = "EPP"
@@ -335,14 +330,14 @@ open class BaseActivity : ActivityBase() {
 	@RequiresApi(Build.VERSION_CODES.O)
 	private fun updateReceiptInfo(): Int {
 		//TODO ADD EPP_DETAIL
-		val strStan = cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_STAN)
-		val strRrn = Utility.HexString2ASCII(cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_RRN))
-		val strApprCode = Utility.HexString2ASCII(cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_APPRCODE))
-		val strRespCode = Utility.HexString2ASCII(cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_RESPCODE))
-		val strARQC = cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_ARQC)
-		val strTVR = cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_TVR)
+		val strStan = cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_STAN)
+		val strRrn = Utility.HexString2ASCII(cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_RRN))
+		val strApprCode = Utility.HexString2ASCII(cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_APPRCODE))
+		val strRespCode = Utility.HexString2ASCII(cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_RESPCODE))
+		val strARQC = cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_ARQC)
+		val strTVR = cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_TVR)
 
-		val strEppDetails = cube?.tlv_get_value_in_asciistring(Global.cube.CUBE_TAG_EPP_DETAILS)?.trim()
+		val strEppDetails = cube?.tlv_get_value_in_asciistring(TerminalConstants.cube.CUBE_TAG_EPP_DETAILS)?.trim()
 		println("strEppDetails: $strEppDetails")
 		val hmEppDetails = parseEppDetailsJson(strEppDetails)
 		println("hmEppDetails: $hmEppDetails")

@@ -5,7 +5,7 @@ import android.os.RemoteException
 import android.util.Log
 import com.google.gson.Gson
 import com.morefun.yapi.engine.DeviceInfoConstrants
-import com.sc.mf919.java.activity.Encryption
+import crypto.Encryption
 import com.sc.mf919.java.activity.Utils
 import com.sc.mf919.java.device.DeviceHelper
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.mContext
@@ -54,26 +54,34 @@ object MfHelper {
         return screenHeightDp < 500
     }
 
+    /**
+     * Kiosk lock: home key and status bar together, through the device service.
+     *
+     * The return code is checked and logged because the failure is otherwise invisible -- a ROM
+     * that does not support the property, or a binder that is not up yet, leaves the terminal
+     * unlocked while TMS believes FORCE_LOCK_HOME took effect. ret == 0 is success, per the YSDK
+     * sample and DeviceHelper.enableAutoStartOnBoot.
+     */
     @JvmStatic
     fun lockStatusBarAndNavigation(isLock: Boolean) {
-        if(isLock) {
-            try {
-                val bundle = Bundle()
+        try {
+            val bundle = Bundle()
+            if (isLock) {
                 bundle.putBoolean(DeviceInfoConstrants.DISABLE_HOME, true)
                 bundle.putBoolean(DeviceInfoConstrants.DISABLE_STATUS_BAR, true)
-                DeviceHelper.getDeviceService().setProperties(bundle)
-            } catch (_: RemoteException) {
-                // TODO
-            }
-        } else {
-            try {
-                val bundle = Bundle()
+            } else {
                 bundle.putBoolean(DeviceInfoConstrants.ENABLE_HOME, true)
                 bundle.putBoolean(DeviceInfoConstrants.ENABLE_STATUS_BAR, true)
-                DeviceHelper.getDeviceService().setProperties(bundle)
-            } catch (_: RemoteException) {
-                // TODO
             }
+            val ret = DeviceHelper.getDeviceService().setProperties(bundle)
+            val what = if (isLock) "lock" else "unlock"
+            if (ret == 0) {
+                Log.d(TAG, "Kiosk $what :: home + status bar applied")
+            } else {
+                Log.w(TAG, "Kiosk $what :: REJECTED by device service, ret=$ret")
+            }
+        } catch (ex: RemoteException) {
+            Log.w(TAG, "Kiosk lock unavailable :: ${ex.javaClass.simpleName}: ${ex.message}")
         }
     }
 

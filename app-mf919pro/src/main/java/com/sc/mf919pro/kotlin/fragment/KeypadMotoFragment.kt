@@ -10,10 +10,10 @@ import androidx.lifecycle.lifecycleScope
 import com.google.gson.Gson
 import com.sc.mf919pro.R
 import com.sc.mf919pro.databinding.FragmentKeypadMotoBinding
-import com.sc.mf919pro.java.activity.Global
+import constants.TerminalConstants
 import com.sc.mf919pro.java.activity.KeypadNum
 import com.sc.mf919pro.java.activity.Utils
-import com.sc.mf919pro.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.HexUtil
 import utils.TextFormatter
 import com.sc.mf919pro.kotlin.data_enum.ProductCatSelectionDataEnum
@@ -206,7 +206,7 @@ class KeypadMotoFragment: BaseFragment() {
             transData.txnTypeLabel = "Moto"
             transData.schemeId = "Moto"
             transData.entryModeLabel = "Manual"
-            transData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("Manual"))
+            transData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("Manual"))
             posReference?.let {
                 transData.posReference = it
                 helperLog.appendLine(helperLogClassName, "Add Pos Reference :: $it")
@@ -223,7 +223,7 @@ class KeypadMotoFragment: BaseFragment() {
             withContext(Dispatchers.IO) {
                 //Copy from void not sure correct or not
                 transData.cvm = "3E3030"
-                transData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_CVM,  "3E3030")
+                transData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_CVM,  "3E3030")
                 helperLog.appendLine(helperLogClassName, "Insert CVM -> ", "3E3030")
 
                 transData.maskedPan = Utils.hideCardDetails(msgCardNo)
@@ -232,14 +232,14 @@ class KeypadMotoFragment: BaseFragment() {
                 val bytePan = msgCardNo.toByteArray()
                 bytePan.copyInto(transData.pan, 0)
                 transData.panLen = bytePan.size
-                transData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(msgCardNo)))
-                transData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(msgCardNo.substring(0,9)))
-                transData.addHexStrIntoTransDB(Global.iso.tag.PANSTRING, msgCardNo)
+                transData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(msgCardNo)))
+                transData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(msgCardNo.substring(0,9)))
+                transData.addHexStrIntoTransDB(TerminalConstants.iso.tag.PANSTRING, msgCardNo)
                 helperLog.appendLine(helperLogClassName, "Insert Card No to Iso-buffer")
 
                 val byteExpDt = msgExpDt.toByteArray()
                 byteExpDt.copyInto(transData.expirationDate, 0)
-                transData.addHexStrIntoTransDB(Global.iso.tag.EXPDATE, msgExpDt)
+                transData.addHexStrIntoTransDB(TerminalConstants.iso.tag.EXPDATE, msgExpDt)
                 helperLog.appendLine(helperLogClassName, "Insert card exp to Iso-buffer")
 
                 val strTxnAmt = Utils.zeroPadding(msgAmt.replace(".", ""), 12)

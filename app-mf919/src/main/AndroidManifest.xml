@@ -58,7 +58,6 @@
         <activity android:name=".java.activity.VendorOption" />
         <activity android:name=".java.activity.ParameterEditor" />
         <activity android:name=".java.activity.IsoMessageView" />
-        <activity android:name=".java.activity.ViewTableContain" />
         <activity android:name=".java.activity.ParameterEditor_1" />
 
 

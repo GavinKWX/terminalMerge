@@ -9,13 +9,14 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.RemoteException
+import android.os.SystemClock
 import com.library.terminal.Utility
 import com.morefun.yapi.engine.DeviceInfoConstrants
 import com.sc.mf919.R
 import com.sc.mf919.java.MF919
 import com.sc.mf919.java.activity.CubeActivity
-import com.sc.mf919.java.activity.Global
-import com.sc.mf919.java.activity.IsoComm
+import constants.TerminalConstants
+import iso.IsoComm
 import com.sc.mf919.java.activity.Utils
 import com.sc.mf919.java.device.DeviceHelper
 import com.sc.mf919.kotlin.data_enum.AcquirerSettingModel
@@ -58,7 +59,7 @@ class ServiceHolder {
 
 		@SuppressLint("StaticFieldLeak")
 		var isoComm: IsoComm? = null
-		var cardResult: Int = Global.iso.err.txnApproved
+		var cardResult: Int = TerminalConstants.iso.err.txnApproved
 		var settlementDialogMessage: String = ""
 
 
@@ -117,10 +118,38 @@ class ServiceHolder {
 		var appIntent = false
 		var appHTTP = false
 		var txnType = 0
+		/** When appFreshLoad was last set true, for the ceiling in [ecrStartupBlocking]. */
+		@Volatile
+		var startupClaimedAt = SystemClock.elapsedRealtime()
+			private set
+
+		/** A startup claim older than this is treated as abandoned. */
+		private const val STARTUP_GUARD_CEILING_MS = 120_000L
+
 		// True while the app is starting up. Read on nanohttpd worker threads by the HTTPServer
 		// startup guard, so it needs @Volatile.
+		//
+		// The setter stamps startupClaimedAt, so nothing has to remember to call a mark
+		// function next to each write. Read this flag directly to ask "is this a fresh load";
+		// call ecrStartupBlocking() to ask "must ECR refuse", which is the flag plus the ceiling.
 		@Volatile
 		var appFreshLoad = true
+			set(value) {
+				if (value) startupClaimedAt = SystemClock.elapsedRealtime()
+				field = value
+			}
+
+		/**
+		 * True while ECR must refuse with SHC000.
+		 *
+		 * The age ceiling means a claim that is never cleared -- a startup path that throws past
+		 * every clear, or an activity destroyed before loadTask's finally -- cannot keep ECR closed
+		 * for the life of the process. It expires instead. Matches Pro's ecrStartupBlocking().
+		 */
+		fun ecrStartupBlocking(): Boolean {
+			if (!appFreshLoad) return false
+			return SystemClock.elapsedRealtime() - startupClaimedAt < STARTUP_GUARD_CEILING_MS
+		}
 		var requireDownloadLogo = false
         var appRunningProcess = false
 		var uploadingReceipt = false
@@ -209,7 +238,6 @@ class ServiceHolder {
 					terminalSerialNumber
 				}
 			}
-			return "98213199990004"
 			return result ?: ""
 		}
 
@@ -224,7 +252,6 @@ class ServiceHolder {
 					deviceModel
 				}
 			}
-			return "MF919"
 			return result ?: ""
 		}
 

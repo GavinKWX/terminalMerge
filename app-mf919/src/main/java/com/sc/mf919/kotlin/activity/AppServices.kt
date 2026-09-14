@@ -44,7 +44,7 @@ import helpers.HelperLog
 import helpers.HelperLog.Companion.appendLine
 import helpers.HelperLog.Companion.init
 import helpers.HelperLog.Companion.logToFile
-import com.sc.mf919.kotlin.helper_common.HelperLogFileName
+
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import com.sc.mf919.kotlin.helper_common.TmsHelper
 import env.EnvironmentManager
@@ -94,7 +94,7 @@ class AppServices: Service() {
 
             WorkManager.getInstance(mContext).enqueue(uploadWorkRequest)
             HelperLog.appendLine(sbLog, "Immediate Receipt Upload Successfully")
-            HelperLog.logToFile(sbLog, HelperLogFileName.TerminaLog)
+            HelperLog.logToFile(sbLog, EnumLogFileName.TerminaLog)
         }
 
         const val ACTION_RUN_AUTO_SETTLE = "RUN_AUTO_SETTLE"
@@ -156,7 +156,6 @@ class AppServices: Service() {
             workScheduled = true
         }
 
-
         when (intent?.action) {
             ACTION_RUN_AUTO_SETTLE -> {
                 runAutoSettleIfNeeded()
@@ -211,7 +210,7 @@ class AppServices: Service() {
         WorkManager.getInstance(getApplicationContext())
             .enqueueUniquePeriodicWork(UPLOAD_LOG_TAG, ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE, uploadLogRequest)
         appendLine(sbLog, "Successfully created upload Job")
-        logToFile(sbLog, HelperLogFileName.TerminaLog)
+        logToFile(sbLog, EnumLogFileName.TerminaLog)
     }
 
     private fun scheduleReceiptUploadToTms() {
@@ -225,7 +224,7 @@ class AppServices: Service() {
         WorkManager.getInstance(getApplicationContext())
             .enqueueUniquePeriodicWork(RECEIPT_UPLOAD_TAG, ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE, receiptUploadSche)
         appendLine(sbLog, "Successfully created Receipt Upload Job")
-        logToFile(sbLog, HelperLogFileName.TerminaLog)
+        logToFile(sbLog, EnumLogFileName.TerminaLog)
     }
 
     private fun scheduleHouseKeepReceiptUpload() {
@@ -235,7 +234,7 @@ class AppServices: Service() {
         WorkManager.getInstance(getApplicationContext())
             .enqueueUniquePeriodicWork(HOUSEKEEP_JOB_TAG, ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE, houseKeepingSche)
         appendLine(sbLog, "Successfully created HouseKeep Job")
-        logToFile(sbLog, HelperLogFileName.TerminaLog)
+        logToFile(sbLog, EnumLogFileName.TerminaLog)
     }
 
     private fun scheduleAutoTmsUpload() {
@@ -250,7 +249,7 @@ class AppServices: Service() {
         WorkManager.getInstance(getApplicationContext())
             .enqueueUniquePeriodicWork(AUTO_TMS_UPLOAD_TAG, ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE, autoTmsUploadRequest)
         appendLine(sbLog, "Successfully created Auto TMS Upload Job")
-        logToFile(sbLog, HelperLogFileName.TerminaLog)
+        logToFile(sbLog, EnumLogFileName.TerminaLog)
     }
 
     private fun scheduleAutoSettlementTimeCheck() {
@@ -260,7 +259,7 @@ class AppServices: Service() {
         WorkManager.getInstance(getApplicationContext())
             .enqueueUniquePeriodicWork(LAST_SETTLE_JOB_TAG, ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE, scheduleAutoSettleCheck)
         appendLine(sbLog, "Successfully created Auto Settlement Time Check")
-        logToFile(sbLog, HelperLogFileName.TerminaLog)
+        logToFile(sbLog, EnumLogFileName.TerminaLog)
     }
 
     fun getNotification(channel: String): Notification {

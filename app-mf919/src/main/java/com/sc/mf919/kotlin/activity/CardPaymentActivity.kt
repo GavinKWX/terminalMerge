@@ -14,7 +14,7 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.lifecycleScope
 import com.library.terminal.Utility
 import com.sc.mf919.R
-import com.sc.mf919.java.activity.Global
+import constants.TerminalConstants
 import com.sc.mf919.java.activity.Utils
 import utils.HexUtil
 import com.sc.mf919.kotlin.data_enum.ProductCatSelectionDataEnum
@@ -133,7 +133,7 @@ open class CardPaymentActivity : EmvActivity() {
         }
 
         helperLog.appendLine(helperLogClassName, "Searching Card Reset Transaction Data")
-        TransData.payMethod = Global.paymentMethod.Non
+        TransData.payMethod = TerminalConstants.paymentMethod.Non
         TransData.reset(mContext)
 
         val merchantConfig = ServiceHolder.getMerchantInfo()

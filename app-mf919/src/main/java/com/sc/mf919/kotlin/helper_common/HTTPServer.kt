@@ -1,4 +1,5 @@
 package com.sc.mf919.kotlin.helper_common
+import enums.EnumResponseCode
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -52,7 +53,8 @@ import tms.models.EppDetail
 import java.io.IOException
 import java.math.BigDecimal
 import java.util.Arrays
-import kotlin.concurrent.thread
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 @SuppressLint("StaticFieldLeak")
 object HTTPServer: NanoHTTPD(8888) {
@@ -67,74 +69,57 @@ object HTTPServer: NanoHTTPD(8888) {
     var responseMsg: String? = null
 
     /**
-     * Allows one request at a time across all transports (HTTP, cable, websocket).
+     * One request at a time across all transports (HTTP, cable, websocket).
      *
-     * requestMsg/responseMsg are shared by every transport, so a second concurrent request is
-     * refused with SHC000 "System Busy" on its own channel instead of overwriting the first.
+     * requestMsg/responseMsg are shared by every transport, so a second concurrent request must
+     * not overwrite the first. The slot carries a future rather than a flag, so the transports
+     * that cannot block -- cable and websocket -- are answered by a callback instead of polling.
      */
-    private val requestInFlight = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val requestLock = Any()
+    private var inFlight: InFlight? = null
 
-    private const val TRANSPORT_NONE = 0
-    private const val TRANSPORT_HTTP = 1
-    private const val TRANSPORT_CABLE = 2
-    private const val TRANSPORT_WS = 3
+    // The last completed request, for the retry cache in submitRequest.
+    private var lastCompletedBody: String? = null
+    private var lastCompletedResponse: String? = null
+    private var lastCompletedAt = 0L
 
-    /**
-     * The transport the in-flight request arrived on, so setResponseMessage sends the response
-     * back to that caller only.
-     */
-    @Volatile
-    private var inFlightTransport = TRANSPORT_NONE
+    private enum class Origin { HTTP, CABLE, WEBSOCKET }
 
-    /** When the current slot was claimed, used to detect a claim that was never released. */
-    @Volatile
-    private var inFlightSince = 0L
-
-    /**
-     * Claims the single in-flight slot, or returns false if another request holds it.
-     *
-     * A claim older than the response ceiling is treated as abandoned and taken over, so a
-     * transaction that never answers cannot block ECR permanently.
-     */
-    private fun tryClaim(transport: Int): Boolean {
-        if (requestInFlight.compareAndSet(false, true)) {
-            inFlightTransport = transport
-            inFlightSince = SystemClock.elapsedRealtime()
-            return true
-        }
-        if (SystemClock.elapsedRealtime() - inFlightSince > RESPONSE_WAIT_TIMEOUT_MS) {
-            helperLog?.appendLine(helperlogClassName,
-                "In-flight claim stale (>${RESPONSE_WAIT_TIMEOUT_MS / 1000}s) :: taking over")
-            inFlightTransport = transport
-            inFlightSince = SystemClock.elapsedRealtime()
-            return true
-        }
-        return false
+    private class InFlight(val origin: Origin, val body: String) {
+        val future = CompletableFuture<String>()
+        /** When the slot was claimed, for the stale-claim takeover in submitRequest. */
+        val claimedAt = SystemClock.elapsedRealtime()
     }
 
-    private fun releaseInFlight() {
-        inFlightTransport = TRANSPORT_NONE
-        requestInFlight.set(false)
+    private sealed class SubmitResult {
+        class Wait(val entry: InFlight, val owner: Boolean) : SubmitResult()
+        class Immediate(val response: String) : SubmitResult()
     }
 
-    private fun busyJson(): String {
-        val busy = JSONObject()
-        try {
-            busy.put("ResponseCode", "SHC000")
-            busy.put("ResponseDescription", "System Busy")
-        } catch (e: JSONException) {
-            e.printStackTrace()
-        }
-        return busy.toString()
-    }
+    private val bgScope = CoroutineScope(Dispatchers.IO)
 
     /**
-     * Longest serve() will wait for a transaction to produce a response before giving up.
+     * Longest a caller waits for a transaction to produce a response before giving up.
      *
      * Set high because a card transaction with PIN entry and a slow host legitimately takes
-     * minutes. This is a backstop against a stuck worker thread, not a transaction timeout.
+     * minutes. This is a backstop against a stuck request, not a transaction timeout.
      */
-    private const val RESPONSE_WAIT_TIMEOUT_MS = 300_000L
+    private const val RESPONSE_TIMEOUT_MS = 300_000L
+
+    // How long a cancelled transaction is given to publish its own result before its caller is
+    // answered SHC009 instead.
+    private const val CANCEL_RESULT_WAIT_MS = 10_000L
+
+    // DISABLED. Window in which an identical request body would be treated as a POS retry and
+    // answered from cache instead of re-triggering the transaction.
+    //
+    // At 0L the guard in submitRequest can never be true, so the retry branch there is
+    // unreachable and lastCompletedBody/Response/At are maintained but never read. Left in place
+    // rather than deleted because the feature is finished, not abandoned -- but enabling it
+    // changes vendor-visible behaviour: a genuine second sale with a byte-identical body inside
+    // the window would be answered from cache instead of being run. That needs a deliberate
+    // decision, not a constant flip. Ruled 2026-09-09: stays disabled. Set to 5_000L to enable.
+    private const val RETRY_CACHE_WINDOW_MS = 0L
 
     // Written from the main thread (MF919.onActivityResumed) and read from nanohttpd worker
     // threads, so it needs @Volatile to be seen promptly.
@@ -152,7 +137,6 @@ object HTTPServer: NanoHTTPD(8888) {
 
     //TODO USB Configuration
     private var serialPortDriver: SerialPortDriver? = null
-    private var serverRequest = false
     private var cableRequest = false
     private var comport = 4
     private var portOpen = false
@@ -168,17 +152,6 @@ object HTTPServer: NanoHTTPD(8888) {
     //TODO HelperLog
     var helperLog: HelperLog? = null
     val helperlogClassName:String  = this::class.java.simpleName
-
-    /**
-     * Collapse a pretty-printed JSON payload onto one line before logging it.
-     *
-     * POS payloads arrive indented with embedded newlines, so appendLine wrote them as ~30
-     * physical lines with the [RowIdentifier] only on the last one -- the entry point of every
-     * POS request was unreadable and un-greppable. Whitespace runs collapse to a single space;
-     * nothing is truncated.
-     */
-    private fun oneLine(value: String): String =
-        value.replace(Regex("""\s+"""), " ").trim()
 
     //TODO WEBSOCKET
     private var webSocketRequest = false
@@ -218,7 +191,6 @@ object HTTPServer: NanoHTTPD(8888) {
                 e.printStackTrace()
             }
         }
-        //startServeCable()
     }
 
     fun stopHTTPServer() {
@@ -249,7 +221,8 @@ object HTTPServer: NanoHTTPD(8888) {
         tmpHelperLog.appendLine(helperlogClassName, "Connection Method :: ", connMethod)
         tmpHelperLog.appendLine(helperlogClassName, "portOpen :: $portOpen")
 
-        when (connMethod) {
+        // uppercase: a lowercase value from TMS config matched no branch at all
+        when (connMethod.uppercase()) {
             "USB" -> {
                 socketInterface = 1
                 if(!portOpen) {
@@ -373,25 +346,7 @@ object HTTPServer: NanoHTTPD(8888) {
                             tmpHelperLog.appendLine(helperlogClassName, "Final Message :: $tempResult")
                             tmpHelperLog.logToFile(EnumLogFileName.TerminaLog)
                             helperLog = tmpHelperLog
-                            // A cancel skips the in-flight slot for the same reason it does on HTTP:
-                            // it is sent while a transaction is running, and is answered directly.
-                            if (isCancelRequest(tempResult)) {
-                                onBackToRS232(handleCancelRequest(tempResult))
-                            } else if (tryClaim(TRANSPORT_CABLE)) {
-                                try {
-                                    handleIncomingRequest(tempResult)
-                                } catch (t: Throwable) {
-                                    // setResponseMessage normally releases the slot; on a throw
-                                    // it must be released here.
-                                    t.printStackTrace()
-                                    releaseInFlight()
-                                }
-                            } else {
-                                tmpHelperLog.appendLine(helperlogClassName,
-                                    "Cable request refused :: another request already in flight")
-                                tmpHelperLog.logToFile(EnumLogFileName.TerminaLog)
-                                onBackToRS232(busyJson())
-                            }
+                            dispatchTransportRequest(Origin.CABLE, tempResult)
                         }
                         tempResult = ""
                     }
@@ -409,81 +364,256 @@ object HTTPServer: NanoHTTPD(8888) {
         requestMsg = null
         responseMsg = respMsg
 
-        // Sends the response only to the transport that made the request.
-        when (inFlightTransport) {
-            TRANSPORT_CABLE -> {
-                onBackToRS232(respMsg)
-                releaseInFlight()
-            }
-            TRANSPORT_WS -> {
-                waitingForResponse = false
-                WebSocketServer.receiveResponseMessage(respMsg)
-                releaseInFlight()
-            }
-            // TRANSPORT_HTTP: serve() reads responseMsg and releases the slot itself.
-            // TRANSPORT_NONE: no caller is waiting, so nothing is sent.
+        val current = synchronized(requestLock) { inFlight }
+        if (current != null) {
+            // Delivery is handled per-origin by the waiter attached to the future
+            // (serve() for HTTP, dispatchTransportRequest() for cable/WebSocket)
+            current.future.complete(respMsg)
+        } else {
+            // No slot means no caller is waiting: the request was already answered, by a cancel
+            // or by a timeout. Routing this by which port is open would deliver it to a POS that
+            // never asked for it, so drop it and record that it happened.
+            helperLog?.appendLine(
+                helperlogClassName,
+                "Unrouted response discarded :: ${HelperCommon.oneLine(respMsg)}"
+            )
+            waitingForResponse = false
         }
 
-        helperLog?.appendLine(helperlogClassName, "Set Response Msg :: $responseMsg")
+        helperLog?.appendLine(helperlogClassName, "Set Response Msg :: ${HelperCommon.oneLine(responseMsg)}")
         helperLog?.logToFile(EnumLogFileName.TerminaLog)
-        thread {
-            Thread.sleep(2000)
+        bgScope.launch {
+            delay(2000)
             //appRunningProcess = false
             ServiceHolder.ackCountDownSecond = ServiceHolder.defaultAckCountdownSecond
         }
     }
 
     override fun serve(session: IHTTPSession): Response {
-        // The body is read before the in-flight slot is claimed so a cancel can be recognised.
-        val bodyRead = try {
-            readRequestBody(session)
-        } catch (ioEx: IOException) {
-            ioEx.printStackTrace()
-            BodyRead.NoContentLength
+        helperLog = HelperLog(
+            HelperCommon.getSession(),
+            TmsHelper.checkIsConnectedWifi(ServiceHolder.getContext()),
+            Utils.getIPAddress(),
+            helperlogClassName,
+            helperlogClassName,
+            "HTTP Sever Serve"
+        )
+        helperLog?.appendLine(helperlogClassName, "serve(${session.method.name}) :: ${session.remoteIpAddress}")
+
+        // One summary line instead of ~8 header lines per request. content-length, host,
+        // user-agent and accept never diagnosed a transaction; the caller and content type do.
+        val h = session.headers
+        helperLog?.appendLine(helperlogClassName, "Request from ${h["remote-addr"] ?: "?"} :: " +
+            "type=${h["content-type"] ?: "-"} len=${h["content-length"] ?: "-"} ua=${h["user-agent"] ?: "-"}")
+
+        val bodyRead = readRequestBody(session)
+        if (bodyRead is BodyRead.Short) {
+            // Genuinely incomplete request -- report it as such rather than parsing a fragment.
+            helperLog?.appendLine(helperlogClassName, "Short Read :: ", "${bodyRead.read}/${bodyRead.expected}")
+            helperLog?.logToFile(EnumLogFileName.TerminaLog)
+            return corsResponse(errorJson(1))
+        }
+        if (bodyRead !is BodyRead.Ok) {
+            helperLog?.appendLine(helperlogClassName, "Missing/Invalid content-length :: ", "${h["content-length"]}")
+            helperLog?.logToFile(EnumLogFileName.TerminaLog)
+            return corsResponse(errorJson(0))
         }
 
-        // A cancel is a control message, not a competing transaction: it is sent precisely BECAUSE
-        // something is in flight, so it skips admission control and is answered directly instead of
-        // through the shared responseMsg, which the in-flight request is waiting on.
-        if (bodyRead is BodyRead.Ok && isCancelRequest(bodyRead.msg)) {
-            return jsonResponse(handleCancelRequest(bodyRead.msg))
+        val msg = bodyRead.msg
+        helperLog?.appendLine(helperlogClassName, "Request Msg :: ${HelperCommon.oneLine(msg)}")
+        helperLog?.appendLine(helperlogClassName, "Is Active :: $isActive")
+
+        val result = submitRequest(Origin.HTTP, msg)
+        if (result is SubmitResult.Immediate) {
+            helperLog?.logToFile(EnumLogFileName.TerminaLog)
+            return corsResponse(result.response)
         }
 
-        if (!tryClaim(TRANSPORT_HTTP)) {
-            return jsonResponse(busyJson())
-        }
+        val wait = result as SubmitResult.Wait
+        var resp = errorJson(-1)
         try {
-            return serveOne(session, bodyRead)
+            if (wait.owner) {
+                responseMsg = null
+                requestMsg = msg
+                handleIncomingRequest(msg)
+            }
+            helperLog?.logToFile(EnumLogFileName.TerminaLog)
+
+            resp = try {
+                wait.entry.future.get(RESPONSE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            } catch (_: Exception) {
+                // Nothing answered in time. SHC007 "Terminal Response Timeout" means "query before
+                // retry": the request was accepted and ran, so the cardholder may already have been
+                // charged. SHC000 would say "safe to retry" and invite a double charge.
+                timeoutJson()
+            }
+            return corsResponse(resp)
+        } catch (ex: Exception) {
+            // Answer with JSON the caller can parse rather than letting nanohttpd return a 500.
+            ex.printStackTrace()
+            helperLog?.appendLine(helperlogClassName, "Request handling threw :: ${ex.message}")
+            helperLog?.logToFile(EnumLogFileName.TerminaLog)
+            return corsResponse(resp)
         } finally {
-            // Always released, including on an exception escaping serveOne -- otherwise the very
-            // first failure would refuse every request from then on.
-            requestMsg = null
-            serverRequest = false
-            waitingForResponse = false
-            releaseInFlight()
+            // In a finally: a throw must not leave the slot claimed, or every later request is
+            // refused for the life of the process.
+            if (wait.owner) {
+                finishInFlight(wait.entry, resp)
+                requestMsg = null
+                waitingForResponse = false
+            }
         }
     }
 
-    /** True for a TransactionType 0 request, which cancels whatever is currently running. */
-    private fun isCancelRequest(msg: String): Boolean = try {
-        JSONObject(msg).getString("TransactionType").toInt() == 0
-    } catch (e: Exception) {
-        false
+    // Single admission point shared by all transports (HTTP, cable, websocket).
+    // Guarantees: one transaction in flight at a time, an identical retry attaches to the
+    // in-flight response instead of starting a second one, and TransactionType 0 can terminate a
+    // waiting session rather than being refused as busy.
+    private fun submitRequest(origin: Origin, body: String): SubmitResult {
+        synchronized(requestLock) {
+            // Admission point for HTTP, cable and WebSocket alike: nothing is accepted while a
+            // load is in progress. The guard, not the raw flag: a claim that outlives the ceiling
+            // is treated as abandoned rather than closing ECR for the life of the process.
+            if (ServiceHolder.ecrStartupBlocking()) {
+                helperLog?.appendLine(
+                    helperlogClassName,
+                    "Request refused :: app startup still running (${origin.name})"
+                )
+                return SubmitResult.Immediate(errorJson(0))
+            }
+            var current = inFlight
+            if (current != null &&
+                SystemClock.elapsedRealtime() - current.claimedAt > RESPONSE_TIMEOUT_MS) {
+                // The claim outlived the response ceiling, so its owner is never going to answer.
+                // Take it over instead of refusing every later request.
+                val age = SystemClock.elapsedRealtime() - current.claimedAt
+                helperLog?.appendLine(
+                    helperlogClassName,
+                    "Stale in-flight claim taken over (${origin.name}), age ${age} ms"
+                )
+                current.future.complete(timeoutJson())
+                inFlight = null
+                current = null
+            }
+            if (current != null) {
+                if (body == current.body) {
+                    helperLog?.appendLine(helperlogClassName, "Duplicate in-flight request (${origin.name}), attaching to pending response")
+                    return SubmitResult.Wait(current, owner = false)
+                }
+                // TransactionType 0 is a control request: allow it to terminate a
+                // waiting session instead of rejecting it as busy
+                val cancelResp = handleCancelWhileBusy(body, current.future)
+                if (cancelResp != null) {
+                    helperLog?.appendLine(helperlogClassName, "Cancel request while busy (${origin.name}), terminating session")
+                    // The slot stays claimed: the cancelled transaction still owes its own caller a
+                    // result, and its owner releases the slot once that result arrives.
+                    return SubmitResult.Immediate(cancelResp)
+                }
+                helperLog?.appendLine(helperlogClassName, "Different request while busy (${origin.name}), reject SHC000")
+                return SubmitResult.Immediate(errorJson(0))
+            }
+            if (body == lastCompletedBody && lastCompletedResponse != null &&
+                SystemClock.elapsedRealtime() - lastCompletedAt < RETRY_CACHE_WINDOW_MS) {
+                // Retry right after the response was lost on the network:
+                // replay the cached response instead of re-running the transaction
+                helperLog?.appendLine(helperlogClassName, "Retry of completed request (${origin.name}), replaying cached response")
+                return SubmitResult.Immediate(lastCompletedResponse!!)
+            }
+            val fresh = InFlight(origin, body)
+            inFlight = fresh
+            return SubmitResult.Wait(fresh, owner = true)
+        }
+    }
+
+    private fun finishInFlight(entry: InFlight, resp: String) {
+        synchronized(requestLock) {
+            if (inFlight === entry) {
+                inFlight = null
+                lastCompletedBody = entry.body
+                lastCompletedResponse = resp
+                lastCompletedAt = SystemClock.elapsedRealtime()
+            }
+        }
+    }
+
+    private fun timeoutJson(): String {
+        val json = JSONObject()
+        json.put("ResponseCode", EnumResponseCode.TERMINAL_RESPONSE_TIMEOUT.code)
+        json.put("ResponseDescription", EnumResponseCode.TERMINAL_RESPONSE_TIMEOUT.description)
+        return json.toString()
+    }
+
+    // Entry point for the fire-and-forget transports (cable / websocket): they cannot block like
+    // an HTTP connection, so the response is delivered by a future callback, with the same
+    // overall timeout as HTTP.
+    private fun dispatchTransportRequest(origin: Origin, body: String) {
+        when (val result = submitRequest(origin, body)) {
+            is SubmitResult.Immediate -> deliverToTransport(origin, result.response)
+            is SubmitResult.Wait -> {
+                val entry = result.entry
+                if (result.owner) {
+                    entry.future.whenComplete { resp, _ ->
+                        val out = resp ?: errorJson(-1)
+                        finishInFlight(entry, out)
+                        waitingForResponse = false
+                        deliverToTransport(origin, out)
+                    }
+                    bgScope.launch {
+                        delay(RESPONSE_TIMEOUT_MS)
+                        if (!entry.future.isDone) {
+                            entry.future.complete(timeoutJson())
+                        }
+                    }
+                    responseMsg = null
+                    requestMsg = body
+                    try {
+                        handleIncomingRequest(body)
+                    } catch (ex: Exception) {
+                        // A throw before a response is published would hold the slot and leave this
+                        // transport's caller with nothing.
+                        ex.printStackTrace()
+                        helperLog?.appendLine(helperlogClassName, "Request handling threw :: ${ex.message}")
+                        entry.future.complete(errorJson(-1))
+                    }
+                } else if (origin != entry.origin) {
+                    // Duplicate arriving over a DIFFERENT transport than the owner:
+                    // the owner's delivery won't reach this transport, so deliver here.
+                    // Same-origin duplicates need nothing extra (cable writes once,
+                    // WebSocket broadcast already reaches the retrying client).
+                    entry.future.whenComplete { resp, _ ->
+                        deliverToTransport(origin, resp ?: errorJson(-1))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun deliverToTransport(origin: Origin, respMsg: String) {
+        when (origin) {
+            Origin.CABLE -> onBackToRS232(respMsg)
+            Origin.WEBSOCKET -> WebSocketServer.receiveResponseMessage(respMsg)
+            Origin.HTTP -> { /* delivered by the blocked serve() thread */ }
+        }
     }
 
     /**
-     * Cancels the running transaction and returns the response for the caller that asked.
+     * A TransactionType-0 request arriving while a session is waiting terminates it.
      *
-     * Deliberately does not call setResponseMessage: that writes the shared responseMsg, which the
-     * in-flight request is polling, and would hand this cancel's reply to that caller instead.
+     * Returns null when this is not a cancel, or when appRunningProcess says the transaction has
+     * gone too far to abandon -- the caller then treats it as an ordinary busy request. Completes
+     * the in-flight future too, bounded, so the original POS connection is answered as well.
      */
-    private fun handleCancelRequest(msg: String): String {
-        helperLog?.appendLine(helperlogClassName, "Cancel request :: terminating current session")
+    private fun handleCancelWhileBusy(msg: String, pending: CompletableFuture<String>): String? {
+        return try {
+            val body = concatenateAndValidateLast(msg)
+            if (body.isEmpty()) return null
+            val obj = JsonParser.parseString(body).asJsonObject
+            if (!obj.has("TransactionType") || obj.get("TransactionType").asInt != 0) return null
+            if (appRunningProcess) return null
 
-        isActive = true
-        appRunningProcess = false
+            helperLog?.appendLine(helperlogClassName, "Cancel request :: terminating current session")
+            isActive = true
 
-        try {
             when (val ctx = getInstance().attendActivityContext) {
                 is CardPaymentActivity -> Handler(Looper.getMainLooper()).post {
                     ctx.stopSearch()
@@ -501,161 +631,55 @@ object HTTPServer: NanoHTTPD(8888) {
                     ServiceHolder.getContext().startActivity(newIntent)
                 }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
 
-        // Frees the slot held by the transaction just cancelled so the next request is not refused.
-        releaseInFlight()
+            val jsonResp = JSONObject()
+            jsonResp.put("ResponseCode", EnumResponseCode.PAYMENT_SESSION_TERMINATED.code)
+            jsonResp.put("ResponseDescription", EnumResponseCode.PAYMENT_SESSION_TERMINATED.description)
+            val resp = jsonResp.toString()
 
-        val jsonResp = JSONObject()
-        try {
-            jsonResp.put("ResponseCode", "SHC009")
-            jsonResp.put("ResponseDescription", "Payment Session Terminated")
-        } catch (e: JSONException) {
-            e.printStackTrace()
+            // The in-flight caller asked for a transaction, so it gets that transaction's own
+            // result, not this cancel's SHC009. Completing `pending` here would hand it the wrong
+            // body and orphan the real one.
+            //
+            // Bounded, because a session parked on a screen that publishes no result would
+            // otherwise leave its caller blocked until RESPONSE_TIMEOUT_MS.
+            bgScope.launch {
+                delay(CANCEL_RESULT_WAIT_MS)
+                if (!pending.isDone) {
+                    helperLog?.appendLine(helperlogClassName,
+                        "No result published $CANCEL_RESULT_WAIT_MS ms after cancel :: answering SHC009")
+                    pending.complete(resp)
+                }
+            }
+            helperLog?.logToFile(EnumLogFileName.TerminaLog)
+            resp
+        } catch (ex: Exception) {
+            ex.printStackTrace()
+            null
         }
-        helperLog?.logToFile(EnumLogFileName.TerminaLog)
-        return jsonResp.toString()
     }
 
-    private fun jsonResponse(body: String): Response {
-        val response = newFixedLengthResponse(body)
-        response.addHeader("Access-Control-Allow-Origin", "*")
-        response.addHeader("Access-Control-Allow-Methods", "POST")
-        response.addHeader("Access-Control-Allow-Headers", "X-Requested-With")
-        return response
-    }
-
-    private fun serveOne(session: IHTTPSession, bodyRead: BodyRead): Response {
-        responseMsg = null
-        helperLog = HelperLog(
-            HelperCommon.getSession(),
-            TmsHelper.checkIsConnectedWifi(ServiceHolder.getContext()),
-            Utils.getIPAddress(),
-            helperlogClassName,
-            helperlogClassName,
-            "HTTP Sever Serve"
-        )
-        helperLog?.appendLine(helperlogClassName, "serve(${session.method.name}) :: ${session.remoteIpAddress}")
+    private fun wakeScreen() {
         try {
             val screenLock =
                 (ServiceHolder.getContext().getSystemService(Context.POWER_SERVICE) as PowerManager).newWakeLock(
                     PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                    "ScreenLock:Test"
+                    "ScreenLock:HttpTransaction"
                 )
-            screenLock.acquire(100)
-            screenLock.release()
-        }catch (e: Exception){
+            // Held 3s on a timeout rather than acquired-and-released immediately,
+            // which did not keep the screen up long enough to show the transaction.
+            screenLock.acquire(3000)
+        } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
 
-        // One summary line instead of ~8 header lines per request. content-length, host,
-        // user-agent and accept never diagnosed a transaction; the caller and content type do.
-        val h = session.headers
-        helperLog?.appendLine(helperlogClassName, "Request from ${h["remote-addr"] ?: "?"} :: " +
-            "type=${h["content-type"] ?: "-"} len=${h["content-length"] ?: "-"} ua=${h["user-agent"] ?: "-"}")
-
-        var msg = ""
-
-        try {
-            //waitingForResponse = true
-            if (bodyRead is BodyRead.Ok) {
-                msg = bodyRead.msg
-                helperLog?.appendLine(helperlogClassName, "Request Msg :: ${oneLine(msg)}")
-                helperLog?.appendLine(helperlogClassName, "Is Active :: $isActive")
-                if(isActive) {
-                    requestMsg = msg
-                    serverRequest = true
-                    handleIncomingRequest(msg)
-                } else {
-                    var isError = true
-
-                    helperLog?.appendLine(helperlogClassName, "App Running Process :: $appRunningProcess")
-                    if (!appRunningProcess) {
-                        try {
-                            val jsonReq = JSONObject(msg)
-                            val transType = jsonReq.getString("TransactionType").toInt()
-                            if (transType == 0) {
-                                isError = false
-                                val jsonResp = JSONObject()
-                                jsonResp.put("ResponseCode", "SHC009")
-                                jsonResp.put("ResponseDescription", "Payment Session Terminated")
-                                setResponseMessage(jsonResp.toString())
-                                isActive = true
-                                appRunningProcess = false
-
-                                val ctx = getInstance().attendActivityContext
-                                if (ctx is CardPaymentActivity) {
-                                    val mainLooper = Looper.getMainLooper()
-                                    val handler = Handler(mainLooper)
-                                    handler.post {
-                                        ctx.stopSearch()
-                                        ctx.endEMV()
-                                    }
-                                } else if (ctx is QrScanActivity) {
-                                    // Stop the enquiry loop promptly instead of letting it run its
-                                    // full course and clobber TransData for whatever transaction
-                                    // starts next. See obsidian FIX-2026-08-03-TransData-Session-Clobber-Settlement-NPE.
-                                    ctx.abortSession()
-                                } else if (ctx is GenerateQrActivity) {
-                                    ctx.abortSession()
-                                } else {
-                                    val dbModelTerminalConfig = ServiceHolder.getTerminalConfig()
-                                    var newIntent = Intent(ServiceHolder.getContext(), AttendActivity::class.java)
-                                    if(DbModelTerminalConfig.getBooleanValue(dbModelTerminalConfig, "UNATTENDED_MODE")){
-                                        newIntent = Intent(ServiceHolder.getContext(), UnattendActivity::class.java)
-                                    }
-                                    newIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    ServiceHolder.getContext().startActivity(newIntent)
-                                }
-                            }
-                        } catch (je: JSONException) {
-                            je.printStackTrace()
-                        }
-                    }
-                    if (isError) {
-                        defaultError(msg, 0)
-                    }
-                }
-            } else if (bodyRead is BodyRead.Short) {
-                // Genuinely incomplete request - report it as such rather than parsing a fragment.
-                helperLog?.appendLine(helperlogClassName, "Short Read :: ", "${bodyRead.read}/${bodyRead.expected}")
-                defaultError("{\"SQN\":\"FF\"}", 1)
-            } else {
-                helperLog?.appendLine(helperlogClassName, "Missing/Invalid content-length :: ", "${h["content-length"]}")
-                defaultError("{\"SQN\":\"FF\"}", 0)
-            }
-        }catch (ioEx: IOException) {
-            ioEx.printStackTrace();
-            defaultError("{\"SQN\":\"FF\"}", 1);
-        }
-
-        helperLog?.logToFile(EnumLogFileName.TerminaLog)
-
-        // Bounded wait so a request that never gets answered cannot hang this worker thread.
-        val deadline = SystemClock.elapsedRealtime() + RESPONSE_WAIT_TIMEOUT_MS
-        while (responseMsg == null && SystemClock.elapsedRealtime() < deadline) {
-            Utils.DelayMili(100)
-        }
-
-        val body = responseMsg ?: run {
-            // Nothing answered in time; reply so the caller fails fast and the thread is freed.
-            helperLog?.appendLine(helperlogClassName,
-                "No response produced within ${RESPONSE_WAIT_TIMEOUT_MS / 1000}s :: replying System Busy")
-            helperLog?.logToFile(EnumLogFileName.TerminaLog)
-            val timeout = JSONObject()
-            try {
-                timeout.put("ResponseCode", "SHC000")
-                timeout.put("ResponseDescription", "System Busy")
-            } catch (e: JSONException) {
-                e.printStackTrace()
-            }
-            timeout.toString()
-        }
-
-        // Shared-state cleanup and the in-flight release both happen in serve()'s finally.
-        return jsonResponse(body)
+    private fun corsResponse(body: String?): Response {
+        val response = newFixedLengthResponse(body ?: "")
+        response.addHeader("Access-Control-Allow-Origin", "*")
+        response.addHeader("Access-Control-Allow-Methods", "POST")
+        response.addHeader("Access-Control-Allow-Headers", "X-Requested-With")
+        return response
     }
 
     private sealed class BodyRead {
@@ -692,12 +716,20 @@ object HTTPServer: NanoHTTPD(8888) {
 
         val byteMsg = ByteArray(contentLength)
         var read = 0
-        while (read < contentLength) {
-            val len = session.inputStream.read(byteMsg, read, contentLength - read)
-            if (len <= 0) {
-                break   /* peer closed before sending the full body */
+        try {
+            while (read < contentLength) {
+                val len = session.inputStream.read(byteMsg, read, contentLength - read)
+                if (len <= 0) {
+                    break   /* peer closed before sending the full body */
+                }
+                read += len
             }
-            read += len
+        } catch (ioEx: IOException) {
+            // A timeout or reset mid-body is a short read, not a header problem: the POS declared
+            // contentLength and we received `read`. Reporting it as "missing content-length" sends
+            // whoever reads the log after the header, which was fine.
+            ioEx.printStackTrace()
+            return BodyRead.Short(read, contentLength)
         }
 
         if (read < contentLength) {
@@ -706,39 +738,39 @@ object HTTPServer: NanoHTTPD(8888) {
         return BodyRead.Ok(Utility.Byte2ASCII(byteMsg).replace("\n", "").replace("\r", ""))
     }
 
-    private fun defaultError(msg: String, type: Int) {
+    private fun errorJson(type: Int): String {
         val jsonResponse = JSONObject()
         try {
             when (type) {
                 0 -> {
-                    jsonResponse.put("ResponseCode", "SHC000")
-                    jsonResponse.put("ResponseDescription", "System Busy")
-                    /*if(!waitingForResponse){
-                        isActive = true
-                    }*/
+                    jsonResponse.put("ResponseCode", EnumResponseCode.SYSTEM_BUSY.code)
+                    jsonResponse.put("ResponseDescription", EnumResponseCode.SYSTEM_BUSY.description)
                 }
                 1 -> {
-                    jsonResponse.put("ResponseCode", "SHC001")
-                    jsonResponse.put("ResponseDescription", "Invalid Input")
+                    jsonResponse.put("ResponseCode", EnumResponseCode.INVALID_INPUT.code)
+                    jsonResponse.put("ResponseDescription", EnumResponseCode.INVALID_INPUT.description)
                 }
                 2 -> {
-                    jsonResponse.put("ResponseCode", "SHC001")
-                    jsonResponse.put("ResponseDescription", "Invalid Request")
+                    jsonResponse.put("ResponseCode", EnumResponseCode.INVALID_REQUEST.code)
+                    jsonResponse.put("ResponseDescription", EnumResponseCode.INVALID_REQUEST.description)
                 }
                 3 -> {
-                    jsonResponse.put("ResponseCode", "SHC002")
-                    jsonResponse.put("ResponseDescription", "Auto Settlement is running")
+                    jsonResponse.put("ResponseCode", EnumResponseCode.AUTO_SETTLEMENT_RUNNING.code)
+                    jsonResponse.put("ResponseDescription", EnumResponseCode.AUTO_SETTLEMENT_RUNNING.description)
                 }
                 else -> {
-                    jsonResponse.put("ResponseCode", "SHC007")
-                    jsonResponse.put("ResponseDescription", "Unexpected Error")
+                    jsonResponse.put("ResponseCode", EnumResponseCode.UNEXPECTED_ERROR.code)
+                    jsonResponse.put("ResponseDescription", EnumResponseCode.UNEXPECTED_ERROR.description)
                 }
             }
         } catch (e: JSONException) {
             e.printStackTrace()
-        } finally {
-            setResponseMessage(jsonResponse.toString())
         }
+        return jsonResponse.toString()
+    }
+
+    private fun defaultError(msg: String, type: Int) {
+        setResponseMessage(errorJson(type))
     }
 
     private fun getSpecificProduct(name: String): DbModelProductList? {
@@ -754,18 +786,6 @@ object HTTPServer: NanoHTTPD(8888) {
     }
 
     private fun handleIncomingRequest(requestData: String) {
-        // Refuses transactions until MainActivity has finished starting up (migrations, config
-        // download, sign-on) with SHC000 "System Busy".
-        //
-        // This function is the common entry point for all three transports (HTTP, cable and
-        // websocket), so the guard here covers every one of them.
-        if (ServiceHolder.appFreshLoad) {
-            helperLog?.appendLine(helperlogClassName, "Request refused :: app fresh start still running")
-            helperLog?.logToFile(EnumLogFileName.TerminaLog)
-            defaultError("", 0)
-            return
-        }
-
         val concatenateRequest = concatenateAndValidateLast(requestData)
         if(concatenateRequest.isEmpty()){
             defaultError("", 1)
@@ -790,8 +810,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         if(transType == 0) {
                             isError = false
                             val jsonResp = JSONObject()
-                            jsonResp.put("ResponseCode", "SHC009")
-                            jsonResp.put("ResponseDescription", "Payment Session Terminated")
+                            jsonResp.put("ResponseCode", EnumResponseCode.PAYMENT_SESSION_TERMINATED.code)
+                            jsonResp.put("ResponseDescription", EnumResponseCode.PAYMENT_SESSION_TERMINATED.description)
                             setResponseMessage(jsonResp.toString())
 
                             val ctx = getInstance().attendActivityContext
@@ -833,7 +853,16 @@ object HTTPServer: NanoHTTPD(8888) {
     }
 
     //TODO RS232
-    private fun checkTransactionType(requestJson: JsonObject){
+    /**
+     * ECR entry point. MF919 speaks only its own protocol, so this forwards straight to
+     * [oldIntegrationType] -- the same name Pro gives the handler for this protocol, so the
+     * two can be compared directly. A new-integration branch would go here.
+     */
+    private fun checkTransactionType(requestJson: JsonObject) {
+        oldIntegrationType(requestJson)
+    }
+
+    private fun oldIntegrationType(requestJson: JsonObject){
         val mainLooper = Looper.getMainLooper()
         val handler = Handler(mainLooper)
 
@@ -842,6 +871,13 @@ object HTTPServer: NanoHTTPD(8888) {
             val resultObject = requestJson
             val txnType = requestJson.get("TransactionType").asInt
             ServiceHolder.txnType = txnType
+
+            // Only for flows that actually start a transaction: not cancel (0) or status
+            // (13). The wake holds the screen for 3s, so calling it per request -- as serve()
+            // used to -- would light the screen on every POS poll.
+            if (txnType != 0 && txnType != 13) {
+                wakeScreen()
+            }
 
             var txnAmount: String? = null
             if(requestJson.has("TransactionAmount")) {
@@ -895,7 +931,7 @@ object HTTPServer: NanoHTTPD(8888) {
             when (txnType) {
                 0 -> {
                     resultObject.addProperty("ResponseCode", "00")
-                    resultObject.addProperty("ResponseCode", "No Session Running")
+                    resultObject.addProperty("ResponseDescription", "No Session Running")
                     setResponseMessage(resultObject.toString())
                 }
                 // Sale
@@ -905,8 +941,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC010")
-                        resultObject.addProperty("ResponseDescription", "Transaction Not Supported")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -917,8 +953,8 @@ object HTTPServer: NanoHTTPD(8888) {
                             handler.post {
                                 Toast.makeText(ServiceHolder.getContext(), "Please Run Settlement for Last day Transaction before Proceed", Toast.LENGTH_SHORT).show()
                             }
-                            resultObject.addProperty("ResponseCode", "SHC011")
-                            resultObject.addProperty("ResponseDescription", "Please Run Settlement for Last day Transaction before Proceed")
+                            resultObject.addProperty("ResponseCode", EnumResponseCode.SETTLE_PREVIOUS_DAY_FIRST.code)
+                            resultObject.addProperty("ResponseDescription", EnumResponseCode.SETTLE_PREVIOUS_DAY_FIRST.description)
                             setResponseMessage(resultObject.toString())
                             return
                         }
@@ -959,8 +995,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         throw Exception()
                     }
@@ -1015,8 +1051,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1056,8 +1092,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1075,8 +1111,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC010")
-                        resultObject.addProperty("ResponseDescription", "Transaction Not Supported")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1116,8 +1152,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1137,8 +1173,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC010")
-                        resultObject.addProperty("ResponseDescription", "Transaction Not Supported")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1205,8 +1241,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1256,8 +1292,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC010")
-                        resultObject.addProperty("ResponseDescription", "Transaction Not Supported")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1323,8 +1359,8 @@ object HTTPServer: NanoHTTPD(8888) {
                             handler.post {
                                 Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                             }
-                            resultObject.addProperty("ResponseCode", "SHC007")
-                            resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                            resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                            resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                             setResponseMessage(resultObject.toString())
                             return
                         }
@@ -1369,8 +1405,8 @@ object HTTPServer: NanoHTTPD(8888) {
                             handler.post {
                                 Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                             }
-                            resultObject.addProperty("ResponseCode", "SHC007")
-                            resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                            resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                            resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                             setResponseMessage(resultObject.toString())
                             return
                         }
@@ -1402,8 +1438,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1455,8 +1491,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC010")
-                        resultObject.addProperty("ResponseDescription", "Transaction Not Supported")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1528,8 +1564,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1564,8 +1600,8 @@ object HTTPServer: NanoHTTPD(8888) {
                         handler.post {
                             Toast.makeText(ServiceHolder.getContext(), "System Error", Toast.LENGTH_SHORT).show()
                         }
-                        resultObject.addProperty("ResponseCode", "SHC007")
-                        resultObject.addProperty("ResponseDescription", "Terminal System Error")
+                        resultObject.addProperty("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.code)
+                        resultObject.addProperty("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.description)
                         setResponseMessage(resultObject.toString())
                         return
                     }
@@ -1607,8 +1643,8 @@ object HTTPServer: NanoHTTPD(8888) {
                                     resultObject.addProperty("TransactionEWalletDescription", transactionQrData.productName)
                                     resultObject.addProperty("TransactionDateTime", transactionDateTime)
                                 } ?: run {
-                                    resultObject.addProperty("ResponseCode", "SHC008")
-                                    resultObject.addProperty("ResponseDescription", "QR Transaction Not Found")
+                                    resultObject.addProperty("ResponseCode", EnumResponseCode.QR_TRANSACTION_NOT_FOUND.code)
+                                    resultObject.addProperty("ResponseDescription", EnumResponseCode.QR_TRANSACTION_NOT_FOUND.description)
                                 }
                             } else {
                                 var desc = "Failed"
@@ -1652,8 +1688,8 @@ object HTTPServer: NanoHTTPD(8888) {
                                 }
                             }
                         } else {
-                            resultObject.addProperty("ResponseCode", "SHC008")
-                            resultObject.addProperty("ResponseDescription", "Transaction Not Found")
+                            resultObject.addProperty("ResponseCode", EnumResponseCode.TRANSACTION_NOT_FOUND.code)
+                            resultObject.addProperty("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_FOUND.description)
                         }
                     }
                     setResponseMessage(resultObject.toString())
@@ -1681,8 +1717,11 @@ object HTTPServer: NanoHTTPD(8888) {
         }
     }
 
+    // Compiled once: concatenateAndValidateLast runs per cable message.
+    private val jsonSplitRegex = "(?<=\\})".toRegex()
+
     private fun concatenateAndValidateLast(jsonString: String): String {
-        val jsonObjects = jsonString.split("(?<=\\})".toRegex()).filter { it.trim().isNotBlank() }
+        val jsonObjects = jsonString.split(jsonSplitRegex).filter { it.trim().isNotBlank() }
         val lastJsonObject = jsonObjects.lastOrNull() ?: return ""
         if(isJSONValid(lastJsonObject)) {
             return lastJsonObject
@@ -1770,7 +1809,9 @@ object HTTPServer: NanoHTTPD(8888) {
                 serviceScope?.launch {
                     do {
                         try {
-                            webSocketServer?.stop()
+                            // stopServer (not stop) so the old instance's processing
+                            // coroutine is cancelled and does not leak per retry
+                            webSocketServer?.stopServer()
                             webSocketServer = WebSocketServer(8080)
                             webSocketServer!!.start()
                             delay(2000)
@@ -1797,13 +1838,15 @@ object HTTPServer: NanoHTTPD(8888) {
 
     @JvmStatic
     fun stopWebSocketServer() {
-        if(socketConnected) {
-            socketInterface = -1
-            socketConnected = false
-            webSocketRequest = false
-            webSocketServer?.stopServer()
-            serviceScope?.cancel()
-        }
+        // Unconditional, and the reference is dropped: a server whose bind is still in progress
+        // has socketConnected == false, so the old guard skipped it and leaked the server holding
+        // port 8080. Taken from Pro, which already had this fix.
+        socketInterface = -1
+        socketConnected = false
+        webSocketRequest = false
+        webSocketServer?.stopServer()
+        webSocketServer = null
+        serviceScope?.cancel()
     }
 
     @JvmStatic
@@ -1812,26 +1855,8 @@ object HTTPServer: NanoHTTPD(8888) {
         // Was helperLog!!: a non-null assertion on a nullable field. startWebSocketServer assigns
         // it before messages can arrive today, but a WS frame landing first would have been a
         // KotlinNullPointerException on the websocket thread. ?. costs nothing and cannot throw.
-        helperLog?.appendLine(helperlogClassName, "Check WebSocket Incoming :: ${oneLine(incomingMessage)}")
-        // A cancel skips the in-flight slot, as on HTTP and cable.
-        if (isCancelRequest(incomingMessage)) {
-            WebSocketServer.receiveResponseMessage(handleCancelRequest(incomingMessage))
-            return
-        }
-        // Shares the single in-flight slot with HTTP and cable.
-        if (!tryClaim(TRANSPORT_WS)) {
-            helperLog?.appendLine(helperlogClassName,
-                "WebSocket request refused :: another request already in flight")
-            helperLog?.logToFile(EnumLogFileName.TerminaLog)
-            WebSocketServer.receiveResponseMessage(busyJson())
-            return
-        }
-        try {
-            handleIncomingRequest(incomingMessage)
-        } catch (t: Throwable) {
-            t.printStackTrace()
-            releaseInFlight()
-        }
+        helperLog?.appendLine(helperlogClassName, "Check WebSocket Incoming :: ${HelperCommon.oneLine(incomingMessage)}")
+        dispatchTransportRequest(Origin.WEBSOCKET, incomingMessage)
     }
     //WebSocket
 }

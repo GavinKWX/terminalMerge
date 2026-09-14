@@ -11,7 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.library.terminal.Utility
 import com.sc.mf919.BuildConfig
 import com.sc.mf919.R
-import com.sc.mf919.java.activity.Global
+import constants.TerminalConstants
 import com.sc.mf919.java.activity.TransactionTransmitter
 import com.sc.mf919.java.activity.Utils
 import data_enum.CardErrorDataEnum
@@ -116,7 +116,7 @@ class DenominationTransactionResultActivity: AppCompatActivity(), FragmentDenomi
 
         CoroutineScope(Dispatchers.IO).launch {
             TransData.denominationProduct?.let {
-                if(TransData.transResult == Global.iso.err.txnApproved || TransData.qrRespCode == "0000") {
+                if(TransData.transResult == TerminalConstants.iso.err.txnApproved || TransData.qrRespCode == "0000") {
                     val pulseCount = Utils.atoi(it.Ref1)
 //                    AisinoHelper.outputPulseSignal(pulseCount)
                 }
@@ -130,7 +130,7 @@ class DenominationTransactionResultActivity: AppCompatActivity(), FragmentDenomi
             }
 
             if(MdbController.mdbVending) {
-                if(TransData.transResult == Global.iso.err.txnApproved || TransData.qrRespCode == "0000") {
+                if(TransData.transResult == TerminalConstants.iso.err.txnApproved || TransData.qrRespCode == "0000") {
                     helperLog.appendLine(helperLogClassName, "Vend APPROVED :: notifying VMC, invoice=${TransData.invoiceNo}")
                     helperLog.logToFile(EnumLogFileName.TerminaLog)
                     MdbController.sendVendApproved()
@@ -154,7 +154,7 @@ class DenominationTransactionResultActivity: AppCompatActivity(), FragmentDenomi
             try {
                 if(TransData.qrRef.isEmpty()) {
                     val isCZ = TransData.acqCode.equals("BSN_CARDZONE", true)
-                    val eppDetail = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_EPP_DETAILS, 256)
+                    val eppDetail = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_EPP_DETAILS, 256)
                     val respCode = Utility.HexString2ASCII(TransData.respCode)
                     jsonObject.put("ResponseCode", respCode)
                     jsonObject.put("ResponseDescription", desc)
@@ -170,8 +170,8 @@ class DenominationTransactionResultActivity: AppCompatActivity(), FragmentDenomi
                     jsonObject.put("TransactionApplicationLabel", Utils.byteArrayToAsciiString(TransData.appLabel, 0, TransData.appLabelLen))
                     jsonObject.put("TransactionCardNo", TransData.maskedPan)
                     jsonObject.put("TransactionEntryType", TransData.entryModeLabel)
-                    jsonObject.put("TransactionARQC", TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ARQC, 16))
-                    jsonObject.put("TransactionTVR", TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_TVR, 16))
+                    jsonObject.put("TransactionARQC", TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, 16))
+                    jsonObject.put("TransactionTVR", TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_TVR, 16))
                     jsonObject.put("TransactionAID", TransData.aid)
                     jsonObject.put("TransactionCVM", TransData.cvm)
                     jsonObject.put("TransactionTSI", "-")
@@ -206,7 +206,7 @@ class DenominationTransactionResultActivity: AppCompatActivity(), FragmentDenomi
             helperLog.appendLine(helperLogClassName, "App Intent task")
             //TODO form and return for app intent request
             val isCZ = TransData.acqCode.equals("BSN_CARDZONE", true)
-            val eppDetail = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_EPP_DETAILS, 256)
+            val eppDetail = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_EPP_DETAILS, 256)
             val respCode = Utility.HexString2ASCII(TransData.respCode)
 
             if(TransData.qrRef.isEmpty()) {
@@ -224,8 +224,8 @@ class DenominationTransactionResultActivity: AppCompatActivity(), FragmentDenomi
                 txn_map["TransactionApplicationLabel"] = Utils.byteArrayToAsciiString(TransData.appLabel, 0, TransData.appLabelLen)
                 txn_map["TransactionCardNo"] = TransData.maskedPan
                 txn_map["TransactionEntryType"] = TransData.entryModeLabel
-                txn_map["TransactionARQC"] = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ARQC, 16)
-                txn_map["TransactionTVR"] = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_TVR, 16)
+                txn_map["TransactionARQC"] = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, 16)
+                txn_map["TransactionTVR"] = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_TVR, 16)
                 txn_map["TransactionAID"] = TransData.aid
                 txn_map["TransactionCVM"] = TransData.cvm
                 txn_map["TransactionTSI"] = "-"

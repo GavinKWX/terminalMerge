@@ -25,7 +25,7 @@ import com.google.gson.reflect.TypeToken
 import com.sc.mf919.R
 import com.sc.mf919.java.activity.Utils
 import data_enum.ConnMethodEnum
-import com.sc.mf919.kotlin.data_enum.EnumWebsocket
+import enums.EnumWebsocket
 import com.sc.mf919.kotlin.data_enum.ProductCatSelectionDataEnum
 import com.sc.mf919.kotlin.data_enum.SaleModelNew
 import data_enum.SalesModel
@@ -547,9 +547,9 @@ class AttendDenominationActivity : ActivityBase() {
         MfHelper.closeNfcUrlInterface()
         val terminalConfig = ServiceHolder.getTerminalConfig()
         if (DbModelTerminalConfig.getBooleanValue(terminalConfig, "FORCE_LOCK_HOME")) {
-            HelperCommon.bottomActionBarEvent(applicationContext, "1")
+            MfHelper.lockStatusBarAndNavigation(true)
         } else {
-            HelperCommon.bottomActionBarEvent(applicationContext, "0")
+            MfHelper.lockStatusBarAndNavigation(false)
         }
     }
 
@@ -610,7 +610,7 @@ class AttendDenominationActivity : ActivityBase() {
                         if (isOK) {
                             helperLog.appendLine(helperLogClassName, "Validation passed :: navigate -> MainActivity (exit denomination home)")
                             helperLog.logToFile(EnumLogFileName.TerminaLog)
-                            HelperCommon.bottomActionBarEvent(applicationContext, "1")
+                            MfHelper.lockStatusBarAndNavigation(true)
                             val intent = Intent(this@AttendDenominationActivity, MainActivity::class.java)
                             intent.putExtra("closeFlag", true)
                             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)

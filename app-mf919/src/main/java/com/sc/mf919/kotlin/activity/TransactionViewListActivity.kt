@@ -161,7 +161,8 @@ class TransactionViewListActivity : ActivityBase(), FragmentTxnHistoryCard.OnFra
         processCardHistoryFragment(filteredTxnList)
     }
 
-    private fun processCardHistoryFragment(cardTxnList: List<DbModelPrintReceipt>){
+    private suspend fun processCardHistoryFragment(cardTxnList: List<DbModelPrintReceipt>) = withContext(Dispatchers.Main) {
+        // Fragment commits are main-thread only; the caller runs on Dispatchers.IO.
         val bundle = Bundle()
         bundle.putParcelableArrayList("transList", ArrayList(cardTxnList))
         val fragment = FragmentTxnHistoryCard()

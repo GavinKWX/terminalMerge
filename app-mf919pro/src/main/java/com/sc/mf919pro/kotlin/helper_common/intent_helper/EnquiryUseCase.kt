@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.helper_common.intent_helper
+import enums.EnumResponseCode
 
 import android.content.Context
 import com.google.gson.Gson
@@ -44,8 +45,8 @@ class EnquiryUseCase {
                         txn["TransactionDateTime"] = transactionDateTime ?: ""
                         Route.Return(txn)
                     } ?: run {
-                        txn[TxnKeys.RESP_CODE] = "SHC008"
-                        txn[TxnKeys.RESP_DESC] = "QR Transaction Not Found"
+                        txn[TxnKeys.RESP_CODE] = EnumResponseCode.QR_TRANSACTION_NOT_FOUND.code
+                        txn[TxnKeys.RESP_DESC] = EnumResponseCode.QR_TRANSACTION_NOT_FOUND.description
                         Route.Return(txn)
                     }
                 } else {
@@ -91,8 +92,8 @@ class EnquiryUseCase {
                 }
             } else {
                 Route.Return(txn.apply {
-                    put(TxnKeys.RESP_CODE, "SHC008")
-                    put(TxnKeys.RESP_DESC, "Transaction Not Found")
+                    put(TxnKeys.RESP_CODE, EnumResponseCode.TRANSACTION_NOT_FOUND.code)
+                    put(TxnKeys.RESP_DESC, EnumResponseCode.TRANSACTION_NOT_FOUND.description)
                 })
             }
         } catch (_: Exception) {

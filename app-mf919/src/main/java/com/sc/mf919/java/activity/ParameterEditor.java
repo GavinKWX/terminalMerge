@@ -1,5 +1,7 @@
 package com.sc.mf919.java.activity;
 
+import constants.TerminalConstants;
+
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.AlertDialog;
@@ -50,7 +52,7 @@ public class ParameterEditor extends AppCompatActivity implements AdapterView.On
         getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
         int width = displayMetrics.widthPixels;
         Utils.debugLogPrint(TAG, "onCreate: " + width);
-        String[] tableNames = {Global.filesInfo.termInfoFile, Global.filesInfo.tmsFile, Global.filesInfo.configFile, /*Global.filesInfo.kiosk, Global.filesInfo.kioskInfo,*/ Global.filesInfo.addFile, Global.filesInfo.selection};
+        String[] tableNames = {TerminalConstants.filesInfo.termInfoFile, TerminalConstants.filesInfo.tmsFile, TerminalConstants.filesInfo.configFile, /*TerminalConstants.filesInfo.kiosk, TerminalConstants.filesInfo.kioskInfo,*/ TerminalConstants.filesInfo.addFile, TerminalConstants.filesInfo.selection};
         Spinner spinner = findViewById(R.id.tablename);
         spinner.setOnItemSelectedListener(this);
         List<String> categories = new ArrayList<>();

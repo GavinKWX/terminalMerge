@@ -20,7 +20,6 @@ import androidx.annotation.RequiresApi
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.lifecycleScope
 import com.sc.mf919.R
-import com.sc.mf919.java.activity.Global
 import com.sc.mf919.java.activity.Utils
 import com.sc.mf919.kotlin.data_enum.variables.TransData
 import com.sc.mf919.kotlin.database.model.DbModelMerchantConfig
@@ -158,9 +157,9 @@ class UnattendActivity: BaseActivity() {
         MfHelper.closeNfcUrlInterface()
         val dbModelTerminalConfig = ServiceHolder.getTerminalConfig()
         if (DbModelTerminalConfig.getBooleanValue(dbModelTerminalConfig, "FORCE_LOCK_HOME")) {
-            HelperCommon.bottomActionBarEvent(applicationContext, "1")
+            MfHelper.lockStatusBarAndNavigation(true)
         } else {
-            HelperCommon.bottomActionBarEvent(applicationContext, "0")
+            MfHelper.lockStatusBarAndNavigation(false)
         }
 
         if(fromDownload) {

@@ -1,4 +1,5 @@
 package com.sc.mf919.kotlin.activity
+import enums.EnumResponseCode
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -237,12 +238,12 @@ class SettlementBnplActivity : ActivityBase() {
 				withContext(Dispatchers.Main) {
 					Toast.makeText(mContext, "Auto Settlement is running", Toast.LENGTH_SHORT).show()
 				}
-				txn_map["ResponseCode"] = "SHC002"
-				txn_map["ResponseDescription"] = "Auto Settlement is running"
+				txn_map["ResponseCode"] = EnumResponseCode.AUTO_SETTLEMENT_RUNNING.code
+				txn_map["ResponseDescription"] = EnumResponseCode.AUTO_SETTLEMENT_RUNNING.description
 				txn_map["TransactionType"] = txnType.toString()
 				try {
-					jObject.put("ResponseCode", "SHC002")
-					jObject.put("ResponseDescription", "Auto Settlement is running")
+					jObject.put("ResponseCode", EnumResponseCode.AUTO_SETTLEMENT_RUNNING.code)
+					jObject.put("ResponseDescription", EnumResponseCode.AUTO_SETTLEMENT_RUNNING.description)
 					jObject.put("TransactionType", txnType.toString())
 				} catch (e: JSONException) {
 					e.printStackTrace()

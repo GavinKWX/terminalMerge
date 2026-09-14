@@ -29,12 +29,12 @@ import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.selectedCacheMo
 import com.sc.mf919.kotlin.helper_common.TmsHelper
 import enums.EnumLogFileName
 import helpers.HelperCommon
-import helpers.HelperCommon.Companion.bottomActionBarEvent
 import helpers.HelperCommon.Companion.disableKey
 import helpers.HelperCommon.Db.Companion.setDebouncedOnClickListener
 import helpers.HelperLog
 import updateConnectionViews
 import java.io.File
+import com.sc.mf919.kotlin.helper_common.MfHelper
 
 class AboutActivity: ActivityBase() {
 	lateinit var main: LinearLayout
@@ -131,7 +131,7 @@ class AboutActivity: ActivityBase() {
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 				val dbModelTerminalConfig = getTerminalConfig()
 				if (DbModelTerminalConfig.getBooleanValue(dbModelTerminalConfig, "FORCE_LOCK_HOME")) {
-					bottomActionBarEvent(this, "0") //Temp Unlocked
+					MfHelper.lockStatusBarAndNavigation(false) //Temp Unlocked
 					disableKey(this, "1")
 				}
 				startActivity(Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY))
@@ -148,7 +148,7 @@ class AboutActivity: ActivityBase() {
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 				val dbModelTerminalConfig = getTerminalConfig()
 				if (DbModelTerminalConfig.getBooleanValue(dbModelTerminalConfig, "FORCE_LOCK_HOME")) {
-					bottomActionBarEvent(this, "0") //Temp Unlocked
+					MfHelper.lockStatusBarAndNavigation(false) //Temp Unlocked
 					disableKey(this, "1")
 				}
 				startActivity(Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY))
@@ -175,7 +175,7 @@ class AboutActivity: ActivityBase() {
 		super.onResume()
 		val dbModelTerminalConfig = ServiceHolder.getTerminalConfig()
 		if (DbModelTerminalConfig.getBooleanValue(dbModelTerminalConfig, "FORCE_LOCK_HOME")) {
-			bottomActionBarEvent(this, "1")
+			MfHelper.lockStatusBarAndNavigation(true)
 			disableKey(this, "0")
 		}
 		updateConnectionViews(this, tvWifi, tvSim)

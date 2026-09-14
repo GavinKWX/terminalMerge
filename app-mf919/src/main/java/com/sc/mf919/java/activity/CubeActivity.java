@@ -1,5 +1,9 @@
 package com.sc.mf919.java.activity;
 
+import emv.EmvTag;
+
+import constants.TerminalConstants;
+
 import android.content.Context;
 import android.os.Build;
 
@@ -130,13 +134,13 @@ public class CubeActivity implements Serializable {
     }
 
     public byte cube_activeAcceptance(byte accType) {
-        if (accType == Global.cube.CUBE_ACCTYPE_EMVCT) {
+        if (accType == TerminalConstants.cube.CUBE_ACCTYPE_EMVCT) {
             Utils.printLog("EMVCT Activated");
             _cube_setActivatedAcceptance(accType);
-        } else if (accType == Global.cube.CUBE_ACCTYPE_EMVCL) {
+        } else if (accType == TerminalConstants.cube.CUBE_ACCTYPE_EMVCL) {
             Utils.printLog("EMVCL Activated");
             _cube_setActivatedAcceptance(accType);
-        } else if (accType == Global.cube.CUBE_ACCTYPE_QR_SCAN) {
+        } else if (accType == TerminalConstants.cube.CUBE_ACCTYPE_QR_SCAN) {
             Utils.printLog("QR Scan Activated");
             _cube_setActivatedAcceptance(accType);
         }
@@ -303,13 +307,13 @@ public class CubeActivity implements Serializable {
         //7. RespCode
 
         String tmp;
-        tmp = tlv_get_value_in_asciistring(Global.cube.CUBE_TAG_TXN_TYPE);
+        tmp = tlv_get_value_in_asciistring(TerminalConstants.cube.CUBE_TAG_TXN_TYPE);
         if (tmp == null) {
             tmp = "";
         }
         txnStatusInfo[0] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_TXN_AMT);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_TXN_AMT);
         if (tmp == null) {
             tmp = "0.00";
         } else {
@@ -317,7 +321,7 @@ public class CubeActivity implements Serializable {
         }
         txnStatusInfo[1] = "RM " + tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_CARDPAN_MASKBCD);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARDPAN_MASKBCD);
         if (tmp == null) {
             tmp = "";
         } else {
@@ -325,13 +329,13 @@ public class CubeActivity implements Serializable {
         }
         txnStatusInfo[2] = tmp;
 
-        tmp = tlv_get_value_in_asciistring(Global.cube.CUBE_TAG_APPRCODE);
+        tmp = tlv_get_value_in_asciistring(TerminalConstants.cube.CUBE_TAG_APPRCODE);
         if (tmp == null) {
             tmp = "";
         }
         txnStatusInfo[3] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_RRN);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_RRN);
         if (tmp == null) {
             tmp = "";
         } else {
@@ -339,7 +343,7 @@ public class CubeActivity implements Serializable {
         }
         txnStatusInfo[4] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_INVNO);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_INVNO);
         if (tmp == null) {
             tmp = "";
         } else {
@@ -347,7 +351,7 @@ public class CubeActivity implements Serializable {
         }
         txnStatusInfo[5] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_TXN_DATETIME7);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_TXN_DATETIME7);
         if (tmp == null) {
             tmp = "";
         } else {
@@ -355,7 +359,7 @@ public class CubeActivity implements Serializable {
         }
         txnStatusInfo[6] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_RESPCODE);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_RESPCODE);
         if (tmp == null) {
             tmp = "";
         } else {
@@ -392,7 +396,7 @@ public class CubeActivity implements Serializable {
         String acqName = acqSetting.getAcqName();
 
         String tmp;
-        tmp = tlv_get_value_in_asciistring(Global.cube.CUBE_TAG_MID);
+        tmp = tlv_get_value_in_asciistring(TerminalConstants.cube.CUBE_TAG_MID);
         if (tmp == null) {
             tmp = "";
         }
@@ -400,7 +404,7 @@ public class CubeActivity implements Serializable {
             receiptInfo[0] = Utils.maskString(tmp, 4);
         } else receiptInfo[0] = tmp;
 
-        tmp = tlv_get_value_in_asciistring(Global.cube.CUBE_TAG_TID);
+        tmp = tlv_get_value_in_asciistring(TerminalConstants.cube.CUBE_TAG_TID);
         if (tmp == null) {
             tmp = "";
         }
@@ -408,19 +412,19 @@ public class CubeActivity implements Serializable {
             receiptInfo[1] = Utils.maskString(tmp, 4);
         } else receiptInfo[1] = tmp;
 
-        tmp = tlv_get_value_in_asciistring(Global.cube.CUBE_TAG_BATCHNO);
+        tmp = tlv_get_value_in_asciistring(TerminalConstants.cube.CUBE_TAG_BATCHNO);
         if (tmp == null) {
             tmp = "";
         }
         receiptInfo[2] = tmp;
 
-        tmp = tlv_get_value_in_asciistring(Global.cube.CUBE_TAG_TXN_TYPE);
+        tmp = tlv_get_value_in_asciistring(TerminalConstants.cube.CUBE_TAG_TXN_TYPE);
         if (tmp == null) {
             tmp = "";
         }
         receiptInfo[3] = Utils.getTxnType(tmp);
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_APPLABEL);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_APPLABEL);
         if (tmp == null) {
             tmp = "";
         } else {
@@ -428,7 +432,7 @@ public class CubeActivity implements Serializable {
         }
         receiptInfo[4] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_CARDPAN_MASKBCD);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARDPAN_MASKBCD);
         if (tmp == null) {
             tmp = "";
         } else {
@@ -436,7 +440,7 @@ public class CubeActivity implements Serializable {
         }
         receiptInfo[5] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_TXN_DATETIME7);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_TXN_DATETIME7);
         if (tmp == null) {
             tmp = "";
         } else {
@@ -444,7 +448,7 @@ public class CubeActivity implements Serializable {
         }
         receiptInfo[6] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_INVNO);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_INVNO);
         if (tmp == null) {
             tmp = "";
         } else {
@@ -452,13 +456,13 @@ public class CubeActivity implements Serializable {
         }
         receiptInfo[7] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_STAN);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_STAN);
         if (tmp == null) {
             tmp = "";
         }
         receiptInfo[8] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_ENTRY_MODE);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE);
         if (tmp == null) {
             tmp = "";
         } else {
@@ -466,7 +470,7 @@ public class CubeActivity implements Serializable {
         }
         receiptInfo[9] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_RRN);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_RRN);
         if (tmp == null) {
             tmp = "";
         } else {
@@ -474,13 +478,13 @@ public class CubeActivity implements Serializable {
         }
         receiptInfo[10] = tmp;
 
-        tmp = tlv_get_value_in_asciistring(Global.cube.CUBE_TAG_APPRCODE);
+        tmp = tlv_get_value_in_asciistring(TerminalConstants.cube.CUBE_TAG_APPRCODE);
         if (tmp == null) {
             tmp = "";
         }
         receiptInfo[11] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_CASH_OUT_AMOUNT);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CASH_OUT_AMOUNT);
         if (tmp == null) {
             tmp = "0.00";
         } else {
@@ -489,7 +493,7 @@ public class CubeActivity implements Serializable {
         receiptInfo[12] = tmp;
 
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_TXN_AMT);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_TXN_AMT);
         if (tmp == null) {
             tmp = "0.00";
         } else {
@@ -497,31 +501,31 @@ public class CubeActivity implements Serializable {
         }
         receiptInfo[13] = tmp;
 
-        tmp = tlv_get_value_in_asciistring(Global.cube.CUBE_TAG_EPP_DETAILS);
+        tmp = tlv_get_value_in_asciistring(TerminalConstants.cube.CUBE_TAG_EPP_DETAILS);
         if (tmp == null) {
             tmp = "";
         }
         receiptInfo[14] = tmp.trim();
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_ARQC);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_ARQC);
         if (tmp == null) {
             tmp = "";
         }
         receiptInfo[15] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_AID);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_AID);
         if (tmp == null) {
             tmp = "";
         }
         receiptInfo[16] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_TVR);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_TVR);
         if (tmp == null) {
             tmp = "";
         }
         receiptInfo[17] = tmp;
 
-        tmp = tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_CVM);
+        tmp = tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_CVM);
         if (tmp == null) {
             tmp = "";
         }

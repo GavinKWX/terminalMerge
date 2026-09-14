@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import helpers.HelperCommon;
+import com.sc.mf919.kotlin.helper_common.MfHelper;
 
 public class TransactionTransmitter extends AppCompatActivity {
     HashMap<String, String> txn_map;
@@ -31,9 +32,9 @@ public class TransactionTransmitter extends AppCompatActivity {
 
         DbModelTerminalConfig terminalConfig = ServiceHolder.Companion.getTerminalConfig();
         if (DbModelTerminalConfig.Companion.getBooleanValue(terminalConfig, "FORCE_LOCK_HOME")) {
-            HelperCommon.bottomActionBarEvent(getApplicationContext(), "1");
+            MfHelper.lockStatusBarAndNavigation(true);
         } else {
-            HelperCommon.bottomActionBarEvent(getApplicationContext(), "0");
+            MfHelper.lockStatusBarAndNavigation(false);
         }
 
         if (settlement_map != null) {

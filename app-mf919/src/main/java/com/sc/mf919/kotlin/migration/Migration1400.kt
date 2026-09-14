@@ -5,7 +5,7 @@ import database.DbHandler
 import com.sc.mf919.kotlin.database.model.DbModelIsoBatchInfo
 import com.sc.mf919.kotlin.database.repo.IsoBatchInfoRepo
 import helpers.HelperLog
-import com.sc.mf919.kotlin.helper_common.HelperLogFileName
+import enums.EnumLogFileName
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import java.lang.StringBuilder
 
@@ -234,7 +234,7 @@ class Migration1400 {
 		/*  Table Exist */
 
 		HelperLog.appendLine(sbLog, "Finish Running Migration 1400")
-		HelperLog.logToFile(sbLog, HelperLogFileName.TerminaLog)
+		HelperLog.logToFile(sbLog, EnumLogFileName.TerminaLog)
 	}
 
 	private fun createTables(tableName: String, tableField: List<String>) {

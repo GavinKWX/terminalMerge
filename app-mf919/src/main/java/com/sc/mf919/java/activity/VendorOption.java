@@ -89,28 +89,7 @@ public class VendorOption extends AppCompatActivity
         finish();
     }
 
-    public void start2EditTable(View view)
-    {
-        DB_PATH = ServiceHolder.Companion.getContext().getApplicationInfo().dataDir + "/databases/";
-
-        File dir = new File(DB_PATH);
-        File[] files = dir.listFiles(new FilenameFilter() {
-            @Override
-            public boolean accept(File file, String s)
-            {
-                return s.toLowerCase().endsWith(".db");
-            }
-        });
-        String[] dbName=new String[files.length];
-        for(int j=0;j<files.length;j++)
-        {
-            dbName[j]=files[j].getName();
-        }
-
-        dbSelectorDialog(dbName);
-    }
-
-    public void startClear(View view)
+        public void startClear(View view)
     {
         /*GeneralMethod.BatchDatabase BD = new GeneralMethod.BatchDatabase();
         GeneralMethod.SettlementDatabase SD = new GeneralMethod.SettlementDatabase();
@@ -202,55 +181,4 @@ public class VendorOption extends AppCompatActivity
         GeneralMethod.waz2payUpdate(waz2pay_check.isChecked());*/
     }
 
-    public void dbSelectorDialog(final String[] list)
-    {
-        final RadioButton[] mRB = new RadioButton[list.length];
-        LayoutInflater li = LayoutInflater.from(this);
-        @SuppressLint("InflateParams") final View promptsView = li.inflate(R.layout.activity_dbselector, null);
-        final AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this, R.style.DialogThemeColor);
-        alertDialogBuilder.setView(promptsView);
-        LinearLayout.LayoutParams Lay = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        final RadioGroup mRG = promptsView.findViewById(R.id.selectorLayout);
-        for (int i = 0; i < list.length; i++)
-        {
-            mRB[i] = new RadioButton(this);
-            mRB[i].setId(i + 1);
-            mRB[i].setLayoutParams(Lay);
-            mRB[i].setText(list[i]);
-            mRB[i].setTextColor(getResources().getColor(R.color.dialogMsg));
-            mRG.addView(mRB[i]);
-            mRG.check(mRB[i].getId());
-        }
-
-        // set dialog message
-        alertDialogBuilder.setCancelable(false)
-                .setNegativeButton("OK",new DialogInterface.OnClickListener()
-                {
-                    public void onClick(DialogInterface dialog, int id)
-                    {
-                        int selectedId = mRG.getCheckedRadioButtonId();
-                        RadioButton radioButton = promptsView.findViewById(selectedId);
-                        String value = radioButton.getText().toString();
-
-                        Intent intent = new Intent(VendorOption.this, ViewTableContain.class);
-                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                        intent.putExtra("dbName",value);
-                        startActivity(intent);
-                        finish();
-                    }
-                })
-                .setPositiveButton("Cancel",new DialogInterface.OnClickListener()
-                {
-                    public void onClick(DialogInterface dialog, int id)
-                    {
-                        dialog.dismiss();
-                    }
-
-                }
-                );
-
-        AlertDialog alert11 = alertDialogBuilder.create();
-        alert11.show();
     }
-
-}

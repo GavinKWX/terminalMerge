@@ -1,4 +1,9 @@
 package com.sc.mf919.kotlin.helper_common.iso
+import iso.IsoInfoModel
+import iso.IsoHelperNew
+import iso.bsn.IsoStepsBSNNew
+import iso.bsn_cardzone.IsoStepsBsnCardZone
+import iso.gobiz.IsoStepsGobiz
 
 import android.content.Context
 import android.os.Build
@@ -6,13 +11,13 @@ import androidx.annotation.RequiresApi
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.library.terminal.Utility
-import com.sc.mf919.java.activity.EmvTag
-import com.sc.mf919.java.activity.Global
-import com.sc.mf919.java.activity.IsoComm
+import emv.EmvTag
+import constants.TerminalConstants
+import iso.IsoComm
 import com.sc.mf919.java.activity.IsoFiles
 import com.sc.mf919.java.activity.UploadTMS
 import com.sc.mf919.java.activity.Utils
-import com.sc.mf919.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.HexUtil
 import com.sc.mf919.kotlin.activity.AppServices
 import com.sc.mf919.kotlin.activity.SettlementActivity
@@ -39,15 +44,13 @@ import com.sc.mf919.kotlin.database.repo.SettlementSummaryRepo
 import com.sc.mf919.kotlin.datastore.DataStoreManager
 import com.sc.mf919.kotlin.datastore.PrefKeys
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
+import helpers.LogRedact
 import helpers.StorageGuard
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.isoComm
 import com.sc.mf919.kotlin.helper_common.TmsHelper.sendWriteLog
-import com.sc.mf919.kotlin.helper_common.iso.bsn.IsoStepsBSNNew
-import com.sc.mf919.kotlin.helper_common.iso.bsn_cardzone.IsoStepsBsnCardZone
-import com.sc.mf919.kotlin.helper_common.iso.gobiz.IsoStepsGobiz
-import com.sc.mf919.kotlin.helper_common.iso.paydee.IsoStepsNew
+import iso.paydee.IsoStepsNew
 import enums.EnumDateFormat
-import com.sc.mf919.kotlin.helper_common.HelperLogFileName
+
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperLog
@@ -83,23 +86,31 @@ object IsoActivity: Serializable {
 
     val isHostRequestInFlight: Boolean get() = hostRequestsInFlight.get() > 0
 
-    private val logClassName: String = this::class.java.simpleName
-
     /**
-     * Mask cardholder data before it reaches the log file.
+     * Hold the guard across a whole flow, not just the network call.
      *
-     * magTrack2 is full magstripe track2 and the "Track2" line is actually DF02 (the PAN), so both
-     * put a real card number into TerminaLog.txt, which uploadAllTerminalLog ships to TMS. Keeps
-     * the masked PAN so a transaction is still identifiable; drops expiry, service code and
-     * discretionary data. Note track3 is EMV tag data (8202...), not card data, and is left alone.
+     * `sendToHost` raises the counter itself, which covers the 0200 and the response parse. The
+     * window that actually needs protecting is wider: it runs from before the ISO is built to
+     * after the approval has been persisted, and a back press in that tail would blank
+     * stan/invoiceNo/respCode with the card already charged.
+     *
+     * Nesting is why this is a counter -- the block calls `sendToHost` itself, sometimes more than
+     * once, and each call increments and decrements again inside.
      */
-    private fun maskPanLike(value: String): String {
-        val sep = value.indexOfFirst { it == 'D' || it == 'd' || it == '=' }
-        val pan = if (sep > 0) value.substring(0, sep) else value
-        return Utils.hideCardDetails(pan) + if (sep > 0) "<redacted> (len=${value.length})" else ""
+    fun <T> withHostRequest(block: () -> T): T {
+        hostRequestsInFlight.incrementAndGet()
+        try {
+            return block()
+        } finally {
+            hostRequestsInFlight.decrementAndGet()
+        }
     }
 
+    private val logClassName: String = this::class.java.simpleName
 
+    // Card data is masked with helpers.LogRedact.track2 -- audit item A1. magTrack2 is full
+    // magstripe track2 and the "Track2" line is actually DF02 (the PAN), so both would otherwise
+    // put a real card number into the TerminaLog that gets uploaded to TMS.
 
     // Post-transaction persistence: batch, receipt, reversal and pre-auth rows. These all run AFTER
     // the customer may already have been charged, and DbHandler now propagates disk-full failures
@@ -118,7 +129,7 @@ object IsoActivity: Serializable {
                 val sb = HelperLog.init("IsoActivity - persistence")
                 HelperLog.appendLine(sb, "PERSISTENCE FAILED ($what) :: $e")
                 HelperLog.appendLine(sb, "Transaction may be missing from the terminal -- reconcile against host")
-                HelperLog.logToFile(sb, HelperLogFileName.TerminaLogException)
+                HelperLog.logToFile(sb, EnumLogFileName.TerminaLogException)
             } catch (_: Exception) { /* never let the handler itself throw */ }
         })
 
@@ -253,10 +264,10 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "ABORT processOnlineSale :: insufficient storage " +
                 "(${StorageGuard.describe(context)}) -- transaction not started")
             log.logToFile(EnumLogFileName.TerminaLogException)
-            TransData.transResult = Global.iso.err.txnNotAllowed
+            TransData.transResult = TerminalConstants.iso.err.txnNotAllowed
             // Surfaces as "Storage Full - Contact Support" on the result/acknowledge screen instead of a
             // bare "Failed". Also keeps the reversal loop in EmvActivity from firing on an empty code.
-            TransData.respCode = Utils.ASCIItoHexString("ZS")
+            TransData.respCode = StorageGuard.RESP_CODE_HEX
             return
         }
 
@@ -277,7 +288,7 @@ object IsoActivity: Serializable {
 
             val track2 = if (TransData.magTrack2Len > 0){
                 val magTrack2str = Utils.byteArrayToAsciiString(TransData.magTrack2, 0, TransData.magTrack2Len)
-                log.appendLine(logClassName, "magTrack2 :: ${maskPanLike(magTrack2str)}")
+                log.appendLine(logClassName, "magTrack2 :: ${LogRedact.track2(magTrack2str)}")
                 magTrack2str
             } else {
                 EmvUtil.readTrack2()
@@ -298,19 +309,19 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "Batch No :: ${TransData.batchNo}")
             TransData.maskedPan = Utils.hideCardDetails(cardMask)
             log.appendLine(logClassName, "Masked Pan :: ${TransData.maskedPan}")
-            TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(cardMask)))
+            TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(cardMask)))
             TransData.hashedPan = cardMask.substring(0,9)
             log.appendLine(logClassName, "Hashed Pan :: ${TransData.hashedPan}")
-            TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(TransData.hashedPan))
+            TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(TransData.hashedPan))
             if(track2Delimiter > 0){
                 val cardExp = track2.substring(track2Delimiter + 1, track2Delimiter + 5)
                 TransData.addHexStrWithPadIntoTransDB("DF02", cardMask, "F")
                 TransData.addHexStrIntoTransDB("DF14", cardExp)
-                TransData.addHexStrIntoTransDB(Global.iso.tag.PANSTRING, cardMask)
-                TransData.addHexStrIntoTransDB(Global.iso.tag.EXPDATE, cardExp)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.PANSTRING, cardMask)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.EXPDATE, cardExp)
             }
             TransData.addHexStrIntoTransDB("DA", TransData.schemeId)
-            TransData.addHexStrIntoTransDB(Global.iso.tag.MTI, isoInfoModel.mti)
+            TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.MTI, isoInfoModel.mti)
             TransData.addHexStrIntoTransDB("DF03", isoInfoModel.processCode)
             TransData.addTlvIntoTransDB("DF04", TransData.amountAuth, 0, TransData.amountAuth.size)
             TransData.addHexStrIntoTransDB("DF11", TransData.stan)
@@ -336,7 +347,7 @@ object IsoActivity: Serializable {
             }
 
             IsoBatchInfoRepo.getBatchInfo(context, "isoTpduHeaderTle", TransData.schemeTag) ?.let {
-                TransData.addHexStrIntoTransDB(Global.iso.tag.TPDU, it.value)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.TPDU, it.value)
             } ?: run { "" }
 
             IsoBatchInfoRepo.getBatchInfo(context, "niiTle", TransData.schemeTag) ?.let {
@@ -415,12 +426,12 @@ object IsoActivity: Serializable {
 
                 log.appendLine(logClassName, "Transaction Result :: ${TransData.transResult}")
                 log.appendLine(logClassName, "Response Code ::${TransData.respCode}")
-                if (TransData.transResult == Global.iso.err.txnApproved) {
+                if (TransData.transResult == TerminalConstants.iso.err.txnApproved) {
                     persistenceScope("insertIntoBatchTable").launch {
                         insertIntoBatchTable(context)
                         //insertIntoPrintReceipt(context)
                     }
-                } else if (TransData.transResult == Global.iso.err.communicationTimeout || TransData.respCode.isEmpty()) {
+                } else if (TransData.transResult == TerminalConstants.iso.err.communicationTimeout || TransData.respCode.isEmpty()) {
                     persistenceScope("insertIntoRevBatchTable").launch {
                         insertIntoRevBatchTable(context)
                     }
@@ -454,10 +465,10 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "ABORT processPreauth :: insufficient storage " +
                 "(${StorageGuard.describe(context)}) -- transaction not started")
             log.logToFile(EnumLogFileName.TerminaLogException)
-            TransData.transResult = Global.iso.err.txnNotAllowed
+            TransData.transResult = TerminalConstants.iso.err.txnNotAllowed
             // Surfaces as "Storage Full - Contact Support" on the result/acknowledge screen instead of a
             // bare "Failed". Also keeps the reversal loop in EmvActivity from firing on an empty code.
-            TransData.respCode = Utils.ASCIItoHexString("ZS")
+            TransData.respCode = StorageGuard.RESP_CODE_HEX
             return
         }
 
@@ -485,19 +496,19 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "Batch No :: ${TransData.batchNo}")
             TransData.maskedPan = Utils.hideCardDetails(cardMask)
             log.appendLine(logClassName, "Masked Pan :: ${TransData.maskedPan}")
-            TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(cardMask)))
+            TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(cardMask)))
             TransData.hashedPan = cardMask.substring(0,9)
             log.appendLine(logClassName, "Hashed Pan :: ${TransData.hashedPan}")
-            TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(TransData.hashedPan))
+            TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(TransData.hashedPan))
             if(track2Delimiter > 0){
                 val cardExp = track2.substring(track2Delimiter + 1, track2Delimiter + 5)
                 TransData.addHexStrWithPadIntoTransDB("DF02", cardMask, "F")
                 TransData.addHexStrIntoTransDB("DF14", cardExp)
-                TransData.addHexStrIntoTransDB(Global.iso.tag.PANSTRING, cardMask)
-                TransData.addHexStrIntoTransDB(Global.iso.tag.EXPDATE, cardExp)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.PANSTRING, cardMask)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.EXPDATE, cardExp)
             }
             TransData.addHexStrIntoTransDB("DA", TransData.schemeId)
-            TransData.addHexStrIntoTransDB(Global.iso.tag.MTI, isoInfoModel.mti)
+            TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.MTI, isoInfoModel.mti)
             TransData.addHexStrIntoTransDB("DF03", isoInfoModel.processCode)
             TransData.addTlvIntoTransDB("DF04", TransData.amountAuth, 0, TransData.amountAuth.size)
             TransData.addHexStrIntoTransDB("DF11", TransData.stan)
@@ -522,7 +533,7 @@ object IsoActivity: Serializable {
             }
 
             IsoBatchInfoRepo.getBatchInfo(context, "isoTpduHeaderTle", TransData.schemeTag) ?.let {
-                TransData.addHexStrIntoTransDB(Global.iso.tag.TPDU, it.value)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.TPDU, it.value)
             } ?: run { "" }
 
             IsoBatchInfoRepo.getBatchInfo(context, "niiTle", TransData.schemeTag) ?.let {
@@ -567,12 +578,12 @@ object IsoActivity: Serializable {
                 checkTransactionStatus(context, log)
 
                 log.appendLine(logClassName, "Transaction Result :: ${TransData.transResult}")
-                if (TransData.transResult == Global.iso.err.txnApproved) {
+                if (TransData.transResult == TerminalConstants.iso.err.txnApproved) {
                     persistenceScope("insertIntoPreauthTable").launch {
                         insertIntoPreauthTable(context)
                         //insertIntoPrintReceipt(context)
                     }
-                } else if (!TransData.schemeType.equals("MCCS", false) && (TransData.transResult == Global.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
+                } else if (!TransData.schemeType.equals("MCCS", false) && (TransData.transResult == TerminalConstants.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
                     persistenceScope("insertIntoRevBatchTable").launch {
                         insertIntoRevBatchTable(context)
                     }
@@ -593,7 +604,6 @@ object IsoActivity: Serializable {
         log.logToFile(EnumLogFileName.TerminaLog)
     }
 
-
     @JvmStatic
     @RequiresApi(Build.VERSION_CODES.O)
     fun processSaleComp(context: Context, log: HelperLog){
@@ -604,7 +614,7 @@ object IsoActivity: Serializable {
             TransData.transIsoInfoModel = isoInfoModel
             log.appendLine(logClassName, "Transform Batch Data")
             invokeFunction(TransData.acqCode.uppercase(), "transformBatchData", context)
-            TransData.addHexStrIntoTransDB(Global.iso.tag.MTI, isoInfoModel.mti)
+            TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.MTI, isoInfoModel.mti)
             TransData.addHexStrIntoTransDB("DF03", isoInfoModel.processCode)
 
             TransData.removeTlvFromTransDb("DF04")
@@ -638,14 +648,14 @@ object IsoActivity: Serializable {
                 checkTransactionStatus(context, log)
 
                 log.appendLine(logClassName, "Transaction Result :: ${TransData.transResult}")
-                if (TransData.transResult == Global.iso.err.txnApproved) {
+                if (TransData.transResult == TerminalConstants.iso.err.txnApproved) {
                     persistenceScope("insertIntoBatchTable").launch {
                         insertIntoBatchTable(context)
                         insertIntoPrintReceipt(context)
                         deleteVoidedInPreauthTable(context)
                         deleteVoidPreAuthInPrintReceipt(context)
                     }
-                } else if (!TransData.schemeType.equals("MCCS", false) && (TransData.transResult == Global.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
+                } else if (!TransData.schemeType.equals("MCCS", false) && (TransData.transResult == TerminalConstants.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
                     persistenceScope("insertIntoRevBatchTable").launch {
                         insertIntoRevBatchTable(context)
                     }
@@ -681,7 +691,7 @@ object IsoActivity: Serializable {
             TransData.schemeTag = "visam"
             val track2 = if (TransData.magTrack2Len > 0){
                 val magTrack2str = Utils.byteArrayToAsciiString(TransData.magTrack2, 0, TransData.magTrack2Len)
-                log.appendLine(logClassName, "magTrack2 :: ${maskPanLike(magTrack2str)}")
+                log.appendLine(logClassName, "magTrack2 :: ${LogRedact.track2(magTrack2str)}")
                 magTrack2str
             } else {
                 EmvUtil.readTrack2()
@@ -702,19 +712,19 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "Batch No :: ${TransData.batchNo}")
             TransData.maskedPan = Utils.hideCardDetails(cardMask)
             log.appendLine(logClassName, "Masked Pan :: ${TransData.maskedPan}")
-            TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(cardMask)))
+            TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(cardMask)))
             TransData.hashedPan = cardMask.substring(0,9)
             log.appendLine(logClassName, "Hashed Pan :: ${TransData.hashedPan}")
-            TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(TransData.hashedPan))
+            TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(TransData.hashedPan))
             if(track2Delimiter > 0){
                 val cardExp = track2.substring(track2Delimiter + 1, track2Delimiter + 5)
                 TransData.addHexStrWithPadIntoTransDB("DF02", cardMask, "F")
                 TransData.addHexStrIntoTransDB("DF14", cardExp)
-                TransData.addHexStrIntoTransDB(Global.iso.tag.PANSTRING, cardMask)
-                TransData.addHexStrIntoTransDB(Global.iso.tag.EXPDATE, cardExp)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.PANSTRING, cardMask)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.EXPDATE, cardExp)
             }
             TransData.addHexStrIntoTransDB("DA", TransData.schemeId)
-            TransData.addHexStrIntoTransDB(Global.iso.tag.MTI, isoInfoModel.mti)
+            TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.MTI, isoInfoModel.mti)
             TransData.addHexStrIntoTransDB("DF03", isoInfoModel.processCode)
             TransData.addTlvIntoTransDB("DF04", TransData.amountAuth, 0, TransData.amountAuth.size)
             TransData.addHexStrIntoTransDB("DF11", TransData.stan)
@@ -742,7 +752,7 @@ object IsoActivity: Serializable {
             }
 
             IsoBatchInfoRepo.getBatchInfo(context, "isoTpduHeaderTle", TransData.schemeTag) ?.let {
-                TransData.addHexStrIntoTransDB(Global.iso.tag.TPDU, it.value)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.TPDU, it.value)
             } ?: run { "" }
 
             IsoBatchInfoRepo.getBatchInfo(context, "niiTle", TransData.schemeTag) ?.let {
@@ -788,14 +798,14 @@ object IsoActivity: Serializable {
                 checkTransactionStatus(context, log)
 
                 log.appendLine(logClassName, "Transaction Result :: ${TransData.transResult}")
-                if (TransData.transResult == Global.iso.err.txnApproved) {
+                if (TransData.transResult == TerminalConstants.iso.err.txnApproved) {
                     persistenceScope("insertIntoBatchTable").launch {
                         insertIntoBatchTable(context)
                         insertIntoPrintReceipt(context)
                         deleteVoidedInPreauthTable(context)
                         deleteVoidPreAuthInPrintReceipt(context)
                     }
-                } else if (!TransData.schemeType.equals("MCCS", false) && (TransData.transResult == Global.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
+                } else if (!TransData.schemeType.equals("MCCS", false) && (TransData.transResult == TerminalConstants.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
                     persistenceScope("insertIntoRevBatchTable").launch {
                         insertIntoRevBatchTable(context)
                     }
@@ -826,7 +836,7 @@ object IsoActivity: Serializable {
             TransData.transIsoInfoModel = isoInfoModel
             log.appendLine(logClassName, "Transform Batch Data")
             invokeFunction(TransData.acqCode.uppercase(), "transformBatchData", context)
-            TransData.addHexStrIntoTransDB(Global.iso.tag.MTI, isoInfoModel.mti)
+            TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.MTI, isoInfoModel.mti)
             TransData.addHexStrIntoTransDB("DF03", isoInfoModel.processCode)
             TransData.addHexStrIntoTransDB("DF11", TransData.stan)
 
@@ -849,7 +859,7 @@ object IsoActivity: Serializable {
                 invokeFunction(TransData.acqCode.uppercase(), "derivedFutureKey", context, log)
             }
             log.appendLine(logClassName, "Transaction Result :: ${TransData.transResult}")
-            if (TransData.transResult == Global.iso.err.txnApproved) {
+            if (TransData.transResult == TerminalConstants.iso.err.txnApproved) {
                 persistenceScope("deleteVoidedInBatchTable").launch {
                     deleteVoidedInBatchTable(context)
                     insertIntoPrintReceipt(context)
@@ -878,7 +888,7 @@ object IsoActivity: Serializable {
             TransData.transIsoInfoModel = isoInfoModel
             log.appendLine(logClassName, "Transform Batch Data")
             invokeFunction(TransData.acqCode.uppercase(), "transformBatchData", context)
-            TransData.addHexStrIntoTransDB(Global.iso.tag.MTI, isoInfoModel.mti)
+            TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.MTI, isoInfoModel.mti)
             TransData.addHexStrIntoTransDB("DF03", isoInfoModel.processCode)
             TransData.addHexStrIntoTransDB("DF11", TransData.stan)
 
@@ -900,7 +910,7 @@ object IsoActivity: Serializable {
                 invokeFunction(TransData.acqCode.uppercase(), "derivedFutureKey", context, log)
             }
             log.appendLine(logClassName, "Transaction Result :: ${TransData.transResult}")
-            if (TransData.transResult == Global.iso.err.txnApproved) {
+            if (TransData.transResult == TerminalConstants.iso.err.txnApproved) {
                 persistenceScope("deleteVoidedInPreauthTable").launch {
                     deleteVoidedInPreauthTable(context)
                     deleteVoidPreAuthInPrintReceipt(context)
@@ -929,7 +939,7 @@ object IsoActivity: Serializable {
             TransData.transIsoInfoModel = isoInfoModel
             log.appendLine(logClassName, "Transform Batch Data")
             invokeFunction(TransData.acqCode.uppercase(), "transformBatchData", context)
-            TransData.addHexStrIntoTransDB(Global.iso.tag.MTI, isoInfoModel.mti)
+            TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.MTI, isoInfoModel.mti)
             TransData.addHexStrIntoTransDB("DF03", isoInfoModel.processCode)
             TransData.addHexStrIntoTransDB("DF11", TransData.stan)
 
@@ -951,7 +961,7 @@ object IsoActivity: Serializable {
                 invokeFunction(TransData.acqCode.uppercase(), "derivedFutureKey", context, log)
             }
             log.appendLine(logClassName, "Transaction Result :: ${TransData.transResult}")
-            if (TransData.transResult == Global.iso.err.txnApproved) {
+            if (TransData.transResult == TerminalConstants.iso.err.txnApproved) {
                 persistenceScope("deleteVoidedInBatchTable").launch {
                     deleteVoidedInBatchTable(context)
                     deleteVoidedSaleCompInPrintReceipt(context)
@@ -983,10 +993,10 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "ABORT processEppSale :: insufficient storage " +
                 "(${StorageGuard.describe(context)}) -- transaction not started")
             log.logToFile(EnumLogFileName.TerminaLogException)
-            TransData.transResult = Global.iso.err.txnNotAllowed
+            TransData.transResult = TerminalConstants.iso.err.txnNotAllowed
             // Surfaces as "Storage Full - Contact Support" on the result/acknowledge screen instead of a
             // bare "Failed". Also keeps the reversal loop in EmvActivity from firing on an empty code.
-            TransData.respCode = Utils.ASCIItoHexString("ZS")
+            TransData.respCode = StorageGuard.RESP_CODE_HEX
             return
         }
 
@@ -1015,19 +1025,19 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "Batch No :: ${TransData.batchNo}")
             TransData.maskedPan = Utils.hideCardDetails(cardMask)
             log.appendLine(logClassName, "Masked Pan :: ${TransData.maskedPan}")
-            TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(cardMask)))
+            TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(cardMask)))
             TransData.hashedPan = cardMask.substring(0,9)
             log.appendLine(logClassName, "Hashed Pan :: ${TransData.hashedPan}")
-            TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(TransData.hashedPan))
+            TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(TransData.hashedPan))
             if(track2Delimiter > 0){
                 val cardExp = track2.substring(track2Delimiter + 1, track2Delimiter + 5)
                 TransData.addHexStrWithPadIntoTransDB("DF02", cardMask, "F")
                 TransData.addHexStrIntoTransDB("DF14", cardExp)
-                TransData.addHexStrIntoTransDB(Global.iso.tag.PANSTRING, cardMask)
-                TransData.addHexStrIntoTransDB(Global.iso.tag.EXPDATE, cardExp)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.PANSTRING, cardMask)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.EXPDATE, cardExp)
             }
             TransData.addHexStrIntoTransDB("DA", TransData.schemeId)
-            TransData.addHexStrIntoTransDB(Global.iso.tag.MTI, isoInfoModel.mti)
+            TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.MTI, isoInfoModel.mti)
             TransData.addHexStrIntoTransDB("DF03", isoInfoModel.processCode)
             TransData.addTlvIntoTransDB("DF04", TransData.amountAuth, 0, TransData.amountAuth.size)
             TransData.addHexStrIntoTransDB("DF11", TransData.stan)
@@ -1052,7 +1062,7 @@ object IsoActivity: Serializable {
             }
 
             IsoBatchInfoRepo.getBatchInfo(context, "isoTpduHeaderTle", TransData.schemeTag) ?.let {
-                TransData.addHexStrIntoTransDB(Global.iso.tag.TPDU, it.value)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.TPDU, it.value)
             } ?: run { "" }
 
             IsoBatchInfoRepo.getBatchInfo(context, "niiTle", TransData.schemeTag) ?.let {
@@ -1097,12 +1107,12 @@ object IsoActivity: Serializable {
                 checkTransactionStatus(context, log)
 
                 log.appendLine(logClassName, "Transaction Result :: ${TransData.transResult}")
-                if (TransData.transResult == Global.iso.err.txnApproved) {
+                if (TransData.transResult == TerminalConstants.iso.err.txnApproved) {
                     persistenceScope("insertIntoBatchTable").launch {
                         insertIntoBatchTable(context)
                         //insertIntoPrintReceipt(context)
                     }
-                } else if (TransData.transResult == Global.iso.err.communicationTimeout || TransData.respCode.isEmpty()) {
+                } else if (TransData.transResult == TerminalConstants.iso.err.communicationTimeout || TransData.respCode.isEmpty()) {
                     persistenceScope("insertIntoRevBatchTable").launch {
                         insertIntoRevBatchTable(context)
                     }
@@ -1346,12 +1356,12 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "Batch No :: ${TransData.batchNo}")
 
             IsoBatchInfoRepo.getBatchInfo(context, "isoTpduHeaderTle", TransData.schemeTag) ?.let {
-                TransData.addHexStrIntoTransDB(Global.iso.tag.TPDU, it.value)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.TPDU, it.value)
             }
             IsoBatchInfoRepo.getBatchInfo(context, "niiTle", TransData.schemeTag) ?.let {
                 TransData.addHexStrIntoTransDB("DF24", it.value)
             }
-            TransData.addHexStrIntoTransDB(Global.iso.tag.MTI, isoInfoModel.mti)
+            TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.MTI, isoInfoModel.mti)
             TransData.addHexStrIntoTransDB("DF03", isoInfoModel.processCode)
             TransData.addHexStrIntoTransDB("DF11", TransData.stan)
             TransData.addHexStrIntoTransDB("DF41", HexUtil.str2HexStr(TransData.tid))
@@ -1387,7 +1397,7 @@ object IsoActivity: Serializable {
             AppServices.receiptUploadToTms(context)
         }
 
-        if(TransData.transResult == Global.iso.err.txnApproved){
+        if(TransData.transResult == TerminalConstants.iso.err.txnApproved){
             val (_, requireSignOn, _, _) = ServiceHolder.getAcquirerSetting()
             if(requireSignOn){
                 //TODO
@@ -1426,13 +1436,27 @@ object IsoActivity: Serializable {
             var currItem = 0
             for (transItem in batchTransList) {
                 if(!ServiceHolder.autoSettlementIsRunning) {
-                    TransData.transResult = Global.iso.err.txnNotCompleted
+                    TransData.transResult = TerminalConstants.iso.err.txnNotCompleted
                     TransData.respCode = Utility.ASCIItoHexString("SHC005")
                     return 0x3936
                 }
 
                 TransData.loadingMessage = "Uploading...(${++currItem}/${batchTransList.size})"
                 var retryCount = 5
+                // D7 -- batch upload reads each record's PAN from the batch table, the same
+                // source a void uses, and nothing else registers it on this path. Without this the
+                // 0320 forming logs DF02, DF63 and DE2 in the clear -- and so does the line below,
+                // which prints the whole batch record.
+                try {
+                    val bPan = ByteArray(12)
+                    val panLen = EmvTag().getValueFrom(HexUtil.hexStringToByte(transItem.batchData), "DF02", bPan)
+                    if (panLen > 0) {
+                        LogRedact.registerCardData(HexUtil.bytesToHexString(bPan, 0, panLen).replace("F", ""), null)
+                    }
+                } catch (ex: Exception) {
+                    // Redaction must never be the reason a settlement fails.
+                    ex.printStackTrace()
+                }
                 log.appendLine(logClassName, "Batch Upload Transaction :: $transItem")
                 val emvTag = EmvTag()
 
@@ -1598,10 +1622,10 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "ABORT processMoto :: insufficient storage " +
                 "(${StorageGuard.describe(context)}) -- transaction not started")
             log.logToFile(EnumLogFileName.TerminaLogException)
-            TransData.transResult = Global.iso.err.txnNotAllowed
+            TransData.transResult = TerminalConstants.iso.err.txnNotAllowed
             // Surfaces as "Storage Full - Contact Support" on the result/acknowledge screen instead of a
             // bare "Failed". Also keeps the reversal loop in EmvActivity from firing on an empty code.
-            TransData.respCode = Utils.ASCIItoHexString("ZS")
+            TransData.respCode = StorageGuard.RESP_CODE_HEX
             return
         }
 
@@ -1625,9 +1649,9 @@ object IsoActivity: Serializable {
             TransData.batchNo = IsoBatchInfoRepo.getBatchInfo(context, "batchNo", TransData.schemeTag)?.value ?: "000001"
             log.appendLine(logClassName, "Batch No >> ${TransData.batchNo}")
             log.appendLine(logClassName, "Masked Pan >> ${TransData.maskedPan}")
-            TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(TransData.maskedPan))
+            TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(TransData.maskedPan))
             log.appendLine(logClassName, "Hashed Pan >> ${TransData.hashedPan}")
-            TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(TransData.hashedPan))
+            TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(TransData.hashedPan))
 
             val cardNo = Utils.byteArrayToAsciiString(TransData.pan,0,TransData.panLen)
             TransData.addHexStrWithPadIntoTransDB("DF02", cardNo, "F")
@@ -1635,7 +1659,7 @@ object IsoActivity: Serializable {
             TransData.addHexStrIntoTransDB("DF14", cardExpDt)
 
             TransData.addHexStrIntoTransDB("DA", TransData.schemeId)
-            TransData.addHexStrIntoTransDB(Global.iso.tag.MTI, isoInfoModel.mti)
+            TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.MTI, isoInfoModel.mti)
             TransData.addHexStrIntoTransDB("DF03", isoInfoModel.processCode)
             TransData.addTlvIntoTransDB("DF04", TransData.amountAuth, 0, TransData.amountAuth.size)
             TransData.addHexStrIntoTransDB("DF11", TransData.stan)
@@ -1661,7 +1685,7 @@ object IsoActivity: Serializable {
             TransData.addHexStrIntoTransDB("DF63", de63)
 
             IsoBatchInfoRepo.getBatchInfo(context, "isoTpduHeaderTle", TransData.schemeTag) ?.let {
-                TransData.addHexStrIntoTransDB(Global.iso.tag.TPDU, it.value)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.TPDU, it.value)
             } ?: run { "" }
 
             IsoBatchInfoRepo.getBatchInfo(context, "niiTle", TransData.schemeTag) ?.let {
@@ -1715,7 +1739,7 @@ object IsoActivity: Serializable {
 
                 println("Transaction Result -> ${TransData.transResult}")
                 log.appendLine(logClassName, "Transaction Result -> ${TransData.transResult}")
-                if (TransData.transResult == Global.iso.err.txnApproved) {
+                if (TransData.transResult == TerminalConstants.iso.err.txnApproved) {
                     persistenceScope("insertIntoBatchTable").launch {
                         insertIntoBatchTable(context)
                         insertIntoPrintReceipt(context)
@@ -1791,15 +1815,15 @@ object IsoActivity: Serializable {
                 }
             } else {
                 log.appendLine(logClassName, "FAILED")
-                if (iConResp == Global.iso.err.connectionFailed) {
+                if (iConResp == TerminalConstants.iso.err.connectionFailed) {
                     log.appendLine(logClassName, "Connection Error. No Reversal Needed")
                     if(!isReturnValue) {
-                        TransData.transResult = Global.iso.err.connectionFailed
+                        TransData.transResult = TerminalConstants.iso.err.connectionFailed
                     }
                 } else {
                     log.appendLine(logClassName, "Transmit Error. Reversal Needed")
                     if(!isReturnValue) {
-                        TransData.transResult = Global.iso.err.communicationTimeout
+                        TransData.transResult = TerminalConstants.iso.err.communicationTimeout
                     }
                 }
             }
@@ -1910,13 +1934,13 @@ object IsoActivity: Serializable {
         val strRrn = TransData.rrn
         val strApprCode = TransData.approvalCode
         val strRespCode = Utility.HexString2ASCII(TransData.respCode)
-        val mti = TransData.getFromTransactionDb(Global.iso.tag.MTI, 16)
-        val strARQC = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ARQC, 16)
-        val strTVR = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_TVR, 16)
+        val mti = TransData.getFromTransactionDb(TerminalConstants.iso.tag.MTI, 16)
+        val strARQC = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, 16)
+        val strTVR = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_TVR, 16)
         val valueHM = java.util.HashMap<Any, Any>()
         var strEppDetails: String? = null
         if(TransData.salesType == ProductCatSelectionDataEnum.EPP.data.SalesType) {
-            strEppDetails = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_EPP_DETAILS, 256).trim()
+            strEppDetails = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_EPP_DETAILS, 256).trim()
         }
         val hmEppDetails = parseEppDetailsJson(strEppDetails)
 
@@ -1948,9 +1972,9 @@ object IsoActivity: Serializable {
         val strRrn = TransData.rrn
         val strApprCode = TransData.approvalCode
         val strRespCode = Utility.HexString2ASCII(TransData.respCode)
-        val mti = TransData.getFromTransactionDb(Global.iso.tag.MTI, 16)
-        val strARQC = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ARQC, 16)
-        val strTVR = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_TVR, 16)
+        val mti = TransData.getFromTransactionDb(TerminalConstants.iso.tag.MTI, 16)
+        val strARQC = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, 16)
+        val strTVR = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_TVR, 16)
         val valueHM = java.util.HashMap<Any, Any>()
         //TODO UPDATE CASHOUT AMOUNT
         //valueHM["TXN_AMT"] = TransData.
@@ -2081,13 +2105,13 @@ object IsoActivity: Serializable {
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     fun checkTransactionStatus(context: Context, log: HelperLog) {
-        val respMti = TransData.getFromTransactionDb(Global.iso.tag.MTI_RESP, 16)
+        val respMti = TransData.getFromTransactionDb(TerminalConstants.iso.tag.MTI_RESP, 16)
         var respCode = TransData.getFromTransactionDb("BF39", 16)
         var intRespCode = 0x3936
         //val reqStan = TransData.getFromTransactionDb("DF11", 16)
         val reqStan = TransData.stan
         val respStan = TransData.getFromTransactionDb("BF11", 16)
-        if(TransData.transResult == Global.iso.err.communicationTimeout) {
+        if(TransData.transResult == TerminalConstants.iso.err.communicationTimeout) {
             respCode = Utils.ASCIItoHexString("ZU")
         }
 
@@ -2112,16 +2136,16 @@ object IsoActivity: Serializable {
         }
 
         TransData.respCode = respCode
-        val approvalCode = Utility.HexString2ASCII(TransData.getFromTransactionDb(Global.cube.CUBE_TAG_APPRCODE, 16))
+        val approvalCode = Utility.HexString2ASCII(TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_APPRCODE, 16))
         TransData.approvalCode = approvalCode
-        val rrn = Utility.HexString2ASCII(TransData.getFromTransactionDb(Global.cube.CUBE_TAG_RRN, 16))
+        val rrn = Utility.HexString2ASCII(TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_RRN, 16))
         TransData.rrn = rrn
         log.appendLine(logClassName, "approvalCode :: $approvalCode")
         log.appendLine(logClassName, "rrn :: $rrn")
 
         when(intRespCode){
             0x3030 -> {
-                TransData.transResult = Global.iso.err.txnApproved
+                TransData.transResult = TerminalConstants.iso.err.txnApproved
                 // Post-approval bookkeeping runs after the customer is already charged --
                 // any uncaught exception here must never crash the terminal.
                 val postApprovalErrors = CoroutineExceptionHandler { _, e ->
@@ -2144,7 +2168,7 @@ object IsoActivity: Serializable {
             0x3530 -> {
                 //MyDebit PIN Required
                 log.appendLine(logClassName, "Pin Needed")
-                //TransData.transResult = Global.iso.err.txnDeclined_pinNeeded
+                //TransData.transResult = TerminalConstants.iso.err.txnDeclined_pinNeeded
             }
             0x3635, 0x3436 -> {
                 log.appendLine(logClassName, "Txn Rejected")
@@ -2152,7 +2176,7 @@ object IsoActivity: Serializable {
             else -> {
                 //TODO exit with failed
                 log.appendLine(logClassName, "Txn Declined with no special Code")
-                //return Global.iso.err.txnDeclined
+                //return TerminalConstants.iso.err.txnDeclined
             }
         }
         log.appendLine(logClassName, "-----------------Check Transaction Status [END]-------------------->")
@@ -2161,7 +2185,7 @@ object IsoActivity: Serializable {
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     fun checkSettlementStatus(context: Context, settlementProduct: DbModelProductList, settlementValueString: String, log: HelperLog) {
-        val respMti = TransData.getFromTransactionDb(Global.iso.tag.MTI_RESP, 16)
+        val respMti = TransData.getFromTransactionDb(TerminalConstants.iso.tag.MTI_RESP, 16)
         val respCode = TransData.getFromTransactionDb("BF39", 16)
         var intRespCode = 0x3936
         val reqStan = TransData.stan
@@ -2187,9 +2211,9 @@ object IsoActivity: Serializable {
         }
 
         TransData.respCode = respCode
-        val approvalCode = Utility.HexString2ASCII(TransData.getFromTransactionDb(Global.cube.CUBE_TAG_APPRCODE, 16))
+        val approvalCode = Utility.HexString2ASCII(TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_APPRCODE, 16))
         TransData.approvalCode = approvalCode
-        val rrn = Utility.HexString2ASCII(TransData.getFromTransactionDb(Global.cube.CUBE_TAG_RRN, 16))
+        val rrn = Utility.HexString2ASCII(TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_RRN, 16))
         TransData.rrn = rrn
         log.appendLine(logClassName, "approvalCode::$approvalCode")
         log.appendLine(logClassName, "rrn::$rrn")
@@ -2197,7 +2221,7 @@ object IsoActivity: Serializable {
         when(intRespCode){
             0x3030 -> {
                 val store = DataStoreManager(context)
-                TransData.transResult = Global.iso.err.txnApproved
+                TransData.transResult = TerminalConstants.iso.err.txnApproved
                 persistenceScope("initNewBatchNo").launch {
                     initNewBatchNo(context, settlementProduct, log)
                     store.putBoolean(PrefKeys.settlementBlock, false)
@@ -2206,11 +2230,11 @@ object IsoActivity: Serializable {
             }
             0x3935 -> {
                 log.appendLine(logClassName, "Settlement Failed. Batch Upload Required")
-                TransData.transResult = Global.iso.err.reconcileError
+                TransData.transResult = TerminalConstants.iso.err.reconcileError
                 val batchUploadRes = processBatchUpload(context, settlementProduct, settlementValueString, log)
                 log.appendLine(logClassName, "batchUploadRes :: $batchUploadRes")
                 if(batchUploadRes == 0x3030){
-                    TransData.transResult = Global.iso.err.txnApproved
+                    TransData.transResult = TerminalConstants.iso.err.txnApproved
                     TransData.respCode = batchUploadRes.toString(16).uppercase()
                     persistenceScope("initNewBatchNo").launch {
                         initNewBatchNo(context, settlementProduct, log)
@@ -2220,8 +2244,8 @@ object IsoActivity: Serializable {
             else -> {
                 //TODO exit with failed
                 log.appendLine(logClassName, "Settle Declined")
-                TransData.transResult = Global.iso.err.txnDeclined
-                //return Global.iso.err.txnDeclined
+                TransData.transResult = TerminalConstants.iso.err.txnDeclined
+                //return TerminalConstants.iso.err.txnDeclined
             }
         }
     }
@@ -2256,7 +2280,7 @@ object IsoActivity: Serializable {
         if(cardType == CardSchemeEnum.UNKNOWN) {
             log.appendLine(logClassName, "Card Type Detection Scheme Failed")
             val track2 = TransData.getFromTransactionDb("DF02", 16).replace("F", "")
-            log.appendLine(logClassName, "Track2 :: ${maskPanLike(track2)}")
+            log.appendLine(logClassName, "Track2 :: ${LogRedact.track2(track2)}")
             cardType = CardSchemeEnum.detect(track2)
         }
 
@@ -2427,7 +2451,7 @@ object IsoActivity: Serializable {
 
     private suspend fun initNewBatchNo(context: Context, settlementProduct: DbModelProductList, log: HelperLog) = withContext(Dispatchers.IO) {
         log.appendLine(logClassName, "initNewBatchNo")
-        if(TransData.transResult == Global.iso.err.txnApproved){
+        if(TransData.transResult == TerminalConstants.iso.err.txnApproved){
             val unSettleProductList = getUnSettledProduct(context)
 
             var valueHM = HashMap<Any, Any>()
@@ -2540,10 +2564,10 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "ABORT processCashOutSale :: insufficient storage " +
                 "(${StorageGuard.describe(context)}) -- transaction not started")
             log.logToFile(EnumLogFileName.TerminaLogException)
-            TransData.transResult = Global.iso.err.txnNotAllowed
+            TransData.transResult = TerminalConstants.iso.err.txnNotAllowed
             // Surfaces as "Storage Full - Contact Support" on the result/acknowledge screen instead of a
             // bare "Failed". Also keeps the reversal loop in EmvActivity from firing on an empty code.
-            TransData.respCode = Utils.ASCIItoHexString("ZS")
+            TransData.respCode = StorageGuard.RESP_CODE_HEX
             return
         }
 
@@ -2572,25 +2596,25 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "Batch No :: ${TransData.batchNo}")
             TransData.maskedPan = Utils.hideCardDetails(cardMask)
             log.appendLine(logClassName, "Masked Pan :: ${TransData.maskedPan}")
-            TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(cardMask)))
+            TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(cardMask)))
             TransData.hashedPan = cardMask.substring(0,9)
             log.appendLine(logClassName, "Hashed Pan :: ${TransData.hashedPan}")
-            TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(TransData.hashedPan))
+            TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(TransData.hashedPan))
             if(track2Delimiter > 0){
                 val cardExp = track2.substring(track2Delimiter + 1, track2Delimiter + 5)
                 TransData.addHexStrWithPadIntoTransDB("DF02", cardMask, "F")
                 TransData.addHexStrIntoTransDB("DF14", cardExp)
-                TransData.addHexStrIntoTransDB(Global.iso.tag.PANSTRING, cardMask)
-                TransData.addHexStrIntoTransDB(Global.iso.tag.EXPDATE, cardExp)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.PANSTRING, cardMask)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.EXPDATE, cardExp)
             }
             TransData.addHexStrIntoTransDB("DA", TransData.schemeId)
-            TransData.addHexStrIntoTransDB(Global.iso.tag.MTI, isoInfoModel.mti)
+            TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.MTI, isoInfoModel.mti)
             TransData.addHexStrIntoTransDB("DF03", isoInfoModel.processCode)
             TransData.addTlvIntoTransDB("DF04", TransData.amountAuth, 0, TransData.amountAuth.size)
             val ascCashOut = HexUtil.bytesToHexString(TransData.cashOutAmountAuth)
             TransData.addHexStrIntoTransDB("DF54", HexUtil.str2HexStr(ascCashOut))
-            TransData.addTlvIntoTransDB(Global.cube.CUBE_TAG_RETAIL_AMOUNT, TransData.amountAuth, 0, TransData.amountAuth.size)
-            TransData.addTlvIntoTransDB(Global.cube.CUBE_TAG_CASH_OUT_AMOUNT, TransData.cashOutAmountAuth, 0, TransData.cashOutAmountAuth.size)
+            TransData.addTlvIntoTransDB(TerminalConstants.cube.CUBE_TAG_RETAIL_AMOUNT, TransData.amountAuth, 0, TransData.amountAuth.size)
+            TransData.addTlvIntoTransDB(TerminalConstants.cube.CUBE_TAG_CASH_OUT_AMOUNT, TransData.cashOutAmountAuth, 0, TransData.cashOutAmountAuth.size)
 
             TransData.addHexStrIntoTransDB("DF11", TransData.stan)
             TransData.addHexStrIntoTransDB("DF12", hhmmss)
@@ -2614,7 +2638,7 @@ object IsoActivity: Serializable {
             }
 
             IsoBatchInfoRepo.getBatchInfo(context, "isoTpduHeaderTle", TransData.schemeTag) ?.let {
-                TransData.addHexStrIntoTransDB(Global.iso.tag.TPDU, it.value)
+                TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.TPDU, it.value)
             } ?: run { "" }
 
             IsoBatchInfoRepo.getBatchInfo(context, "niiTle", TransData.schemeTag) ?.let {
@@ -2691,12 +2715,12 @@ object IsoActivity: Serializable {
                 sendToHost(context, thisIsoDbBuf, dbLen[0], false, respIsoDb, respDbLen, log)
                 checkTransactionStatus(context, log)
                 log.appendLine(logClassName, "Transaction Result :: ${TransData.transResult}")
-                if (TransData.transResult == Global.iso.err.txnApproved) {
+                if (TransData.transResult == TerminalConstants.iso.err.txnApproved) {
                     persistenceScope("insertIntoBatchTable").launch {
                         insertIntoBatchTable(context)
                         //insertIntoPrintReceipt(context)
                     }
-                } else if (TransData.transResult == Global.iso.err.communicationTimeout || TransData.respCode.isEmpty()) {
+                } else if (TransData.transResult == TerminalConstants.iso.err.communicationTimeout || TransData.respCode.isEmpty()) {
                     persistenceScope("insertIntoRevBatchTable").launch {
                         insertIntoRevBatchTable(context)
                     }
@@ -2729,7 +2753,7 @@ object IsoActivity: Serializable {
             TransData.transIsoInfoModel = isoInfoModel
             log.appendLine(logClassName, "Transform Batch Data")
             invokeFunction(TransData.acqCode.uppercase(), "transformBatchData", context)
-            TransData.addHexStrIntoTransDB(Global.iso.tag.MTI, isoInfoModel.mti)
+            TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.MTI, isoInfoModel.mti)
             TransData.addHexStrIntoTransDB("DF03", isoInfoModel.processCode)
             TransData.addHexStrIntoTransDB("DF11", TransData.stan)
 
@@ -2751,7 +2775,7 @@ object IsoActivity: Serializable {
                 invokeFunction(TransData.acqCode.uppercase(), "derivedFutureKey", context, log)
             }
             log.appendLine(logClassName, "Transaction Result :: ${TransData.transResult}")
-            if (TransData.transResult == Global.iso.err.txnApproved) {
+            if (TransData.transResult == TerminalConstants.iso.err.txnApproved) {
                 persistenceScope("deleteVoidedInBatchTable").launch {
                     deleteVoidedInBatchTable(context)
                     insertIntoPrintReceipt(context)
@@ -2783,7 +2807,7 @@ object IsoActivity: Serializable {
         acquirerIsoModel?.let { isoInfoModel ->
             TransData.transIsoInfoModel = isoInfoModel
             invokeFunction(TransData.acqCode.uppercase(), "transformBatchData", context)
-            TransData.addHexStrIntoTransDB(Global.iso.tag.MTI, isoInfoModel.mti)
+            TransData.addHexStrIntoTransDB(TerminalConstants.iso.tag.MTI, isoInfoModel.mti)
             TransData.addHexStrIntoTransDB("DF03", isoInfoModel.processCode)
             TransData.removeTlvFromTransDb("DF04")
             TransData.removeTlvFromTransDb("BF04")
@@ -2838,14 +2862,14 @@ object IsoActivity: Serializable {
 
                 log.appendLine(logClassName, "Transaction Result :: ${TransData.transResult}")
                 log.appendLine(logClassName, "Response Code ::${TransData.respCode}")
-                if (TransData.transResult == Global.iso.err.txnApproved) {
+                if (TransData.transResult == TerminalConstants.iso.err.txnApproved) {
                     persistenceScope("insertIntoBatchTable").launch {
                         // Credit Deduct
                         // Debit as Sales
                         insertIntoBatchTable(context)
                         insertIntoPrintReceipt(context)
                     }
-                } else if (TransData.transResult == Global.iso.err.communicationTimeout || TransData.respCode.isEmpty()) {
+                } else if (TransData.transResult == TerminalConstants.iso.err.communicationTimeout || TransData.respCode.isEmpty()) {
                     persistenceScope("insertIntoPrintReceipt").launch {
                         //TODO??
                         //insertIntoRevBatchTable(context)

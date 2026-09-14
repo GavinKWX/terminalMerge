@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.fragment
+import enums.EnumResponseCode
 
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -18,7 +19,7 @@ import com.journeyapps.barcodescanner.ViewfinderView
 import com.sc.mf919pro.R
 import com.sc.mf919pro.databinding.FragmentQrscanBinding
 import com.sc.mf919pro.java.activity.Utils
-import com.sc.mf919pro.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.Util
 import com.sc.mf919pro.kotlin.activity.TransactionTransmitter
 import com.sc.mf919pro.kotlin.data_enum.variables.TransData
@@ -601,11 +602,11 @@ class ScanQrFragment : BaseFragment() {
     fun customOnBackPress() {
         try {
             txn_map = HashMap()
-            txn_map["ResponseCode"] = "SHC005"
-            txn_map["ResponseDescription"] = "User Cancel the Transaction"
+            txn_map["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+            txn_map["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
 
-            jObject.put("ResponseCode", "SHC005")
-            jObject.put("ResponseDescription", "User Cancel the Transaction")
+            jObject.put("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+            jObject.put("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
         } catch (e: JSONException) {
             e.printStackTrace()
         }

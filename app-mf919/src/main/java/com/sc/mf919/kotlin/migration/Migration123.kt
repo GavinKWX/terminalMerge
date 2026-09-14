@@ -4,7 +4,7 @@ import com.sc.mf919.kotlin.database.infrastructure.DatabaseTables
 import database.DbHandler
 import com.sc.mf919.kotlin.helper_common.Helper
 import helpers.HelperLog
-import com.sc.mf919.kotlin.helper_common.HelperLogFileName
+import enums.EnumLogFileName
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import java.lang.StringBuilder
 import java.text.SimpleDateFormat
@@ -53,7 +53,7 @@ class Migration123 {
 			HelperLog.appendLine(sbLog, "Table Not Exist")
 			createTables(DatabaseTables.RECEIPT_UPLOAD.id, false)
 			HelperLog.appendLine(sbLog, "Finish Running Migration 123")
-			HelperLog.logToFile(sbLog, HelperLogFileName.TerminaLog)
+			HelperLog.logToFile(sbLog, EnumLogFileName.TerminaLog)
 			return
 		}
 		/* Step 1 return if Table Not Exist */
@@ -78,7 +78,7 @@ class Migration123 {
 		}
 
 		HelperLog.appendLine(sbLog, "Finish Running Migration 123")
-		HelperLog.logToFile(sbLog, HelperLogFileName.TerminaLog)
+		HelperLog.logToFile(sbLog, EnumLogFileName.TerminaLog)
 	}
 
 	private fun renameTempToOriTableName(dbHandler: DbHandler, tableName: String) {

@@ -20,7 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.sc.mf919.R
-import com.sc.mf919.java.activity.Global
+import constants.TerminalConstants
 import com.sc.mf919.java.activity.Utils
 import com.sc.mf919.kotlin.data_enum.variables.TransData
 import com.sc.mf919.kotlin.helper_common.Helper
@@ -121,7 +121,7 @@ class FragmentSimpleDenominationResult: Fragment() {
 
         resultAnim = view.findViewById(R.id.imageViewStatus)
         val transactionResult = TransData.transResult
-        if(transactionResult == Global.iso.err.txnApproved || TransData.qrRespCode == "0000"){
+        if(transactionResult == TerminalConstants.iso.err.txnApproved || TransData.qrRespCode == "0000"){
             view.findViewById<TextView>(R.id.tvTitle).text = "Transaction Success"
             view.findViewById<TextView>(R.id.tvTitle).setTextColor(ContextCompat.getColor(requireContext(), R.color.colorPrimary))
             resultAnim.background = AppCompatResources.getDrawable(requireContext(), R.drawable.avd_success)
@@ -162,7 +162,7 @@ class FragmentSimpleDenominationResult: Fragment() {
         startTimer(0)
         helperLog.logToFile(EnumLogFileName.TerminaLog)
 
-        if(transactionResult == Global.iso.err.txnApproved || TransData.qrRespCode == "0000"){
+        if(transactionResult == TerminalConstants.iso.err.txnApproved || TransData.qrRespCode == "0000"){
             viewLifecycleOwner.lifecycleScope.launch {
                 openNfc()
             }

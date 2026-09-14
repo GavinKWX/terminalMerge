@@ -4,54 +4,55 @@ import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import com.library.terminal.Utility
-import com.sc.mf919.java.activity.Dukpt
-import com.sc.mf919.java.activity.EmvTag
-import com.sc.mf919.java.activity.Global
-import com.sc.mf919.java.activity.Tlv
+import crypto.Dukpt
+import emv.EmvTag
+import constants.TerminalConstants
+import emv.Tlv
 import com.sc.mf919.java.activity.Utils
-import com.sc.mf919.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.HexUtil
 import com.sc.mf919.kotlin.database.model.DbModelDenominationList
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
-import com.sc.mf919.kotlin.helper_common.iso.IsoInfoModel
+import iso.IsoInfoModel
+import iso.TransactionData
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicLong
 
-object TransData {
+object TransData : TransactionData {
     var tempContext: WeakReference<Context> = WeakReference(null)
     //lateinit var tempContext: Context
     var salesType: Int = 0
-    var txnTypeLabel: String = ""
+    override var txnTypeLabel: String = ""
     var pinRequired: Boolean = false
     val pinBlock = ByteArray(8)
     var encPinBlock : String = ""
     var amount: Long = 0
     val amountAuth = ByteArray(6) //bcd
-    var cashOutAmount: Long = 0
-    val cashOutAmountAuth = ByteArray(6)
+    override var cashOutAmount: Long = 0
+    override val cashOutAmountAuth = ByteArray(6)
     val transType = ByteArray(1)
     val transDate = ByteArray(3)
     var transDateAsci = ""
-    var payMethod: Int = Global.paymentMethod.Non
+    var payMethod: Int = TerminalConstants.paymentMethod.Non
     val entryMode = ByteArray(3)
     var entryModeLabel = ""
-    var batchNo: String = ""
-    var stan: String = ""
-    var invoiceNo: String = ""
-    var ksn: String = ""
-    var pinKsn: String = ""
-    var dukpt = ByteArray(16)
-    var tid: String = ""
-    var mid: String = ""
-    var acqCode: String = ""
-    var product: String = ""
+    override var batchNo: String = ""
+    override var stan: String = ""
+    override var invoiceNo: String = ""
+    override var ksn: String = ""
+    override var pinKsn: String = ""
+    override var dukpt = ByteArray(16)
+    override var tid: String = ""
+    override var mid: String = ""
+    override var acqCode: String = ""
+    override var product: String = ""
     var productName: String = ""
     var productCode: String = ""
-    var eppTenure: String = ""
-    var eppTenureCode: String = ""
+    override var eppTenure: String = ""
+    override var eppTenureCode: String = ""
     var posReference: String = ""
-    var respCode: String = ""
-    var transResult: Int = Global.iso.err.failed
+    override var respCode: String = ""
+    override var transResult: Int = TerminalConstants.iso.err.failed
     var approvalCode: String = ""
     var rrn: String = ""
     var orderingItem: String = ""
@@ -76,8 +77,8 @@ object TransData {
 
     //CardRelatead
     var schemeId: String = ""
-    var schemeType: String = ""
-    var schemeTag: String = ""
+    override var schemeType: String = ""
+    override var schemeTag: String = ""
     var aid: String = ""
     var cvm: String = ""
     var maskedPan = ""
@@ -118,15 +119,15 @@ object TransData {
     var upiFinalAmount: String = ""
 
     var pinInput = false
-    var onlinePinInput = false
-    var offlinePinInput = false
+    override var onlinePinInput = false
+    override var offlinePinInput = false
     var signRequired: Boolean = false
     var transSerialNO: Int = 0 // TODO increase the NO. after every transaction and should be save in files
     val amountCashback = ByteArray(6) // bcd
 
     //Offset required 2 for the length of whole byte
-    val transactionDb = ByteArray(4096)
-    var transactionDbLen: Int = 0
+    override val transactionDb = ByteArray(4096)
+    override var transactionDbLen: Int = 0
 
     val transactionDbBak = ByteArray(4096)
     var transactionDbLenBak: Int = 0
@@ -168,7 +169,7 @@ object TransData {
         transType.fill(0, 0, transType.size)
         transDate.fill(0, 0, transDate.size)
         transDateAsci = EmvUtil.getCurrentTime("yyyyMMddHHmmss")
-        payMethod = Global.paymentMethod.Non
+        payMethod = TerminalConstants.paymentMethod.Non
         entryMode.fill(0,0, entryMode.size)
         entryModeLabel = ""
 
@@ -191,7 +192,7 @@ object TransData {
         eppTenureCode = ""
         posReference = "-"
         respCode = ""
-        transResult = Global.iso.err.failed
+        transResult = TerminalConstants.iso.err.failed
         approvalCode = ""
         rrn = ""
         orderingItem = ""
@@ -267,7 +268,7 @@ object TransData {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun addHexStrIntoTransDB(tag: String, strData: String?){
+    override fun addHexStrIntoTransDB(tag: String, strData: String?){
         val emvTag = EmvTag()
         if(strData != null) {
             val data = HexUtil.hexStringToByte(strData)
@@ -281,7 +282,7 @@ object TransData {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun addHexStrWithPadIntoTransDB(tag: String, strData: String?, padChar: String){
+    override fun addHexStrWithPadIntoTransDB(tag: String, strData: String?, padChar: String){
         if(strData != null) {
             val emvTag = EmvTag()
             var finalData = strData
@@ -300,7 +301,7 @@ object TransData {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun addTlvIntoTransDB(tag: String, tlvData: ByteArray, dataOffSet: Int, tlvLen: Int){
+    override fun addTlvIntoTransDB(tag: String, tlvData: ByteArray, dataOffSet: Int, tlvLen: Int){
         val emvTag = EmvTag()
         if(tlvLen > 0) {
             // transactionDbLen = emvTag.addTlvByTv(tag, tlvData, dataOffSet, tlvLen, transactionDb)
@@ -330,7 +331,7 @@ object TransData {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun removeTlvFromTransDb(tag: String){
+    override fun removeTlvFromTransDb(tag: String){
         val tlv = Tlv()
         val removedLen = tlv.markoffTag(transactionDb, 2, transactionDbLen + 2, tag)
         Utils.printLog("\t[-]TLV: $tag")
@@ -342,7 +343,7 @@ object TransData {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun getFromTransactionDb(tag: String, formatType: Int /*16 = hexString, 256=ascii*/): String {
+    override fun getFromTransactionDb(tag: String, formatType: Int /*16 = hexString, 256=ascii*/): String {
         val emvTag = EmvTag()
         val tempByte = ByteArray(1024)
 
@@ -402,7 +403,7 @@ object TransData {
         receiptInfo[2] = batchNo
         receiptInfo[3] = Utils.getTxnType(txnTypeLabel)
 
-        //tmp = getFromTransactionDb(Global.cube.CUBE_TAG_CARD_APPLABEL, 16)
+        //tmp = getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_APPLABEL, 16)
         //receiptInfo[4] = Utility.HexString2ASCII(tmp)
         receiptInfo[4] = Utils.byteArrayToAsciiString(appLabel, 0, appLabelLen)
         receiptInfo[5] = maskedPan
@@ -415,17 +416,17 @@ object TransData {
         receiptInfo[12] = Utils.getActualAmount(cashOutAmount.toString())
         receiptInfo[13] = Utils.getActualAmount(amount.toString())
 
-        tmp = getFromTransactionDb(Global.cube.CUBE_TAG_EPP_DETAILS, 256)
+        tmp = getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_EPP_DETAILS, 256)
         if(!tmp.isNullOrEmpty() && acqCode.equals("PAYDEE", true)) {
             tmp = ""
         }
         receiptInfo[14] = tmp.trim()
 
-        tmp = getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ARQC, 16)
+        tmp = getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, 16)
         receiptInfo[15] = tmp
         receiptInfo[16] = aid
 
-        tmp = getFromTransactionDb(Global.cube.CUBE_TAG_CARD_TVR, 16)
+        tmp = getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_TVR, 16)
         receiptInfo[17] = tmp
         receiptInfo[18] = cvm
 
@@ -483,7 +484,7 @@ object TransData {
         //pinKsn = ""
         dukpt.fill(0, 0, dukpt.size)
         respCode = ""
-        transResult = Global.iso.err.failed
+        transResult = TerminalConstants.iso.err.failed
         approvalCode = ""
         rrn = ""
         cvm = ""

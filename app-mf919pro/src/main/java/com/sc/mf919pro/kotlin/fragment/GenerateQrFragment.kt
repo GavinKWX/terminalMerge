@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.fragment
+import enums.EnumResponseCode
 
 import mdb.MdbController
 
@@ -29,7 +30,7 @@ import com.sc.mf919pro.R
 import com.sc.mf919pro.databinding.FragmentDuitnowqrBinding
 import com.sc.mf919pro.databinding.FragmentDynamicqrBinding
 import com.sc.mf919pro.java.activity.Utils
-import com.sc.mf919pro.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.Util
 import com.sc.mf919pro.kotlin.data_enum.QrProductDataEnum
 import com.sc.mf919pro.kotlin.data_enum.QrProductEnumModel
@@ -773,11 +774,11 @@ class GenerateQrFragment : BaseFragment() {
 
                 try {
                     txnMap = HashMap()
-                    txnMap["ResponseCode"] = "SHC005"
-                    txnMap["ResponseDescription"] = "User Cancel the Transaction"
+                    txnMap["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+                    txnMap["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
 
-                    jObject.put("ResponseCode", "SHC005")
-                    jObject.put("ResponseDescription", "User Cancel the Transaction")
+                    jObject.put("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+                    jObject.put("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
                 } catch (e: JSONException) {
                     helperLog.appendLine(helperLogClassName, "Json Exception in Error -> ", e.toString())
                     helperLog.logToFile(EnumLogFileName.TerminaLogException)

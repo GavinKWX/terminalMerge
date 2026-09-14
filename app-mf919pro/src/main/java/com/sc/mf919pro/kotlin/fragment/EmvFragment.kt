@@ -24,15 +24,16 @@ import com.morefun.yapi.emv.GoToConstants
 import com.morefun.yapi.emv.ICheckCardListener
 import com.morefun.yapi.emv.OnEmvProcessListener
 import com.sc.mf919pro.java.MF919
-import com.sc.mf919pro.java.activity.Dukpt
-import com.sc.mf919pro.java.activity.DukptVariant
-import com.sc.mf919pro.java.activity.Encryption
-import com.sc.mf919pro.java.activity.Global
+import crypto.Dukpt
+import crypto.DukptVariant
+import crypto.Encryption
+import constants.TerminalConstants
 import com.sc.mf919pro.java.activity.PinPadListener
 import com.sc.mf919pro.java.activity.Utils
 import com.sc.mf919pro.java.device.DeviceHelper
 import utils.CardUtil
-import com.sc.mf919pro.java.utils.EmvUtil
+import emv.EmvUtil
+import com.sc.mf919pro.kotlin.activity.AppServices
 import utils.HexUtil
 import utils.TlvData
 import utils.TlvDataList
@@ -45,11 +46,12 @@ import com.sc.mf919pro.kotlin.database.repo.ProductListRepo.Companion.getSelecte
 import com.sc.mf919pro.kotlin.database.repo.SecureDataRepo
 import helpers.LogRedact
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
-import com.sc.mf919pro.kotlin.helper_common.iso.CardTagsEnum
+import iso.CardTagsEnum
 import com.sc.mf919pro.kotlin.helper_common.iso.IsoActivity
 import com.sc.mf919pro.kotlin.helper_common.iso.IsoActivity.updateReceiptInfo
-import com.sc.mf919pro.kotlin.helper_common.iso.IsoHelperNew
+import iso.IsoHelperNew
 import com.sc.mf919pro.kotlin.helper_common.utils.PinBlockUtil
+import emv.Tlv
 import enums.EnumDateFormat
 import enums.EnumLogFileName
 import helpers.HelperCommon
@@ -59,6 +61,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 abstract class EmvFragment : BaseFragment() {
+    var myTlv: Tlv? = null
+
     protected lateinit var tempContext: Context
     val logClassName: String = this::class.java.simpleName
     lateinit var tempHelperLog: HelperLog
@@ -89,22 +93,25 @@ abstract class EmvFragment : BaseFragment() {
     var isNotEnd = true
 
     /**
-     * True once the 0200 has gone to the host and no response has been processed yet.
+     * True while the host owns the transaction.
      *
      * The back button was never gated on this. `customOnBackPress` blanks
      * stan/invoiceNo/respCode whenever `isNotEnd` is true, and `isNotEnd` stays true *through the
      * host call*, so a back press or toolbar tap with the authorisation in flight wiped the live
      * transaction and the approval landed on cleared data. This is the same clobber MF919 hit via
      * `android:noHistory`, reached by a different route.
+     *
+     * D8: this used to be a `@Volatile var` owned here, raised only around the EMV sale paths
+     * below -- so settlement and batch upload, which also call the host, ran with the guard down.
+     * It now reads IsoActivity's counter, which every `sendToHost` raises.
      */
-    @Volatile
-    var isHostRequestInFlight = false
+    val isHostRequestInFlight: Boolean get() = IsoActivity.isHostRequestInFlight
     var pinRequired = false
     var pinWait = true
     var pinCancel = false
     protected var mPinNum: String? = null
     var mAmount: String = ""
-    protected var payMethod = Global.paymentMethod.Non.toByte()
+    protected var payMethod = TerminalConstants.paymentMethod.Non.toByte()
     private var timeout_cardSearch = 0
 
     var isOptIn = false
@@ -121,6 +128,7 @@ abstract class EmvFragment : BaseFragment() {
         } else {
             MF919.getApp().bindDeviceService()
         }
+        myTlv = Tlv()
     }
 
     @Throws(java.lang.Exception::class)
@@ -161,8 +169,12 @@ abstract class EmvFragment : BaseFragment() {
                     Utils.debugLogPrint("Search Card", "onFindMagCard")
                     ServiceHolder.appRunningProcess = true
                     mAmount = amount
-                    TransData.payMethod = Global.paymentMethod.Meg
-                    payMethod = Global.paymentMethod.Meg.toByte()
+                    TransData.payMethod = TerminalConstants.paymentMethod.Meg
+                    payMethod = TerminalConstants.paymentMethod.Meg.toByte()
+
+                    // D7 — a swipe never reaches EmvUtil.readTrack2(), so nothing else arms the log sink
+                    // for mag-stripe. Register before the builder below, which logs the raw tracks.
+                    LogRedact.registerCardData(magCardInfoEntity.cardNo, magCardInfoEntity.tk2)
 
                     val builder = java.lang.StringBuilder()
                     builder.append("PAN:" + magCardInfoEntity.cardNo)
@@ -186,7 +198,7 @@ abstract class EmvFragment : BaseFragment() {
                     }
                     showProgress("Bank Authorization", "Waiting for Approval")
 
-                    /*// online txn
+                    // online txn
                     // Form LEVEL 3 data
                     if (magCardInfoEntity.serviceCode.startsWith("2")
                         || magCardInfoEntity.serviceCode.startsWith("6")) {
@@ -243,38 +255,33 @@ abstract class EmvFragment : BaseFragment() {
                     TransData.magTrack2Len = magTrack2Byte.size
 
                     tempHelperLog.appendLine(logClassName, "schemeType[${TransData.schemeType}]; schemeId[${TransData.schemeId}]")
-                    TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_SCHEME_ID, TransData.schemeId)
+                    TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_SCHEME_ID, TransData.schemeId)
 
-                    TransData.removeTlvFromTransDb(Global.cube.CUBE_TAG_CARD_CVM)
-                    TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_CVM, "4E3020")
+                    TransData.cvm = "4E3020"
+                    TransData.removeTlvFromTransDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM)
+                    TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_CVM, "4E3020")
                     TransData.entryModeLabel = "MagStripe"
-                    TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("MagStripe"))
-                    TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(magCardInfoEntity.cardNo)))
-                    TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(magCardInfoEntity.cardNo.substring(0,9)))
+                    TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("MagStripe"))
+                    TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(magCardInfoEntity.cardNo)))
+                    TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(magCardInfoEntity.cardNo.substring(0,9)))
 
-                    // Mark the window in which the host owns this transaction, so
-                    // the back button cannot blank stan/invoiceNo/respCode underneath it.
-                    isHostRequestInFlight = true
-                    try {
+                    // Hold the guard across the whole flow, so the back button cannot blank
+                    // stan/invoiceNo/respCode underneath it -- including after the approval
+                    // arrives but before it is persisted.
+
+                    IsoActivity.withHostRequest {
                         when (TransData.salesType) {
                             8 -> {IsoActivity.processPreauth(tempContext, tempHelperLog)}
                             ProductCatSelectionDataEnum.CASH_OUT.data.SalesType -> {IsoActivity.processCashOutSale(tempContext, tempHelperLog)}
                             ProductCatSelectionDataEnum.EPP.data.SalesType -> {IsoActivity.processEppSale(tempContext, tempHelperLog)}
                             else -> {IsoActivity.processOnlineSale(tempContext, tempHelperLog)}
                         }
-                    } finally {
-                        isHostRequestInFlight = false
                     }
                     isNotCompl[0] = false
 
                     // Send Reversal if timeout
-                    val respCode = Utility.HexString2ASCII(TransData.respCode)
-                    if(respCode == "00") {
-                        TransData.transResult = Global.iso.err.failed
-                        TransData.respCode = Utils.ASCIItoHexString("ZW")
-                        TransData.prevInvoice = TransData.invoiceNo
-                        TransData.prevStan = TransData.stan
-
+                    if(TransData.transResult != TerminalConstants.iso.err.txnApproved && TransData.transResult != TerminalConstants.iso.err.txnNotAllowed &&
+                        (TransData.transResult == TerminalConstants.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
                         val isNotCompl = booleanArrayOf(true)
                         ServiceHolder.isoComm = null
                         isNotCompl[0] = true
@@ -285,8 +292,7 @@ abstract class EmvFragment : BaseFragment() {
                                 val maxLoop = 3
                                 while (loop < maxLoop) {
                                     loop++
-                                    updateProgress(title = "Reversal ($loop)"
-)
+                                    updateProgress(title = "Reversal ($loop)")
 
                                     val acquirerRevIsoModel = IsoHelperNew.getIsoHelperObject(
                                         TransData.acqCode,
@@ -332,7 +338,7 @@ abstract class EmvFragment : BaseFragment() {
                     CoroutineScope(Dispatchers.IO).launch {
                         updateReceiptInfo(tempContext)
                     }
-                    AppServices.receiptUploadToTms(tempContext)*/
+                    AppServices.receiptUploadToTms(tempContext)
                     endEMV()
                 }
 
@@ -346,8 +352,8 @@ abstract class EmvFragment : BaseFragment() {
                 override fun onFindICCard() {
                     Utils.debugLogPrint("Search Card", "onFindICCard")
                     ServiceHolder.appRunningProcess = true
-                    payMethod = Global.paymentMethod.ICC.toByte()
-                    TransData.payMethod = Global.paymentMethod.ICC
+                    payMethod = TerminalConstants.paymentMethod.ICC.toByte()
+                    TransData.payMethod = TerminalConstants.paymentMethod.ICC
                     showProgress("Card Detected", "Read Card Info...")
                     emvTrans(amount, cashOutAmountString, isEnableContact, isEnableContactless, EmvChannelType.FROM_ICC)
                 }
@@ -356,8 +362,8 @@ abstract class EmvFragment : BaseFragment() {
                 override fun onFindRFCard() {
                     Utils.debugLogPrint("Search Card", "onFindRFCard")
                     ServiceHolder.appRunningProcess = true
-                    payMethod = Global.paymentMethod.RF.toByte()
-                    TransData.payMethod = Global.paymentMethod.RF
+                    payMethod = TerminalConstants.paymentMethod.RF.toByte()
+                    TransData.payMethod = TerminalConstants.paymentMethod.RF
                     showProgress("Card Detected", "Read Card Info...")
                     emvTrans(amount, cashOutAmountString, isEnableContact, isEnableContactless, EmvChannelType.FROM_PICC)
                 }
@@ -504,7 +510,7 @@ abstract class EmvFragment : BaseFragment() {
             @Throws(RemoteException::class)
             override fun onOnlineProc(data: Bundle) {
                 logX("Callback:onOnlineProc")
-                if (pinCancel || payMethod.toInt() == Global.paymentMethod.Non) {
+                if (pinCancel || payMethod.toInt() == TerminalConstants.paymentMethod.Non) {
                     logX("Manual Cancel Transaction")
                     DeviceHelper.getEmvHandler().onSetOnlineProcResponse(ServiceResult.Emv_Terminate, Bundle())
                     return
@@ -628,11 +634,11 @@ abstract class EmvFragment : BaseFragment() {
         TransData.schemeType = CardUtil.getCardTypFromAid(stringAid)
         TransData.aid = stringAid
         tempHelperLog.appendLine(logClassName, "AID :: $stringAid")
-        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_AID, TransData.aid)
+        TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_AID, TransData.aid)
 
-        TransData.schemeId = Global.iso.isoInfo.getSchemeId(TransData.schemeType, TransData.payMethod, TransData.acqCode)
+        TransData.schemeId = TerminalConstants.iso.isoInfo.getSchemeId(TransData.schemeType, TransData.payMethod, TransData.acqCode)
         tempHelperLog.appendLine(logClassName, "schemeType[${TransData.schemeType}]; schemeId[${TransData.schemeId}]")
-        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_SCHEME_ID, TransData.schemeId)
+        TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_SCHEME_ID, TransData.schemeId)
 
         var appLabel = EmvUtil.getPbocData("50", true) ?: ""
         if(TransData.aid.contains("A000000615",true)) {
@@ -642,11 +648,11 @@ abstract class EmvFragment : BaseFragment() {
         if(appLabelByte != null){
             appLabelByte.copyInto(TransData.appLabel, 0, 0, appLabelByte.size)
             TransData.appLabelLen = appLabelByte.size
-            TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_APPLABEL, appLabel)
+            TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_APPLABEL, appLabel)
         }
 
         val arqc = EmvUtil.getPbocData("9F26", true)
-        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_ARQC, arqc)
+        TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, arqc)
 
         var cvm: String? = EmvUtil.getPbocData("9F34", true)
         tempHelperLog.appendLine(logClassName, "onlineProc -> -$mPinNum-")
@@ -676,7 +682,7 @@ abstract class EmvFragment : BaseFragment() {
         }
         tempHelperLog.appendLine(logClassName, "onlineProc_cvm_m -> $cvm")
         TransData.cvm = cvm
-        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_CVM, cvm)
+        TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_CVM, cvm)
 
         var tvr = EmvUtil.getPbocData("95", true)
         var override95 = false
@@ -690,25 +696,25 @@ abstract class EmvFragment : BaseFragment() {
                 }
             }
         }
-        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_TVR, tvr)
+        TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_TVR, tvr)
         tempHelperLog.appendLine(logClassName, "TVR :: $tvr")
 
         when (TransData.payMethod) {
-            Global.paymentMethod.ICC -> {
+            TerminalConstants.paymentMethod.ICC -> {
                 TransData.entryModeLabel = "Contact"
-                TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("Contact"))
+                TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("Contact"))
             }
-            Global.paymentMethod.RF -> {
+            TerminalConstants.paymentMethod.RF -> {
                 TransData.entryModeLabel = "Contactless"
-                TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("Contactless"))
+                TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("Contactless"))
             }
-            Global.paymentMethod.Meg -> {
+            TerminalConstants.paymentMethod.Meg -> {
                 TransData.entryModeLabel = "MagStripe"
-                TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("MagStripe"))
+                TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("MagStripe"))
             }
             else -> {
                 TransData.entryModeLabel = " "
-                TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString(" "))
+                TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString(" "))
             }
         }
         tempHelperLog.appendLine(logClassName, "Entry Label :: ${TransData.entryModeLabel}")
@@ -742,7 +748,7 @@ abstract class EmvFragment : BaseFragment() {
         tempHelperLog.appendLine(logClassName, "onlineProc: ${TransData.payMethod}")
         tempHelperLog.logToFile(EnumLogFileName.TerminaLog)
 
-        if (payMethod.toInt() == Global.paymentMethod.ICC) {
+        if (payMethod.toInt() == TerminalConstants.paymentMethod.ICC) {
             if (pinCancel) {
                 val online = Bundle()
                 DeviceHelper.getEmvHandler().onSetOnlineProcResponse(ServiceResult.Emv_Terminate, online)
@@ -759,7 +765,7 @@ abstract class EmvFragment : BaseFragment() {
             override fun run() {
                 super.run()
                 do {
-                    if (TransData.transResult == Global.iso.err.txnDeclined_pinNeeded){
+                    if (TransData.transResult == TerminalConstants.iso.err.txnDeclined_pinNeeded){
                         count--
                         TransData.resetTransactionDbFromBak()
                         val cardNo: String = EmvUtil.readPan()
@@ -773,23 +779,21 @@ abstract class EmvFragment : BaseFragment() {
                         }
 
                         TransData.cvm = cvm.toString()
-                        TransData.removeTlvFromTransDb(Global.cube.CUBE_TAG_CARD_CVM)
-                        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_CVM, TransData.cvm)
+                        TransData.removeTlvFromTransDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM)
+                        TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_CVM, TransData.cvm)
                     }
-                    // Mark the window in which the host owns this transaction, so
-                    // the back button cannot blank stan/invoiceNo/respCode underneath it.
-                    isHostRequestInFlight = true
-                    try {
+                    // Hold the guard across the whole flow, so the back button cannot blank
+                    // stan/invoiceNo/respCode underneath it -- including after the approval
+                    // arrives but before it is persisted.
+                    IsoActivity.withHostRequest {
                         when (TransData.salesType) {
                             8 -> {IsoActivity.processPreauth(tempContext, tempHelperLog)}
                             ProductCatSelectionDataEnum.CASH_OUT.data.SalesType -> {IsoActivity.processCashOutSale(tempContext, tempHelperLog)}
                             ProductCatSelectionDataEnum.EPP.data.SalesType -> {IsoActivity.processEppSale(tempContext, tempHelperLog)}
                             else -> {IsoActivity.processOnlineSale(tempContext, tempHelperLog)}
                         }
-                    } finally {
-                        isHostRequestInFlight = false
                     }
-                } while (TransData.transResult == Global.iso.err.txnDeclined_pinNeeded && count != 0)
+                } while (TransData.transResult == TerminalConstants.iso.err.txnDeclined_pinNeeded && count != 0)
                 tempHelperLog.appendLine(logClassName, "onlineProc: Bank waiting done")
                 isNotCompl[0] = false
             }
@@ -808,7 +812,7 @@ abstract class EmvFragment : BaseFragment() {
         // to reverse and nothing to confirm. The kernel is mid-`onOnlineProc` and MUST still be
         // answered, with a NUMERIC REJCODE — TransData.respCode carries "ZS" for the result screen
         // and the kernel cannot parse that. Decline cleanly and skip the reversal block entirely.
-        if (TransData.transResult == Global.iso.err.txnNotAllowed) {
+        if (TransData.transResult == TerminalConstants.iso.err.txnNotAllowed) {
             tempHelperLog.appendLine(logClassName, "StorageGuard block :: declining to EMV kernel, no reversal")
             tempHelperLog.logToFile(EnumLogFileName.TerminaLog)
             val blocked = Bundle()
@@ -854,7 +858,7 @@ abstract class EmvFragment : BaseFragment() {
             // A StorageGuard block satisfies BOTH conjuncts (respCode is empty, transResult is
             // an error), so without this exclusion a refused sale sends 3 real ISO reversals for a
             // transaction the host never saw. txnNotAllowed has no other producer in this codebase.
-            if(TransData.transResult != Global.iso.err.txnApproved && TransData.transResult != Global.iso.err.txnNotAllowed && (TransData.transResult == Global.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
+            if(TransData.transResult != TerminalConstants.iso.err.txnApproved && TransData.transResult != TerminalConstants.iso.err.txnNotAllowed && (TransData.transResult == TerminalConstants.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
                 ServiceHolder.isoComm = null
                 isNotCompl[0] = true
                 object : Thread() {
@@ -978,14 +982,14 @@ abstract class EmvFragment : BaseFragment() {
         if (ret == ServiceResult.Success) { //trans accept
             onFinishShow(bundle)
             logX("emvFinish: Success")
-            if (payMethod.toInt() == Global.paymentMethod.ICC) {
+            if (payMethod.toInt() == TerminalConstants.paymentMethod.ICC) {
                 IsoActivity.processTcUpload(tempContext, tempHelperLog)
             }
         } else if (ret == ServiceResult.Emv_FallBack) { // fallback
             logX("emvFinish: Emv_FallBack")
             //TODO
-            // cube!!.tlv_remove_tag(Global.cube.CUBE_TAG_RESPCODE)
-            // cube!!.tlv_add_by_tv_in_string(Global.cube.CUBE_TAG_RESPCODE, Utils.ASCIItoHexString("ZX"))
+            // cube!!.tlv_remove_tag(TerminalConstants.cube.CUBE_TAG_RESPCODE)
+            // cube!!.tlv_add_by_tv_in_string(TerminalConstants.cube.CUBE_TAG_RESPCODE, Utils.ASCIItoHexString("ZX"))
         } else if (ret == ServiceResult.Emv_Terminate) { // trans end
             logX("emvFinish: Emv_Terminate")
             if (errorCode != null) {
@@ -1010,7 +1014,7 @@ abstract class EmvFragment : BaseFragment() {
             //TODO Reversal
             val respCode = Utility.HexString2ASCII(TransData.respCode)
             if(respCode == "00"){
-                TransData.transResult = Global.iso.err.failed
+                TransData.transResult = TerminalConstants.iso.err.failed
                 TransData.respCode = Utils.ASCIItoHexString("ZW")
                 TransData.prevInvoice = TransData.invoiceNo
                 TransData.prevStan = TransData.stan
@@ -1081,13 +1085,13 @@ abstract class EmvFragment : BaseFragment() {
             if (retCode == -8) {
                 logX("PLEASE DIP, SWIPE OR TRY ANOTHER CARD")
                 //TODO
-                //cube!!.tlv_remove_tag(Global.cube.CUBE_TAG_RESPCODE)
-                //cube!!.tlv_add_by_tv_in_string(Global.cube.CUBE_TAG_RESPCODE, Utils.ASCIItoHexString("ZX"))
+                //cube!!.tlv_remove_tag(TerminalConstants.cube.CUBE_TAG_RESPCODE)
+                //cube!!.tlv_add_by_tv_in_string(TerminalConstants.cube.CUBE_TAG_RESPCODE, Utils.ASCIItoHexString("ZX"))
             } else if (retCode == -9) {
                 logX("PLEASE DIP, SWIPE CARD")
                 //TODO
-                //cube!!.tlv_remove_tag(Global.cube.CUBE_TAG_RESPCODE)
-                //cube!!.tlv_add_by_tv_in_string(Global.cube.CUBE_TAG_RESPCODE, Utils.ASCIItoHexString("ZY"))
+                //cube!!.tlv_remove_tag(TerminalConstants.cube.CUBE_TAG_RESPCODE)
+                //cube!!.tlv_add_by_tv_in_string(TerminalConstants.cube.CUBE_TAG_RESPCODE, Utils.ASCIItoHexString("ZY"))
             } else {
                 logX("EMV TRY OTHER PAGE:$retCode")
             }
@@ -1336,7 +1340,7 @@ abstract class EmvFragment : BaseFragment() {
             //iccCardReader?.stopSearch()
             //rfReader?.stopSearch()
             //magCardReader?.stopSearch()
-            payMethod = Global.paymentMethod.Cancel.toByte()
+            payMethod = TerminalConstants.paymentMethod.Cancel.toByte()
         } catch (e: RemoteException) {
             e.printStackTrace()
         } catch (e: NullPointerException) {
@@ -1352,7 +1356,7 @@ abstract class EmvFragment : BaseFragment() {
         // posted no-op when nothing is showing, making it safe to call unconditionally.
         hideProgress()
         try {
-            payMethod = Global.paymentMethod.Non.toByte()
+            payMethod = TerminalConstants.paymentMethod.Non.toByte()
             DeviceHelper.getEmvHandler().cancelCheckCard()
         } catch (e: Exception) {
             e.printStackTrace()

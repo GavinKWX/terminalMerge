@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.helper_common.intent_helper
+import enums.EnumResponseCode
 
 import android.content.Context
 import androidx.core.os.bundleOf
@@ -32,8 +33,8 @@ class SettlementUseCase {
             }
         } catch (_: Exception) {
             Route.Return(txn.apply {
-                put(TxnKeys.RESP_CODE, "SHC007")
-                put(TxnKeys.RESP_DESC, "Terminal System Error (Product Is Not Configured)")
+                put(TxnKeys.RESP_CODE, EnumResponseCode.PRODUCT_NOT_CONFIGURED.code)
+                put(TxnKeys.RESP_DESC, EnumResponseCode.PRODUCT_NOT_CONFIGURED.description)
             })
         }
     }

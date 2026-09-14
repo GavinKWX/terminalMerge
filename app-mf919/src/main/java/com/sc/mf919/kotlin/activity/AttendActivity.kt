@@ -28,7 +28,7 @@ import com.google.gson.JsonObject
 import com.sc.mf919.BuildConfig
 import com.sc.mf919.R
 import com.sc.mf919.java.activity.*
-import com.sc.mf919.kotlin.data_enum.EnumWebsocket
+import enums.EnumWebsocket
 import com.sc.mf919.kotlin.data_enum.ProductCatSelectionDataEnum
 import com.sc.mf919.kotlin.data_enum.QrProductDataEnum
 import com.sc.mf919.kotlin.data_enum.SaleModelNew
@@ -266,9 +266,9 @@ class AttendActivity : ActivityBase() {
 		val forceLockHome = DbModelTerminalConfig.getBooleanValue(terminalConfig, "FORCE_LOCK_HOME")
 		helperLog.appendLine(helperLogClassName, "Terminal flag check :: FORCE_LOCK_HOME=$forceLockHome")
 		if (forceLockHome) {
-			HelperCommon.bottomActionBarEvent(applicationContext, "1")
+			MfHelper.lockStatusBarAndNavigation(true)
 		} else {
-			HelperCommon.bottomActionBarEvent(applicationContext, "0")
+			MfHelper.lockStatusBarAndNavigation(false)
 		}
 
 		if(ServiceHolder.autoSettlementQueue) {

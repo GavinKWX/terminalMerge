@@ -27,7 +27,7 @@ import com.morefun.yapi.device.printer.FontFamily
 import com.morefun.yapi.device.printer.MulPrintStrEntity
 import com.sc.mf919pro.R
 import com.sc.mf919pro.databinding.FragmentSettleoptionBinding
-import com.sc.mf919pro.java.activity.Global
+import constants.TerminalConstants
 import com.sc.mf919pro.java.activity.Utils
 import com.sc.mf919pro.java.activity.Utils.TextItem
 import com.sc.mf919pro.kotlin.activity.AppServices.Companion.LAST_SETTLE_TAG
@@ -57,7 +57,7 @@ import com.sc.mf919pro.kotlin.helper_common.ServiceHolder.Companion.getInternalF
 import com.sc.mf919pro.kotlin.helper_common.TmsHelper
 import com.sc.mf919pro.kotlin.helper_common.intent_helper.TxnKeys
 import com.sc.mf919pro.kotlin.helper_common.iso.IsoActivity
-import com.sc.mf919pro.kotlin.helper_common.iso.IsoHelperNew
+import iso.IsoHelperNew
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperCommon.Db.Companion.setDebouncedOnClickListener
@@ -649,25 +649,39 @@ class SettleOptionFragment : BaseFragment() {
 
 
                 loadingLoop = true
+                // D9 -- resolve the ViewModel here, on the caller's thread, and close over it.
+                // Reading `transData` inside the thread went through requireActivity() once a
+                // second for the whole settlement, so any detach (a back press, a teardown) took
+                // the process down on the next tick.
+                val progressTxn = transData
                 object : Thread() {
                     override fun run() {
                         super.run()
                         while(loadingLoop) {
-                            if(transData.loadingTitle.isNotEmpty()){
-                                updateProgress(title = transData.loadingTitle)
-                                transData.loadingTitle = ""
+                            // Detached: there is no dialog left to update, and carrying on would
+                            // only find new ways to touch a dead view tree.
+                            if (!isAdded) break
+
+                            if(progressTxn.loadingTitle.isNotEmpty()){
+                                updateProgress(title = progressTxn.loadingTitle)
+                                progressTxn.loadingTitle = ""
                             }
 
-                            if(transData.loadingMessage.isNotEmpty()){
-                                updateProgress(msg = transData.loadingMessage)
-                                transData.loadingMessage = ""
+                            if(progressTxn.loadingMessage.isNotEmpty()){
+                                updateProgress(msg = progressTxn.loadingMessage)
+                                progressTxn.loadingMessage = ""
                             }
                             sleep(1000)
                         }
                     }
                 }.start()
-                IsoActivity.processSettlement(requireContext(), tempObj, settlementValueString, helperLog)
-                loadingLoop = false
+                try {
+                    IsoActivity.processSettlement(requireContext(), tempObj, settlementValueString, helperLog)
+                } finally {
+                    // finally, not a trailing assignment: a throw out of processSettlement used to
+                    // leave this thread polling for the life of the process.
+                    loadingLoop = false
+                }
                 if (transData.transResult == -8001) {
                     helperLog.appendLine(helperLogClassName, "Nothing To Settle")
                     helperLog.appendLine(helperLogClassName, "ResponseCode >> [99]")
@@ -746,7 +760,7 @@ class SettleOptionFragment : BaseFragment() {
         override fun onPostExecute(result: Boolean?) {
             super.onPostExecute(result)
             hideProgress()
-            if(transData.transResult == Global.iso.err.txnApproved){
+            if(transData.transResult == TerminalConstants.iso.err.txnApproved){
                 child.visibility = View.GONE
             }
 
@@ -1513,6 +1527,19 @@ class SettleOptionFragment : BaseFragment() {
     }
 
     private fun customOnBackPress() {
+        // D8 -- this is the screen a settlement actually runs from, and leaving mid-flight does
+        // more than abandon the batch: the appHTTP branch below answers the POS caller with
+        // setResponseMessage(), so a back press during the host calls would hand back a partial
+        // settlement as if it were the final one, and clear appIntent/appHTTP on the way out.
+        if (IsoActivity.isHostRequestInFlight) {
+            if (this@SettleOptionFragment::helperLog.isInitialized) {
+                helperLog.appendLine(helperLogClassName, "IGNORE OnBack Press :: host request in flight, cannot leave settlement")
+                helperLog.logToFile(EnumLogFileName.TerminaLogException)
+            }
+            showToast("Processing, please wait", Toast.LENGTH_SHORT)
+            return
+        }
+
         helperLog.appendLine(helperLogClassName, "OnBack Press Detected")
         helperLog.logToFile(EnumLogFileName.TerminaLog)
         if (ServiceHolder.appIntent) {

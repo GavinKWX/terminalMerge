@@ -1,4 +1,5 @@
 package com.sc.mf919.kotlin.activity
+import enums.EnumResponseCode
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
@@ -21,11 +22,11 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.lifecycleScope
 import com.google.gson.Gson
 import com.sc.mf919.R
-import com.sc.mf919.java.activity.EmvTag
-import com.sc.mf919.java.activity.Global
+import emv.EmvTag
+import constants.TerminalConstants
 import com.sc.mf919.java.activity.Utils
 import utils.CardUtil
-import com.sc.mf919.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.HexUtil
 import com.sc.mf919.kotlin.data_enum.variables.TransData
 import com.sc.mf919.kotlin.database.model.DbModelPreAuthTable
@@ -36,7 +37,7 @@ import com.sc.mf919.kotlin.helper_common.BaseActivity
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import com.sc.mf919.kotlin.helper_common.TmsHelper
 import com.sc.mf919.kotlin.helper_common.iso.IsoActivity
-import com.sc.mf919.kotlin.helper_common.iso.IsoHelperNew
+import iso.IsoHelperNew
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperLog
@@ -159,14 +160,14 @@ class KeypadActivitySaleCom : BaseActivity() {
 				//TODO
 				/*if (ServiceHolder.appIntent) {
 					val txnMap = java.util.HashMap<String, String>()
-					txnMap["ResponseCode"] = "SHC001"
-					txnMap["ResponseDescription"] = "Invalid Transaction Details"
+					txnMap["ResponseCode"] = EnumResponseCode.INVALID_TRANSACTION_DETAILS.code
+					txnMap["ResponseDescription"] = EnumResponseCode.INVALID_TRANSACTION_DETAILS.description
 					//onBackToApp(txnMap)
 				} else if (ServiceHolder.appHTTP) {
 					val jObject = JSONObject()
 					try {
-						jObject.put("ResponseCode", "SHC001")
-						jObject.put("ResponseDescription", "Invalid Transaction Details")
+						jObject.put("ResponseCode", EnumResponseCode.INVALID_TRANSACTION_DETAILS.code)
+						jObject.put("ResponseDescription", EnumResponseCode.INVALID_TRANSACTION_DETAILS.description)
 					} catch (e: JSONException) {
 						e.printStackTrace()
 					}
@@ -257,14 +258,14 @@ class KeypadActivitySaleCom : BaseActivity() {
 			//TODO
 			/*if (ServiceHolder.appIntent) {
 				val txnMap = HashMap<String, String>()
-				txnMap["ResponseCode"] = "SHC005"
-				txnMap["ResponseDescription"] = "User Cancel the Transaction"
+				txnMap["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+				txnMap["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
 				onBackToApp(txnMap)
 			} else if (ServiceHolder.appHTTP) {
 				val jsonObject = JSONObject()
 				try {
-					jsonObject.put("ResponseCode", "SHC005")
-					jsonObject.put("ResponseDescription", "User Cancel the Transaction")
+					jsonObject.put("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+					jsonObject.put("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
 				} catch (e: JSONException) {
 					e.printStackTrace()
 				}
@@ -330,12 +331,12 @@ class KeypadActivitySaleCom : BaseActivity() {
 			val oldTransDb = HexUtil.hexStringToByte(preAuthInfo?.addInfo)
 			oldTransDb.copyInto(TransData.transactionDb, 0, 0, oldTransDb.size)
 			TransData.transactionDbLen = oldTransDb.size - 2
-			TransData.schemeId = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_SCHEME_ID, 16)
-			TransData.aid = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_AID, 16)
+			TransData.schemeId = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_SCHEME_ID, 16)
+			TransData.aid = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_AID, 16)
 			TransData.schemeType = CardUtil.getCardTypFromAid(TransData.aid)
 			TransData.batchNo = IsoBatchInfoRepo.getBatchInfo(applicationContext, "batchNo", TransData.schemeTag)?.value ?: "000001"
-			TransData.entryModeLabel = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
-			TransData.cvm = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_CVM, 16)
+			TransData.entryModeLabel = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
+			TransData.cvm = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM, 16)
 
 			//TODO MISSING
 			/*posReference?.let {
@@ -370,8 +371,8 @@ class KeypadActivitySaleCom : BaseActivity() {
 
 			//Reversal //Skip Reversal for MyDebit SaleCom
 			if(!TransData.schemeType.equals("MCCS", true) &&
-				TransData.transResult != Global.iso.err.txnApproved &&
-				(TransData.transResult == Global.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
+				TransData.transResult != TerminalConstants.iso.err.txnApproved &&
+				(TransData.transResult == TerminalConstants.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
 				ServiceHolder.isoComm = null
 				isNotCompl[0] = true
 				object : Thread() {
@@ -484,14 +485,14 @@ class KeypadActivitySaleCom : BaseActivity() {
 //				ToastMake(mContext, "Invalid Input", Toast.LENGTH_SHORT)
 //				if (ServiceHolder.appIntent) {
 //					val txnMap = java.util.HashMap<String, String>()
-//					txnMap["ResponseCode"] = "SHC001"
-//					txnMap["ResponseDescription"] = "Invalid Transaction Details"
+//					txnMap["ResponseCode"] = EnumResponseCode.INVALID_TRANSACTION_DETAILS.code
+//					txnMap["ResponseDescription"] = EnumResponseCode.INVALID_TRANSACTION_DETAILS.description
 //					onBackToApp(txnMap)
 //				} else if (ServiceHolder.appHTTP) {
 //					val jObject = JSONObject()
 //					try {
-//						jObject.put("ResponseCode", "SHC001")
-//						jObject.put("ResponseDescription", "Invalid Transaction Details")
+//						jObject.put("ResponseCode", EnumResponseCode.INVALID_TRANSACTION_DETAILS.code)
+//						jObject.put("ResponseDescription", EnumResponseCode.INVALID_TRANSACTION_DETAILS.description)
 //					} catch (e: JSONException) {
 //						e.printStackTrace()
 //					}
@@ -584,14 +585,14 @@ class KeypadActivitySaleCom : BaseActivity() {
 //			alertDialog?.dismiss()
 //			if (ServiceHolder.appIntent) {
 //				val txnMap = HashMap<String, String>()
-//				txnMap["ResponseCode"] = "SHC005"
-//				txnMap["ResponseDescription"] = "User Cancel the Transaction"
+//				txnMap["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+//				txnMap["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
 //				onBackToApp(txnMap)
 //			} else if (ServiceHolder.appHTTP) {
 //				val jsonObject = JSONObject()
 //				try {
-//					jsonObject.put("ResponseCode", "SHC005")
-//					jsonObject.put("ResponseDescription", "User Cancel the Transaction")
+//					jsonObject.put("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+//					jsonObject.put("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
 //				} catch (e: JSONException) {
 //					e.printStackTrace()
 //				}
@@ -624,14 +625,14 @@ class KeypadActivitySaleCom : BaseActivity() {
 //				//val strOptData = "in:SchemeTag=${schemeTag}"
 //				val strOptData = "${textViewApprCode!!.text}${textViewRrn!!.text}${textViewInvNo!!.text}"
 //				//val strOptData = ApprCode + Rrn + InvNo
-//				cube!!.tlv_add_by_tv_in_string(Global.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(maskedPan))
-//				cube!!.tlv_add_by_tv_in_string(Global.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(cardPan.substring(0,9)))
+//				cube!!.tlv_add_by_tv_in_string(TerminalConstants.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(maskedPan))
+//				cube!!.tlv_add_by_tv_in_string(TerminalConstants.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(cardPan.substring(0,9)))
 //
 //				val txnDt = "20" + EmvUtil.getCurrentTime("yyMMddHHmmss")
 //				Utils.debugLogPrint(TAG, "txnDt -> $txnDt")
 //				val strTxnDt = Utils.DateTimeFormat(txnDt)
-//				cube!!.tlv_add_by_tv_in_string(Global.cube.CUBE_TAG_TXN_DATETIME7, Utils.ASCIItoHexString(strTxnDt))
-//				cube!!.tlv_add_by_tv_in_string(Global.cube.CUBE_TAG_CARD_CVM, "1F0303")
+//				cube!!.tlv_add_by_tv_in_string(TerminalConstants.cube.CUBE_TAG_TXN_DATETIME7, Utils.ASCIItoHexString(strTxnDt))
+//				cube!!.tlv_add_by_tv_in_string(TerminalConstants.cube.CUBE_TAG_CARD_CVM, "1F0303")
 //
 //				val etag = EmvTag()
 //				val bAppLabel = ByteArray(50)
@@ -660,34 +661,34 @@ class KeypadActivitySaleCom : BaseActivity() {
 //
 //				val iAppLabelLen = etag.getValueFrom(bDe55, "50", bAppLabel)
 //				if (iAppLabelLen != -1) {
-//					cube!!.tlv_add_by_tv_in_string(Global.cube.CUBE_TAG_CARD_APPLABEL, HexUtil.bytesToHexString(bAppLabel, 0, iAppLabelLen))
+//					cube!!.tlv_add_by_tv_in_string(TerminalConstants.cube.CUBE_TAG_CARD_APPLABEL, HexUtil.bytesToHexString(bAppLabel, 0, iAppLabelLen))
 //				}
 //
 //				val iArqcLen = etag.getValueFrom(bDe55, "9F26", bArqc)
 //				if(iArqcLen != -1){
-//					cube!!.tlv_add_by_tv_in_string(Global.cube.CUBE_TAG_CARD_ARQC, HexUtil.bytesToHexString(bArqc, 0, iArqcLen))
+//					cube!!.tlv_add_by_tv_in_string(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, HexUtil.bytesToHexString(bArqc, 0, iArqcLen))
 //				}
 //
 //				val iAidLen = etag.getValueFrom(bDe55, "84", bAid)
 //				if(iAidLen != -1){
-//					cube!!.tlv_add_by_tv_in_string(Global.cube.CUBE_TAG_CARD_AID, HexUtil.bytesToHexString(bAid, 0, iAidLen))
+//					cube!!.tlv_add_by_tv_in_string(TerminalConstants.cube.CUBE_TAG_CARD_AID, HexUtil.bytesToHexString(bAid, 0, iAidLen))
 //				}
 //
 //				val iTvrLen = etag.getValueFrom(bDe55, "95", bTvr)
 //				if(iTvrLen != -1){
-//					cube!!.tlv_add_by_tv_in_string(Global.cube.CUBE_TAG_CARD_TVR, HexUtil.bytesToHexString(bTvr, 0, iTvrLen))
+//					cube!!.tlv_add_by_tv_in_string(TerminalConstants.cube.CUBE_TAG_CARD_TVR, HexUtil.bytesToHexString(bTvr, 0, iTvrLen))
 //				}
 //
 //				val iTsiLen = etag.getValueFrom(bDe55, "9B", bTsi)
 //				if (iTsiLen != -1) {
-//					cube!!.tlv_add_by_tv_in_string(Global.cube.CUBE_TAG_CARD_TSI, HexUtil.bytesToHexString(bTsi, 0, iTsiLen))
+//					cube!!.tlv_add_by_tv_in_string(TerminalConstants.cube.CUBE_TAG_CARD_TSI, HexUtil.bytesToHexString(bTsi, 0, iTsiLen))
 //				}
 //
 //				val bPosEntryMode = ByteArray(2)
 //				val iPosEntryMode = etag.getValueFrom(HexUtil.hexStringToByte(batchData), "DF22", bPosEntryMode, 2)
 //				if (iPosEntryMode > 0) {
 //					val posEntryMode = Utils.getPayMeythod(HexUtil.bytesToHexString(bPosEntryMode, 0, iPosEntryMode))
-//					cube!!.tlv_add_by_tv_in_string(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString(posEntryMode))
+//					cube!!.tlv_add_by_tv_in_string(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString(posEntryMode))
 //				}
 //
 //				var isNotCompl = true
@@ -768,14 +769,14 @@ class KeypadActivitySaleCom : BaseActivity() {
 //
 //	@RequiresApi(Build.VERSION_CODES.O)
 //	private fun updateReceiptInfo(): Int {
-//		val strStan = cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_STAN)
-//		val strRrn = Utility.HexString2ASCII(cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_RRN))
-//		val strApprCode = Utility.HexString2ASCII(cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_APPRCODE))
-//		val strRespCode = Utility.HexString2ASCII(cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_RESPCODE))
-//		val strARQC = cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_ARQC)
-//		val strTVR = cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_TVR)
-//		val strAID = cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_AID)
-//		val strEntryMode = Utility.HexString2ASCII(cube!!.tlv_get_value_in_string(Global.cube.CUBE_TAG_CARD_ENTRY_MODE))
+//		val strStan = cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_STAN)
+//		val strRrn = Utility.HexString2ASCII(cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_RRN))
+//		val strApprCode = Utility.HexString2ASCII(cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_APPRCODE))
+//		val strRespCode = Utility.HexString2ASCII(cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_RESPCODE))
+//		val strARQC = cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_ARQC)
+//		val strTVR = cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_TVR)
+//		val strAID = cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_AID)
+//		val strEntryMode = Utility.HexString2ASCII(cube!!.tlv_get_value_in_string(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE))
 //
 //		val valueHM = HashMap<Any, Any>()
 //		valueHM["RRN"] = strRrn

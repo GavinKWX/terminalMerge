@@ -1,10 +1,17 @@
 package com.sc.mf919.kotlin.helper_common
+import enums.EnumResponseCode
 
 import android.util.Log
+import com.sc.mf919.java.activity.Utils
+import enums.EnumLogFileName
+import helpers.HelperCommon
+import helpers.HelperLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.java_websocket.server.WebSocketServer
 import org.java_websocket.handshake.ClientHandshake
@@ -12,127 +19,158 @@ import org.java_websocket.WebSocket
 import org.json.JSONObject
 import java.net.InetSocketAddress
 import java.util.concurrent.ConcurrentLinkedQueue
-import enums.EnumLogFileName
-import helpers.HelperCommon
-import helpers.HelperLog
 
 class WebSocketServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
     companion object {
+        private const val TAG = "WebSocketServer"
+        // Bound the pending queue so undeliverable responses cannot grow forever
+        private const val MAX_QUEUED_MESSAGES = 20
+
+        // Set from the WebSocket server's callback threads and spin-read by
+        // HTTPServer.startWebSocketServer.
+        @Volatile
         var socketConnected = false
-        var messageQueue = ConcurrentLinkedQueue<String>() // Message queue for incoming messages
+        // Responses are queued so a client that disconnected before its response was
+        // ready still receives it after reconnecting (delivery is broadcast by design)
+        val messageQueue = ConcurrentLinkedQueue<String>()
+
+        @Volatile
+        private var activeInstance: com.sc.mf919.kotlin.helper_common.WebSocketServer? = null
+
         fun receiveResponseMessage(receiveMessage: String) {
             messageQueue.add(receiveMessage)
+            while (messageQueue.size > MAX_QUEUED_MESSAGES) {
+                messageQueue.poll()
+            }
+            // Deliver immediately when possible; the polling loop remains as the
+            // safety net for clients that reconnect later
+            activeInstance?.flushQueue()
         }
     }
 
-    //private val messageQueue = ConcurrentLinkedQueue<String>() // Message queue for incoming messages
-    private val connectedClients = mutableSetOf<WebSocket>() // Track connected clients
-    private val scope = CoroutineScope(Dispatchers.IO) // Coroutine scope for handling messages
+    private val scope = CoroutineScope(Dispatchers.IO)
+    private var processingJob: Job? = null
 
-    /**
-     * Connection lifecycle into the UPLOADED log, not just logcat.
+    init {
+        // Allow quick restarts on the same port without address-in-use failures
+        isReuseAddr = true
+    }
+
+    /*
+     * These callbacks were Log.d only, so the uploaded log could never show a dropped POS
+     * connection -- and logcat is gone within minutes on a terminal. Route them through HelperLog
+     * so the connection lifecycle is in TerminaLog, which is what gets uploaded to TMS.
      *
-     * These four callbacks were android.util.Log.d only, so the terminal log could never show
-     * whether the POS connection dropped or the listener restarted -- the evidence lived in a
-     * logcat ring buffer that is gone within minutes. When a POS reports dropped connections in
-     * the field, this is the history you need. Own HelperLog per event because this class is not
-     * an Activity and the events are asynchronous.
+     * A fresh instance per event on purpose: these fire on java-websocket's own threads, there is
+     * no per-connection HelperLog to reuse, and each event is a complete one-line fact.
      */
-    private fun logWs(event: String) {
+    private fun wsLog(msg: String) {
         try {
+            Log.d(TAG, msg)
             val log = HelperLog(
                 HelperCommon.getSession(),
-                false,
-                "",
-                "WebSocketServer",
-                "WebSocketServer",
-                "WebSocket Server Connection"
+                TmsHelper.checkIsConnectedWifi(ServiceHolder.getContext()),
+                Utils.getIPAddress(),
+                TAG,
+                TAG,
+                "WebSocket Server"
             )
-            log.appendLine("WebSocketServer", event)
+            log.appendLine(TAG, msg)
             log.logToFile(EnumLogFileName.TerminaLog)
-        } catch (e: Exception) {
-            Log.w("WebSocketServer", "logWs failed: ${e.javaClass.simpleName}")
+        } catch (ex: Exception) {
+            // Never let diagnostics break the socket callback.
+            Log.w(TAG, "wsLog failed: ${ex.javaClass.simpleName}")
         }
     }
-
-    /*init {
-        startMessageProcessing()
-    }*/
 
     override fun onOpen(conn: WebSocket?, handshake: ClientHandshake?) {
         conn?.let {
-            connectedClients.add(it) // Add new client to the set of connected clients
-            //it.send("Welcome to the WebSocket server with message queue!")
-            Log.d("WebSocketServer", "New connection: ${it.remoteSocketAddress}")
-            logWs("POS connected :: ${it.remoteSocketAddress} (clients=${connectedClients.size})")
+            wsLog("Client connected :: ${it.remoteSocketAddress}")
         }
+        // A client just connected: deliver anything still pending
+        flushQueue()
     }
 
     override fun onClose(conn: WebSocket?, code: Int, reason: String?, remote: Boolean) {
         conn?.let {
-            connectedClients.remove(it) // Remove client from connected clients set
-            Log.d("WebSocketServer", "Closed connection: ${it.remoteSocketAddress} - Reason: $reason")
-            logWs("POS disconnected :: ${it.remoteSocketAddress} code=$code remote=$remote " +
-                "reason=${reason ?: "-"} (clients=${connectedClients.size})")
+            wsLog("Client disconnected :: ${it.remoteSocketAddress} code=$code remote=$remote reason=${reason ?: "-"}")
         }
     }
 
     override fun onMessage(conn: WebSocket?, message: String?) {
         message?.let {
-            //messageQueue.add(it) // Add incoming message to the queue
+            wsLog("Message received :: ${HelperCommon.oneLine(it)}")
             HTTPServer.checkWebSocketIncoming(it)
-            Log.d("WebSocketServer", "Message queued: $it")
         } ?: run {
-            println("Msg is null")
+            wsLog("REJECT :: null message from client")
             val jsonResponse = JSONObject()
-            jsonResponse.put("ResponseCode", "SHC001")
-            jsonResponse.put("ResponseDescription", "Invalid Input")
-            messageQueue.add(jsonResponse.toString())
+            jsonResponse.put("ResponseCode", EnumResponseCode.INVALID_INPUT.code)
+            jsonResponse.put("ResponseDescription", EnumResponseCode.INVALID_INPUT.description)
+            receiveResponseMessage(jsonResponse.toString())
         }
     }
 
     override fun onError(conn: WebSocket?, ex: Exception?) {
-        socketConnected = false
-        Log.e("WebSocketServer", "Error: ${ex?.message}")
-        logWs("WebSocket ERROR :: ${ex?.javaClass?.simpleName}: ${ex?.message} -- socketConnected=false")
+        // conn == null means a server-level failure; a per-connection error must not
+        // flag the whole server as down (it confuses HTTPServer's restart logic)
+        if (conn == null) {
+            socketConnected = false
+        }
+        wsLog("Error :: conn=${conn?.remoteSocketAddress ?: "server-level"} ${ex?.javaClass?.simpleName}: ${ex?.message}")
     }
 
     override fun onStart() {
         socketConnected = true
+        activeInstance = this
         startMessageProcessing()
-        Log.d("WebSocketServer", "WebSocket Server started successfully!")
-        logWs("WebSocket listener started :: port bound, accepting POS connections")
+        wsLog("Server started successfully, listening for POS connections")
     }
 
     private fun startMessageProcessing() {
-        scope.launch {
-            while (true) {
-                processQueue() // Continuously process the message queue
+        processingJob?.cancel()
+        processingJob = scope.launch {
+            while (isActive) {
+                flushQueue()
                 delay(500)
             }
         }
     }
 
-    private suspend fun processQueue() {
-        while (messageQueue.isNotEmpty() && connectedClients.isNotEmpty()) {
-            val message = messageQueue.poll() // Retrieve and remove the head of the queue
-            if (message != null) {
-                broadcastMessage(message)
-            }
+    // Drains the pending queue to all connected clients (broadcast is intentional:
+    // every client mirrors the transaction responses). Safe to call from any thread;
+    // ConcurrentLinkedQueue.poll guarantees each message is taken exactly once.
+    fun flushQueue() {
+        while (messageQueue.isNotEmpty() && connections.isNotEmpty()) {
+            val message = messageQueue.poll() ?: break
+            broadcastMessage(message)
         }
     }
 
     private fun broadcastMessage(message: String) {
-        connectedClients.forEach { client ->
-            client.send(message) // Send the message to all connected clients
+        // `connections` is the library's thread-safe live collection
+        connections.forEach { client ->
+            try {
+                client.send(message)
+            } catch (ex: Exception) {
+                // A dropped client must not abort delivery to the others
+                // or kill the processing loop
+                Log.e(TAG, "Send failed to ${client.remoteSocketAddress}: ${ex.message}")
+            }
         }
-        Log.d("WebSocketServer", "Broadcasted message: $message")
+        Log.d(TAG, "Broadcasted message: $message")
     }
 
     fun stopServer() {
-        stop()
+        try {
+            stop()
+        } catch (ex: Exception) {
+            Log.e(TAG, "Stop failed: ${ex.message}")
+        }
         socketConnected = false
-        scope.cancel() // Cancel the coroutine scope to release resources
-        Log.d("WebSocketServer", "WebSocket server stopped")
+        if (activeInstance === this) {
+            activeInstance = null
+        }
+        scope.cancel()
+        wsLog("Server stopped")
     }
 }

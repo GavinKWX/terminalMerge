@@ -1,4 +1,5 @@
 package com.sc.mf919.kotlin.activity
+import enums.EnumResponseCode
 
 import android.content.Context
 import android.content.Intent
@@ -16,7 +17,7 @@ import com.journeyapps.barcodescanner.ScanIntentResult
 import com.journeyapps.barcodescanner.ScanOptions
 import com.sc.mf919.R
 import com.sc.mf919.java.activity.*
-import com.sc.mf919.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.Util
 import com.sc.mf919.kotlin.activity.zxing.CaptureActivity
 import com.sc.mf919.kotlin.database.model.DbModelMerchantConfig
@@ -48,6 +49,7 @@ import tms.models.QrEnquiryResponseModel
 import tms.models.ScanQrUPIResponseModel
 import java.text.SimpleDateFormat
 import java.util.*
+import com.sc.mf919.kotlin.helper_common.MfHelper
 
 class QrScanActivity : ActivityBase() {
 	var helperlogClassName:String = ""
@@ -278,7 +280,7 @@ class QrScanActivity : ActivityBase() {
 			log.appendLine(helperlogClassName, "QR sale start :: refId $qrRefId, amount $amt, isUPIQR ${TransData.isUPIQR}")
 
 			loadingDialog()
-			HelperCommon.bottomActionBarEvent(applicationContext, "1")
+			MfHelper.lockStatusBarAndNavigation(true)
 
 			insertTransactionIntoDB()
 
@@ -310,7 +312,7 @@ class QrScanActivity : ActivityBase() {
 			}
 			log.appendLine(helperlogClassName, "QR payment result :: refId $qrRefId, respCode $respCode, respDesc $respDesc, brand $qrRespPayBrand, hostRef $qrRespHostRefNo, apprCode $qrRespApprovalCode")
 			closeProgressDialog()
-			HelperCommon.bottomActionBarEvent(applicationContext, "0")
+			MfHelper.lockStatusBarAndNavigation(false)
 			/*if(respCode == "0000"){
 				log.appendLine(helperlogClassName, "Insert Success Transaction into Database")
 				insertTransactionIntoDB()
@@ -696,11 +698,11 @@ class QrScanActivity : ActivityBase() {
 		logQrScan("User Cancel :: abandoned QR scan sale (refId ${if (qrRefId.isEmpty()) "-" else qrRefId}, amount $amt)")
 		try {
 			txn_map = HashMap()
-			txn_map["ResponseCode"] = "SHC005"
-			txn_map["ResponseDescription"] = "User Cancel the Transaction"
+			txn_map["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+			txn_map["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
 
-			jObject.put("ResponseCode", "SHC005")
-			jObject.put("ResponseDescription", "User Cancel the Transaction")
+			jObject.put("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+			jObject.put("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
 		} catch (e: JSONException) {
 			e.printStackTrace()
 		}

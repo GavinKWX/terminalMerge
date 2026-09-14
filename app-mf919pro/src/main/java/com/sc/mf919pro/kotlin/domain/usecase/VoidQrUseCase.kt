@@ -3,7 +3,7 @@ package com.sc.mf919pro.kotlin.domain.usecase
 import android.content.Context
 import com.google.gson.Gson
 import com.sc.mf919pro.java.activity.Utils
-import com.sc.mf919pro.java.utils.EmvUtil
+import emv.EmvUtil
 import com.sc.mf919pro.kotlin.database.model.DbModelTerminalConfig
 import com.sc.mf919pro.kotlin.database.repo.ReceiptUploadRepo
 import com.sc.mf919pro.kotlin.database.repo.TransactionQrRepo

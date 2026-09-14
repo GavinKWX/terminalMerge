@@ -8,7 +8,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.library.terminal.UrlDownload
 import com.sc.mf919.R
-import com.sc.mf919.java.activity.Encryption
+import crypto.Encryption
 import com.sc.mf919.java.activity.Utils
 import com.sc.mf919.java.device.DeviceHelper
 import utils.HexUtil
@@ -30,23 +30,11 @@ import java.util.*
 
 import tms.models.*
 import java.text.SimpleDateFormat
-
+import com.sc.mf919.kotlin.helper_common.MfHelper
 
 object TmsHelper {
 	private var firmID: String = ""
 	private val className: String = (TmsHelper::class.qualifiedName).toString()
-
-	/**
-	 * Collapse a payload onto one line before logging it.
-	 *
-	 * TMS responses carry free-text fields (merchant address, remarks, descriptions) that
-	 * contain embedded newlines, and appendLine writes those as separate physical lines with
-	 * the RowIdentifier only on the last one - un-greppable, and the block boundary is lost.
-	 * Whitespace runs collapse to a single space; nothing is truncated. Same helper as
-	 * HTTPServer.oneLine().
-	 */
-	private fun oneLine(value: String): String =
-		value.replace(Regex("""\s+"""), " ").trim()
 
 
 	private fun compareAndBatchInfo(log: HelperLog, mContext: Context, lastBatchNo: Int, lastInvoiceNo: Int): Boolean {
@@ -118,21 +106,7 @@ object TmsHelper {
 		return true
 	}
 
-	private fun createTemporaryFile(file: File, tempDir: File, tempName: String): File {
-		val newFile = File(tempDir, tempName)
-		var outputChannel: FileChannel? = null
-		var inputChannel: FileChannel? = null
-		try {
-			outputChannel = FileOutputStream(newFile).channel
-			inputChannel = FileInputStream(file).channel
-			inputChannel.transferTo(0, inputChannel.size(), outputChannel)
-			inputChannel.close()
-		} finally {
-			inputChannel?.close()
-			outputChannel?.close()
-		}
-		return newFile
-	}
+
 
 	fun merchantConfigProductModel(
 		product: String,
@@ -207,10 +181,7 @@ object TmsHelper {
 		)
 	}
 
-	private fun generateRandomDigits(n: Int): Int {
-		val m = Math.pow(10.0, (n - 1).toDouble()).toInt()
-		return m + Random().nextInt(9 * m)
-	}
+
 
 	private fun checkSettlementSummary(log: HelperLog, mContext: Context, modelSummary: DbModelSettlementSummary) {
 		val dbData = SettlementSummaryRepo.getSingle(
@@ -274,20 +245,12 @@ object TmsHelper {
 	}
 
 	@JvmStatic
-	fun checkIsConnectedWifi(mContext: Context): Boolean {
-		val connectivityManager = mContext.getSystemService(
-			Context.CONNECTIVITY_SERVICE
-		) as ConnectivityManager
-		val capabilities = connectivityManager.getNetworkCapabilities(
-			connectivityManager.activeNetwork
-		)
-		if (capabilities != null) {
-			return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-		}
-		return false
-	}
+	// Around 200 call sites between the two apps, so the name stays put and delegates.
+	fun checkIsConnectedWifi(mContext: Context): Boolean =
+		helpers.HelperNetwork.isConnectedWifi(mContext)
 
 	@JvmStatic
+
 	fun uploadAllTerminalLog(log: HelperLog, mContext: Context, isUploadAll: Boolean = false): Boolean {
 		if (!checkIsConnectedWifi(mContext)) {
 			log.appendLine(className, "TMS UploadLog skipped - no WiFi")
@@ -298,6 +261,22 @@ object TmsHelper {
 		//var result = false
 		log.appendLine(className, "TMS UploadLog [START] :: uploadAll=$isUploadAll")
 		val environmentManager = EnvironmentManager(Helper.getInstance().getPrefs()!!)
+
+		// Sweep stale staging copies before starting. createTemporaryFile writes <name>_COPY.txt
+		// into this same directory and it is deleted only after a successful upload, so a process
+		// death mid-upload orphans it -- and on the next run EnumLogFileName.valueOf() throws for
+		// "TerminaLog_COPY", so the walk below classifies the orphan as a backup file and uploads
+		// it. Fixed names make it sweepable. Ported from Pro, which already had this.
+		try {
+			File("${ServiceHolder.getContext().filesDir}/Logs").listFiles { f ->
+				f.isFile && f.name.endsWith("_COPY.txt")
+			}?.forEach { stale ->
+				log.appendLine(className, "Removing stale staging copy: ", stale.name)
+				stale.delete()
+			}
+		} catch (e: Exception) {
+			log.appendLine(className, "Stale copy sweep failed: ", e.toString())
+		}
 
 		File("${ServiceHolder.getContext().filesDir}/Logs").walkTopDown().forEach {
 			if (it.isFile) {
@@ -315,7 +294,7 @@ object TmsHelper {
 					fileToUpload = File(it.toURI())
 
 					try {
-						HelperLogFileName.valueOf(fileToUpload.nameWithoutExtension)
+						EnumLogFileName.valueOf(fileToUpload.nameWithoutExtension)
 						if (!isUploadAll) {
 							// continue loop to skip this item
 							return@forEach
@@ -323,7 +302,7 @@ object TmsHelper {
 						isBackupFile = false
 						val tempDir = File("${ServiceHolder.getContext().filesDir}/Logs")
 						val oriFile: File = fileToUpload
-						fileToUpload = createTemporaryFile(
+						fileToUpload = utils.FileOps.createTemporaryFile(
 							oriFile, tempDir, "${it.nameWithoutExtension}_COPY.txt"
 						)
 					} catch (e: IllegalArgumentException) {
@@ -393,7 +372,7 @@ object TmsHelper {
 				"-",
 				testCase
 			)
-			log.appendLine(className, "DeviceInfoHandler Response -> ", oneLine(apiResp.toString()))
+			log.appendLine(className, "DeviceInfoHandler Response -> ", helpers.HelperText.oneLine(apiResp.toString()))
 			result = true
 			log.appendLine(className, "TMS DeviceInfo [END] :: RESP_CODE=${apiResp.RESP_CODE} " +
 					"RESP_DESC=${apiResp.RESP_DESC}")
@@ -433,7 +412,7 @@ object TmsHelper {
 			)
 			ServiceHolder.clearMerchantInformation()
 			ServiceHolder.blockSale = false
-			log.appendLine(className, "MerchantConfigHandler Response :: ", oneLine(apiResp.toString()))
+			log.appendLine(className, "MerchantConfigHandler Response :: ", helpers.HelperText.oneLine(apiResp.toString()))
 
 			val gson = Gson()
 			val cardSetting = apiResp.CARD_SETTINGS
@@ -784,7 +763,7 @@ object TmsHelper {
 			TerminalConfigurationRepo.truncateTable(mContext)
 			TerminalConfigurationRepo.insertToDb(mContext, dbModel)
 			terminalConfigRes.MC_VER?.let { ServiceHolder.setMcVersion(it) }
-			log.appendLine(className, "TerminalConfigHandler Response -> ", oneLine(terminalConfigRes.toString()))
+			log.appendLine(className, "TerminalConfigHandler Response -> ", helpers.HelperText.oneLine(terminalConfigRes.toString()))
 
 			HTTPServer.startServeCable()
 			HTTPServer.startWebSocketServer()
@@ -831,9 +810,9 @@ object TmsHelper {
 				ServiceHolder.requireDownloadLogo = false
 			}
 			if (terminalConfigRes.FORCE_LOCK_HOME == 1) {
-				HelperCommon.bottomActionBarEvent(mContext, "1")
+				MfHelper.lockStatusBarAndNavigation(true)
 			} else {
-				HelperCommon.bottomActionBarEvent(mContext, "0")
+				MfHelper.lockStatusBarAndNavigation(false)
 			}
 
 			DeviceHelper.resetAID()
@@ -1041,7 +1020,7 @@ object TmsHelper {
 			}
 
 			// The entered PIN and its encoded form are never logged - only the outcome.
-			log.appendLine(className, "checkTerminalPIN Response", oneLine(apiResp.toString()))
+			log.appendLine(className, "checkTerminalPIN Response", helpers.HelperText.oneLine(apiResp.toString()))
 			result = true
 			log.appendLine(className, "TMS TerminalPIN [END] :: RESP_CODE=${apiResp.RESP_CODE} " +
 					"RESULT=${apiResp.RESULT}")
@@ -1058,38 +1037,19 @@ object TmsHelper {
 	@JvmStatic
 	fun generateEncodedPIN(pin: String): String {
 		val environmentManager = EnvironmentManager(Helper.getInstance().getPrefs()!!)
-		val rnd = Random()
-		val rndDigitFront = rnd.nextInt(10)
-		val rndDigitRear = rnd.nextInt(10)
-
-		var rndFrontNumber = ""
-		var rndRearNumber = ""
-		if (rndDigitFront > 0) {
-			val tempRndFrontNumber = generateRandomDigits(rndDigitFront)
-			rndFrontNumber = tempRndFrontNumber.toString()
-		}
-
-		if (rndDigitRear > 0) {
-			val tempRndRearNumber = generateRandomDigits(rndDigitRear)
-			rndRearNumber = tempRndRearNumber.toString()
-		}
-
-		val finalPIN = String.format("%02d", rndDigitFront) + String.format(
-			"%02d", rndDigitRear
-		) + rndFrontNumber + pin + rndRearNumber
-
-		return Encryption.AESencrypt(
-			finalPIN, environmentManager.get(EnvironmentVariables::serverHashKey)
+		return crypto.TerminalPin.encodePin(
+			pin, environmentManager.get(EnvironmentVariables::serverHashKey)
 		)
 	}
 
 	@JvmStatic
+
 	fun checkServerDateTime(log: HelperLog, mContext: Context) {
 		log.appendLine(className, "TMS Ping [START]")
 		try{
 			val tmsPingHandler = TmsPingHandler(EnvironmentManager(Helper.getInstance().getPrefs()!!))
 			val pingResp = tmsPingHandler.invoke(log)
-			log.appendLine(className, "TmsPingHandler Response -> ", oneLine(pingResp.toString()))
+			log.appendLine(className, "TmsPingHandler Response -> ", helpers.HelperText.oneLine(pingResp.toString()))
 
 			val systemDateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSSSXXX", Locale.getDefault())
 			val systemDate = systemDateFormat.parse(pingResp.systemtime!!)
@@ -1123,7 +1083,7 @@ object TmsHelper {
 				DbModelMerchantConfig.getSafeValue(dbMerchantConfig, "ScMid"),
 				DbModelMerchantConfig.getSafeValue(dbMerchantConfig, "ScTid")
 			)
-			log.appendLine(className, "DenominationPriceListHandler Response", oneLine(denominationPriceResp.toString()))
+			log.appendLine(className, "DenominationPriceListHandler Response", helpers.HelperText.oneLine(denominationPriceResp.toString()))
 			val gson = Gson()
 
 			val maintenanceSchedule = gson.toJson(denominationPriceResp.MAINTENANCE_SCHEDULE ?: "")

@@ -21,6 +21,7 @@ import com.morefun.yapi.device.printer.Printer;
 import com.morefun.yapi.device.reader.icc.IccCardReader;
 import com.morefun.yapi.device.reader.mag.MagCardReader;
 import com.morefun.yapi.device.scanner.InnerScanner;
+import com.morefun.yapi.device.serialport.SerialPort;
 import com.morefun.yapi.device.serialport.SerialPortDriver;
 import com.morefun.yapi.emv.EmvHandler;
 import com.morefun.yapi.emv.EmvRupayService;
@@ -52,6 +53,7 @@ public class DeviceHelper {
     private static MultipleAppPrinter multipleAppPrinter;
     private static Printer printer;
     private static SerialPortDriver serialPortDriver;
+    private static SerialPort usbSerialPort;
     private static Beeper beeper;
     private static EmvHandler emvHandler;
     private static InnerScanner innerScanner;
@@ -313,6 +315,21 @@ public class DeviceHelper {
             return serialPortDriver;
         }
     }
+
+    @SuppressLint("NewApi")
+    public static SerialPort getUsbSerialPort(String path) throws RemoteException {
+        if (usbSerialPort == null) {
+            checkState();
+            try {
+                return application.getDeviceService().getSerialPort(path);
+            } catch (RemoteException e) {
+                throw new RemoteException("PinPad service acquisition failed, please try again later.");
+            }
+        } else {
+            return usbSerialPort;
+        }
+    }
+
 
     @SuppressLint("NewApi")
     public static Beeper getBeeper() throws RemoteException {

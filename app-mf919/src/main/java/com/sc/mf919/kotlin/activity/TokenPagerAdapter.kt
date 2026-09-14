@@ -18,7 +18,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.gson.Gson
 import com.sc.mf919.R
 import com.sc.mf919.java.activity.Utils
-import com.sc.mf919.java.utils.EmvUtil
+import emv.EmvUtil
 import com.sc.mf919.kotlin.database.model.DbModelDenominationList
 import com.sc.mf919.kotlin.database.model.ModelMaintenanceSchedule
 import com.sc.mf919.kotlin.helper_common.Helper

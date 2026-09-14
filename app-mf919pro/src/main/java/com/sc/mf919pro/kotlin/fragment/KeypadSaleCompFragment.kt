@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.fragment
+import enums.EnumResponseCode
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
@@ -16,11 +17,11 @@ import androidx.lifecycle.lifecycleScope
 import com.google.gson.JsonObject
 import com.sc.mf919pro.R
 import com.sc.mf919pro.databinding.FragmentKeypadSalecompletionBinding
-import com.sc.mf919pro.java.activity.EmvTag
-import com.sc.mf919pro.java.activity.Global
+import emv.EmvTag
+import constants.TerminalConstants
 import com.sc.mf919pro.java.activity.Utils
 import utils.CardUtil
-import com.sc.mf919pro.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.HexUtil
 import com.sc.mf919pro.kotlin.activity.TransactionTransmitter
 import com.sc.mf919pro.kotlin.data_enum.variables.TransData
@@ -32,7 +33,7 @@ import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
 import com.sc.mf919pro.kotlin.helper_common.TmsHelper
 import com.sc.mf919pro.kotlin.helper_common.intent_helper.TxnKeys
 import com.sc.mf919pro.kotlin.helper_common.iso.IsoActivity
-import com.sc.mf919pro.kotlin.helper_common.iso.IsoHelperNew
+import iso.IsoHelperNew
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperCommon.Db.Companion.setDebouncedOnClickListener
@@ -160,16 +161,16 @@ class KeypadSaleCompFragment: BaseFragment() {
                 showToast("Invalid Input", Toast.LENGTH_SHORT)
                 if (ServiceHolder.appIntent) {
                     val txnMap = HashMap<String, String>()
-                    txnMap["ResponseCode"] = "SHC001"
-                    txnMap["ResponseDescription"] = "Invalid Transaction Details"
+                    txnMap["ResponseCode"] = EnumResponseCode.INVALID_TRANSACTION_DETAILS.code
+                    txnMap["ResponseDescription"] = EnumResponseCode.INVALID_TRANSACTION_DETAILS.description
                     delay(500L)
                     hideProgress()
                     onBackToApp(txnMap)
                 } else if (ServiceHolder.appHTTP) {
                     val jObject = JsonObject()
                     try {
-                        jObject.addProperty("ResponseCode", "SHC001")
-                        jObject.addProperty("ResponseDescription", "Invalid Transaction Details")
+                        jObject.addProperty("ResponseCode", EnumResponseCode.INVALID_TRANSACTION_DETAILS.code)
+                        jObject.addProperty("ResponseDescription", EnumResponseCode.INVALID_TRANSACTION_DETAILS.description)
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -251,14 +252,14 @@ class KeypadSaleCompFragment: BaseFragment() {
             alertDialog?.dismiss()
             if (ServiceHolder.appIntent) {
                 val txnMap = HashMap<String, String>()
-                txnMap["ResponseCode"] = "SHC005"
-                txnMap["ResponseDescription"] = "User Cancel the Transaction"
+                txnMap["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+                txnMap["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
                 onBackToApp(txnMap)
             } else if (ServiceHolder.appHTTP) {
                 val jsonObject = JsonObject()
                 try {
-                    jsonObject.addProperty("ResponseCode", "SHC005")
-                    jsonObject.addProperty("ResponseDescription", "User Cancel the Transaction")
+                    jsonObject.addProperty("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+                    jsonObject.addProperty("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -331,12 +332,12 @@ class KeypadSaleCompFragment: BaseFragment() {
                  val oldTransDb = HexUtil.hexStringToByte(preAuthInfo?.addInfo)
                  oldTransDb.copyInto(TransData.transactionDb, 0, 0, oldTransDb.size)
                  TransData.transactionDbLen = oldTransDb.size - 2
-                 TransData.schemeId = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_SCHEME_ID, 16)
-                 TransData.aid = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_AID, 16)
+                 TransData.schemeId = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_SCHEME_ID, 16)
+                 TransData.aid = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_AID, 16)
                  TransData.schemeType = CardUtil.getCardTypFromAid(TransData.aid)
                  TransData.batchNo = IsoBatchInfoRepo.getBatchInfo(mContext, "batchNo", TransData.schemeTag)?.value ?: "000001"
-                 TransData.entryModeLabel = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
-                 TransData.cvm = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_CVM, 16)
+                 TransData.entryModeLabel = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
+                 TransData.cvm = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM, 16)
                  posReference?.let {
                      TransData.posReference = it
                      helperLog.appendLine(helperLogClassName, "Add Pos Reference :: $it")
@@ -360,9 +361,9 @@ class KeypadSaleCompFragment: BaseFragment() {
 
             //Reversal //Skip Reversal for MyDebit SaleCom
             // Same StorageGuard exclusion as EmvFragment — see the comment there.
-            if(!TransData.schemeType.equals("MCCS", true) && TransData.transResult != Global.iso.err.txnApproved &&
-                TransData.transResult != Global.iso.err.txnNotAllowed &&
-                (TransData.transResult == Global.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
+            if(!TransData.schemeType.equals("MCCS", true) && TransData.transResult != TerminalConstants.iso.err.txnApproved &&
+                TransData.transResult != TerminalConstants.iso.err.txnNotAllowed &&
+                (TransData.transResult == TerminalConstants.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
                 ServiceHolder.isoComm = null
                 isNotCompl[0] = true
                 CoroutineScope(Dispatchers.IO).launch {

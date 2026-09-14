@@ -18,7 +18,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.library.terminal.Utility
 import com.sc.mf919.R
-import com.sc.mf919.java.activity.Global
+import constants.TerminalConstants
 import com.sc.mf919.java.activity.Utils
 import data_enum.CardErrorDataEnum
 import com.sc.mf919.kotlin.data_enum.variables.TransData
@@ -95,7 +95,7 @@ class FragmentDenominationResult: Fragment() {
         val transactionResult = TransData.transResult
         helperLog.appendLine(helperLogClassName, "Denomination result :: transResult=$transactionResult " +
             "stan=${TransData.stan} rrn=${TransData.rrn}")
-        if(transactionResult == Global.iso.err.txnApproved){
+        if(transactionResult == TerminalConstants.iso.err.txnApproved){
             //helperLog.appendLine(helperLogClassName, "Transaction Approved...")
             view.findViewById<TextView>(R.id.tvTitle).text = "Transaction Success"
             view.findViewById<TextView>(R.id.tvTitle).setTextColor(ContextCompat.getColor(requireContext(), R.color.colorPrimary))

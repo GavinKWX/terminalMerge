@@ -121,36 +121,6 @@ class HelperCommon {
 			)
 		}
 
-		@JvmStatic
-		fun generateEncodedPIN(pin: String): String? {
-			val environmentManager = EnvironmentManager(Helper.getInstance().getPrefs()!!)
-			val rnd = Random()
-			val rndDigitFront = rnd.nextInt(10)
-			val rndDigitRear = rnd.nextInt(10)
-
-			var rndFrontNumber = ""
-			var rndRearNumber = ""
-			if (rndDigitFront > 0) {
-				val tempRndFrontNumber = generateRandomDigits(rndDigitFront)
-				rndFrontNumber = tempRndFrontNumber.toString()
-			}
-
-			if (rndDigitRear > 0) {
-				val tempRndRearNumber = generateRandomDigits(rndDigitRear)
-				rndRearNumber = tempRndRearNumber.toString()
-			}
-
-			val finalPIN = String.format("%02d", rndDigitFront) + String.format("%02d", rndDigitRear) + rndFrontNumber + pin + rndRearNumber
-
-			return AESencryptV2(finalPIN, environmentManager.get(EnvironmentVariables::serverHashKey))
-		}
-
-		@JvmStatic
-		private fun generateRandomDigits(n: Int): Int {
-			val m = Math.pow(10.0, (n - 1).toDouble()).toInt()
-			return m + Random().nextInt(9 * m)
-		}
-
 		// Max time to wait for a single print job to finish before giving up,
 		// so a printer fault can never hang the calling (background) thread forever.
 		private const val PRINT_TIMEOUT_SECONDS = 30L

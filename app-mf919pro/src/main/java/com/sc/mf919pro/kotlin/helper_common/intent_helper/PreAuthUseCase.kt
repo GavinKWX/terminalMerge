@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.helper_common.intent_helper
+import enums.EnumResponseCode
 
 import android.content.Context
 import androidx.core.os.bundleOf
@@ -20,8 +21,8 @@ class PreAuthUseCase {
         val checkList = listOf(PreAuthType.PREAUTH, PreAuthType.PREAUTHCOMPLETE)
         if (preAuthType in checkList) {
             if(!DbModelTerminalConfig.getBooleanValue(terminalConfig, "SALES_CARD")) {
-                txn[TxnKeys.RESP_CODE] = "SHC010"
-                txn[TxnKeys.RESP_DESC] = "Transaction Not Supported"
+                txn[TxnKeys.RESP_CODE] = EnumResponseCode.TRANSACTION_NOT_SUPPORTED.code
+                txn[TxnKeys.RESP_DESC] = EnumResponseCode.TRANSACTION_NOT_SUPPORTED.description
                 return Route.Return(txn)
             }
         }
@@ -117,8 +118,8 @@ class PreAuthUseCase {
             }
         } catch (_: Exception) {
             Route.Return(txn.apply {
-                put(TxnKeys.RESP_CODE, "SHC007")
-                put(TxnKeys.RESP_DESC, "Terminal System Error (Product Is Not Configured)")
+                put(TxnKeys.RESP_CODE, EnumResponseCode.PRODUCT_NOT_CONFIGURED.code)
+                put(TxnKeys.RESP_DESC, EnumResponseCode.PRODUCT_NOT_CONFIGURED.description)
             })
         }
     }

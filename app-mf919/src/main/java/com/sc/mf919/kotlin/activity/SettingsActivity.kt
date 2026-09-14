@@ -21,7 +21,7 @@ import com.google.gson.Gson
 import com.sc.mf919.R
 import com.sc.mf919.java.activity.*
 import com.sc.mf919.java.device.DeviceHelper
-import com.sc.mf919.kotlin.data_enum.EnumWebsocket
+import enums.EnumWebsocket
 import com.sc.mf919.kotlin.data_enum.ProductCatSelectionDataEnum
 import com.sc.mf919.kotlin.data_enum.ProductCatSelectionDataEnum.Companion.getProductCatForHttp
 import com.sc.mf919.kotlin.data_enum.SaleModelNew
@@ -54,7 +54,7 @@ import com.sc.mf919.kotlin.helper_common.TmsHelper.uploadAllTerminalLog
 import env.EnvironmentManager
 import env.EnvironmentVariables
 import com.sc.mf919.kotlin.helper_common.iso.IsoActivity
-import com.sc.mf919.kotlin.helper_common.iso.IsoHelperNew
+import iso.IsoHelperNew
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperCommon.Companion.context

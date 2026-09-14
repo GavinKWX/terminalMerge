@@ -7,7 +7,7 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.sc.mf919.java.activity.Utils
 import helpers.HelperLog
-import com.sc.mf919.kotlin.helper_common.HelperLogFileName
+
 import com.sc.mf919.kotlin.helper_common.TmsHelper
 import enums.EnumLogFileName
 import helpers.HelperCommon

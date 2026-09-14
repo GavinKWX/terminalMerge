@@ -3,6 +3,7 @@ package helpers
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -20,8 +21,12 @@ import org.junit.Test
  */
 class LogRedactTest {
 
-	@Before fun reset() = LogRedact.clearCardData()
-	@After fun clear() = LogRedact.clearCardData()
+	// Clearing needs the generation in force, which register() hands out -- so ask for the
+	// current one rather than assuming a value.
+	private fun wipe() = LogRedact.clearCardData(LogRedact.currentGeneration())
+
+	@Before fun reset() = wipe()
+	@After fun clear() = wipe()
 
 	// ---------- track2 ----------
 
@@ -149,7 +154,7 @@ class LogRedactTest {
 		LogRedact.registerCardData(pan, null)
 		assertFalse(LogRedact.scrubPans("pan=$pan").contains(pan))
 
-		LogRedact.clearCardData()
+		wipe()
 
 		// Card data must not outlive the transaction -- after clearing, nothing is registered,
 		// so the sink has nothing to match. This documents that clearing is what ends the scope.
@@ -162,5 +167,48 @@ class LogRedactTest {
 
 		val line = "pan=12345678901"
 		assertEquals("a too-short value must not be registered", line, LogRedact.scrubPans(line))
+	}
+
+	// ---------- D11: a stale clear must not wipe a newer transaction's card data ----------
+
+	@Test
+	fun `a clear holding an old generation leaves the newer registration intact`() {
+		// The sale that just finished registers, and its result screen snapshots the generation.
+		val salePan = "4365091500002381"
+		LogRedact.registerCardData(salePan, null)
+		val resultScreenGeneration = LogRedact.currentGeneration()
+
+		// A void starts before that screen is torn down and registers its own card data.
+		val voidPan = "5432109876543210"
+		LogRedact.registerCardData(voidPan, null)
+
+		// Now the outgoing result screen reaches onDestroyView. Measured on Pro, this landed
+		// 150 ms after the void had registered, and the unguarded clear wiped the void's PAN --
+		// so every following void line reached the uploaded log unmasked.
+		LogRedact.clearCardData(resultScreenGeneration)
+
+		assertFalse(
+			"a stale clear must not disarm the void's registration",
+			LogRedact.scrubPans("DF02 :: $voidPan").contains(voidPan)
+		)
+	}
+
+	@Test
+	fun `the owning generation still clears`() {
+		LogRedact.registerCardData("4365091500002381", null)
+		val mine = LogRedact.currentGeneration()
+
+		LogRedact.clearCardData(mine)
+
+		val line = "DF02 :: 4365091500002381"
+		assertEquals("the registration's own generation must clear it", line, LogRedact.scrubPans(line))
+	}
+
+	@Test
+	fun `each registration gets its own generation`() {
+		val first = LogRedact.registerCardData("4365091500002381", null)
+		val second = LogRedact.registerCardData("5432109876543210", null)
+		assertNotEquals("generations must not repeat", first, second)
+		assertEquals("register returns the generation now in force", second, LogRedact.currentGeneration())
 	}
 }

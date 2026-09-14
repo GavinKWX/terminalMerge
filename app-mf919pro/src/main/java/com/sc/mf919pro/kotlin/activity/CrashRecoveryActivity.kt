@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.activity
+import helpers.CrashHandler
 
 import android.content.Intent
 import android.os.Bundle

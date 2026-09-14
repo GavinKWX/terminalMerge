@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.fragment
+import enums.EnumResponseCode
 
 import android.content.Intent
 import android.os.Bundle
@@ -182,14 +183,14 @@ class EppAcquirerFragment: BaseFragment() {
         val txnMap = HashMap<String, String>()
         val jObject = JsonObject()
         txnMap["TransactionType"] = ServiceHolder.txnType.toString()
-        txnMap["ResponseCode"] = "SHC005"
-        txnMap["ResponseDescription"] = "User Cancel the Transaction"
+        txnMap["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+        txnMap["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
         helperLog.appendLine(helperLogClassName, "OnBack Press Detected")
         helperLog.logToFile(EnumLogFileName.TerminaLog)
 
         try {
-            jObject.addProperty("ResponseCode", "SHC005")
-            jObject.addProperty("ResponseDescription", "User Cancel the Transaction")
+            jObject.addProperty("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+            jObject.addProperty("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {

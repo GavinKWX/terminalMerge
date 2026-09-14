@@ -30,6 +30,18 @@ enum class EnumResponseCode(val code: String, val description: String) {
 	INVALID_TRANSACTION_DETAILS("SHC001", "Invalid Transaction Details"),
 	INVALID_TRANSACTION_INVOICE("SHC001", "Invalid Transaction Invoice"),
 
+	/**
+	 * Found shipping in 2026-09-09's sweep, absent from this enum until then -- so the class that
+	 * calls itself the single source of truth was missing six of the strings actually on the wire.
+	 * Added verbatim; do not tidy the wording.
+	 */
+	INVALID_PAYMENT_CHANNEL("SHC001", "Invalid Payment Channel"),
+	INVALID_REF_ID("SHC001", "Invalid Ref ID"),
+	INVALID_POS_REFERENCE_NO("SHC001", "Invalid PosReference No"),
+	INVALID_TRANSACTION_ID("SHC001", "Invalid Transaction ID"),
+	AMOUNT_NOT_POSITIVE("SHC001", "Trade amount should be greater than 0"),
+	AMOUNT_TOO_LARGE("SHC001", "Trade amount too large"),
+
 	/** Settlement already in progress; the caller must wait it out. */
 	AUTO_SETTLEMENT_RUNNING("SHC002", "Auto Settlement is running"),
 
@@ -52,13 +64,20 @@ enum class EnumResponseCode(val code: String, val description: String) {
 	UNEXPECTED_ERROR("SHC007", "Unexpected Error"),
 
 	/**
-	 * ⚠️ UNRESOLVED COLLISION - Pro only, and it contradicts the A3 decision above.
+	 * ⚠️ UNRESOLVED COLLISION - it contradicts the A3 decision above.
 	 *
 	 * A timeout is not a system error, but it shares SHC007, so a vendor cannot tell "the
 	 * terminal broke" from "the terminal did not answer in time" - and those want opposite
 	 * client behaviour (investigate vs retry). Giving it its own code is a vendor-visible
 	 * contract change, so it needs a decision rather than a quiet edit; recorded here so the
 	 * next reader sees the conflict instead of rediscovering it.
+	 *
+	 * For integrators the rule is: match on the description for SHC007, and treat this one as
+	 * query-before-retry -- a timeout may mean the transaction completed and charged the card.
+	 *
+	 * Emitted by **both** apps since 2026-09-08. MF919 previously answered a timeout SHC000
+	 * "System Busy", i.e. "safe to retry immediately", which is the one answer that invites a
+	 * double charge; see A3b in docs/merge-audit-mf919.md.
 	 */
 	TERMINAL_RESPONSE_TIMEOUT("SHC007", "Terminal Response Timeout"),
 

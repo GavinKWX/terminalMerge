@@ -1,7 +1,7 @@
 package com.sc.mf919.kotlin.database.repo
 
 import android.content.Context
-import com.sc.mf919.java.activity.Encryption
+import crypto.Encryption
 import com.sc.mf919.java.activity.Utils
 import utils.HexUtil
 import com.sc.mf919.kotlin.database.infrastructure.DatabaseTables

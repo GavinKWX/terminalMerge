@@ -3,7 +3,7 @@ package com.sc.mf919.kotlin.migration
 import com.sc.mf919.kotlin.database.infrastructure.DatabaseTables
 import database.DbHandler
 import helpers.HelperLog
-import com.sc.mf919.kotlin.helper_common.HelperLogFileName
+import enums.EnumLogFileName
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import java.lang.StringBuilder
 
@@ -82,7 +82,7 @@ class Migration1414 {
         /*  Check Column [END]*/
 
         HelperLog.appendLine(sbLog, "----------------- Finish Running Migration -------------")
-        HelperLog.logToFile(sbLog, HelperLogFileName.TerminaLog)
+        HelperLog.logToFile(sbLog, EnumLogFileName.TerminaLog)
     }
 
     private fun createTables(tableName: String, tableField: List<String>) {

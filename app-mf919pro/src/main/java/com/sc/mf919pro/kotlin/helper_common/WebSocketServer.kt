@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.helper_common
+import enums.EnumResponseCode
 
 import android.util.Log
 import com.sc.mf919pro.java.activity.Utils
@@ -103,8 +104,8 @@ class WebSocketServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         } ?: run {
             wsLog("REJECT :: null message from client")
             val jsonResponse = JSONObject()
-            jsonResponse.put("ResponseCode", "SHC001")
-            jsonResponse.put("ResponseDescription", "Invalid Input")
+            jsonResponse.put("ResponseCode", EnumResponseCode.INVALID_INPUT.code)
+            jsonResponse.put("ResponseDescription", EnumResponseCode.INVALID_INPUT.description)
             receiveResponseMessage(jsonResponse.toString())
         }
     }

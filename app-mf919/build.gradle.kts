@@ -55,6 +55,10 @@ android {
         create("stag") {
             isDebuggable = true
             isMinifyEnabled = false
+            // :core only has debug/release. Without this, every stag build fails to resolve
+            // :core at all ("No matching variant ... BuildTypeAttr 'stag'"). stag is
+            // debuggable and unminified, so core's debug is the right match.
+            matchingFallbacks += "debug"
             applicationIdSuffix = ".uat"
             signingConfig = signingConfigs.getByName("debug")
             buildConfigField("String", "DEFAULT_ENV", "\"staging\"")

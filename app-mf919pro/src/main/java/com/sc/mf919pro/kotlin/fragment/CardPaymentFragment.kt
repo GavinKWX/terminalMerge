@@ -15,7 +15,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.library.terminal.Utility
 import com.sc.mf919pro.R
 import com.sc.mf919pro.databinding.FragmentCardpaymentBinding
-import com.sc.mf919pro.java.activity.Global
+import constants.TerminalConstants
 import com.sc.mf919pro.java.activity.Utils
 import utils.HexUtil
 import com.sc.mf919pro.kotlin.data_enum.ProductCatSelectionDataEnum
@@ -110,7 +110,7 @@ class CardPaymentFragment : EmvFragment() {
             StorageGuard.logBlocked(requireContext(), "CardPaymentFragment")
             helperLog.appendLine(helperLogClassName, "BLOCKED :: insufficient storage", StorageGuard.describe(requireContext()))
             helperLog.logToFile(EnumLogFileName.TerminaLog)
-            transData.transResult = Global.iso.err.txnNotAllowed
+            transData.transResult = TerminalConstants.iso.err.txnNotAllowed
             transData.respCode = StorageGuard.RESP_CODE_HEX
             navigateSafe(R.id.action_cardPayment_to_transactionResult)
             return
@@ -149,7 +149,7 @@ class CardPaymentFragment : EmvFragment() {
 
     private suspend fun searchCardCoroutines() = withContext(Dispatchers.IO) {
         helperLog.appendLine(helperLogClassName, "Searching Card Set Transaction Data")
-        transData.payMethod = Global.paymentMethod.Non
+        transData.payMethod = TerminalConstants.paymentMethod.Non
         withContext(Dispatchers.Default) {
             MfHelper.closeNfcUrlInterface()
         }

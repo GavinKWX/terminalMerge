@@ -1,4 +1,5 @@
 package com.sc.mf919.kotlin.activity
+import enums.EnumResponseCode
 
 import android.app.KeyguardManager
 import android.content.Context
@@ -200,12 +201,12 @@ class EppAcquirerActivity : BaseActivity() {
 		helperLog.appendLine(helperLogClassName, "User Cancel :: abandoned EPP acquirer selection")
 		val txnMap = HashMap<String, String>()
 		val jObject = JSONObject()
-		txnMap["ResponseCode"] = "SHC005"
-		txnMap["ResponseDescription"] = "User Cancel the Transaction"
+		txnMap["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+		txnMap["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
 
 		try {
-			jObject.put("ResponseCode", "SHC005")
-			jObject.put("ResponseDescription", "User Cancel the Transaction")
+			jObject.put("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+			jObject.put("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
 		} catch (e: JSONException) {
 			e.printStackTrace()
 		}finally {

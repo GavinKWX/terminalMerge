@@ -1,4 +1,5 @@
 package com.sc.mf919.kotlin.activity
+import enums.EnumResponseCode
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
@@ -19,14 +20,14 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.lifecycleScope
 import com.library.terminal.Utility
 import com.sc.mf919.R
-import com.sc.mf919.java.activity.EmvTag
-import com.sc.mf919.java.activity.Global
+import emv.EmvTag
+import constants.TerminalConstants
 import com.sc.mf919.java.activity.Keypad
 import com.sc.mf919.java.activity.TransactionTransmitter
 import com.sc.mf919.java.activity.UploadTMS
 import com.sc.mf919.java.activity.Utils
 import com.sc.mf919.java.activity.onKeypadEventListener
-import com.sc.mf919.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.HexUtil
 import com.sc.mf919.kotlin.data_enum.variables.TransData
 import com.sc.mf919.kotlin.database.model.DbModelBatchTable
@@ -47,6 +48,7 @@ import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperCommon.Db.Companion.setDebouncedOnClickListener
 import helpers.HelperLog
+import helpers.LogRedact
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -146,7 +148,6 @@ class VoidOffSaleActivity : BaseActivity() {
 			val criteriaList = listOf("invNo")
 			val valueList = listOf(invoiceNum)
 			BatchTableRepo.getSingleForCertainType(mContext, criteriaList, valueList, listOf("Sale Completion"))?.let {
-				helperLog.appendLine(helperLogClassName, "Batch Table Record >> $it")
 				batchTableModel = it
 				val bBatchInfo = HexUtil.hexStringToByte(it.batchData)
 				val emvTag = EmvTag()
@@ -163,6 +164,11 @@ class VoidOffSaleActivity : BaseActivity() {
 
 				amount = HexUtil.bytesToHexString(bTxnAmt)
 				cardPan = HexUtil.bytesToHexString(bCardPan, 0, bCardPanLen).replace("F", "") /*Remove padding "F"*/
+				// D11 -- register before the first line that can carry the PAN. A void takes its PAN
+				// from the batch table and never touches EMV, so nothing else populates LogRedact on
+				// this path and the batchData TLV below would reach the uploaded log in the clear.
+				LogRedact.registerCardData(cardPan, null)
+				helperLog.appendLine(helperLogClassName, "Batch Table Record >> $it")
 				transRRN = Utils.byteArrayToAsciiString(bTxnRRN)
 				approvalCode = Utils.byteArrayToAsciiString(bApprCode)
 
@@ -179,19 +185,19 @@ class VoidOffSaleActivity : BaseActivity() {
 					helperLog.appendLine(helperLogClassName, "REJECT :: MyDebit Completion Void is not supported")
 					helperLog.logToFile(EnumLogFileName.TerminaLog)
 					runOnUiThread {
-						ToastMake(mContext, "MyDebit Completion Void is not supported", Toast.LENGTH_SHORT)
+						ToastMake(mContext, EnumResponseCode.MYDEBIT_COMPLETION_VOID_UNSUPPORTED.description, Toast.LENGTH_SHORT)
 					}
 
 					if (ServiceHolder.appIntent) {
 						val txnMap = java.util.HashMap<String, String>()
-						txnMap["ResponseCode"] = "SHC010"
-						txnMap["ResponseDescription"] = "MyDebit Completion Void is not supported"
+						txnMap["ResponseCode"] = EnumResponseCode.MYDEBIT_COMPLETION_VOID_UNSUPPORTED.code
+						txnMap["ResponseDescription"] = EnumResponseCode.MYDEBIT_COMPLETION_VOID_UNSUPPORTED.description
 						onBackToApp(txnMap)
 					} else if (ServiceHolder.appHTTP) {
 						val jObject = JSONObject()
 						try {
-							jObject.put("ResponseCode", "SHC010")
-							jObject.put("ResponseDescription", "MyDebit Completion Void is Not Supported")
+							jObject.put("ResponseCode", EnumResponseCode.MYDEBIT_COMPLETION_VOID_UNSUPPORTED.code)
+							jObject.put("ResponseDescription", EnumResponseCode.MYDEBIT_COMPLETION_VOID_UNSUPPORTED.description)
 						} catch (e: JSONException) {
 							e.printStackTrace()
 						}
@@ -212,14 +218,14 @@ class VoidOffSaleActivity : BaseActivity() {
 
 				if (ServiceHolder.appIntent) {
 					val txnMap = HashMap<String, String>()
-					txnMap["ResponseCode"] = "SHC001"
-					txnMap["ResponseDescription"] = "Invalid Transaction Invoice"
+					txnMap["ResponseCode"] = EnumResponseCode.INVALID_TRANSACTION_INVOICE.code
+					txnMap["ResponseDescription"] = EnumResponseCode.INVALID_TRANSACTION_INVOICE.description
 					onBackToApp(txnMap)
 				} else if (ServiceHolder.appHTTP) {
 					val jObject = JSONObject()
 					try {
-						jObject.put("ResponseCode", "SHC001")
-						jObject.put("ResponseDescription", "Invalid Transaction Invoice")
+						jObject.put("ResponseCode", EnumResponseCode.INVALID_TRANSACTION_INVOICE.code)
+						jObject.put("ResponseDescription", EnumResponseCode.INVALID_TRANSACTION_INVOICE.description)
 					} catch (e: JSONException) {
 						e.printStackTrace()
 					}
@@ -255,14 +261,14 @@ class VoidOffSaleActivity : BaseActivity() {
 			alertDialog?.dismiss()
 			if (ServiceHolder.appIntent) {
 				val txn_map: HashMap<String, String> = HashMap()
-				txn_map["ResponseCode"] = "SHC005"
-				txn_map["ResponseDescription"] = "User Cancel the Transaction"
+				txn_map["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+				txn_map["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
 				onBackToApp(txn_map)
 			} else if (ServiceHolder.appHTTP) {
 				val jObject = JSONObject()
 				try {
-					jObject.put("ResponseCode", "SHC005")
-					jObject.put("ResponseDescription", "User Cancel the Transaction")
+					jObject.put("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+					jObject.put("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
 				} catch (e: JSONException) {
 					e.printStackTrace()
 				}
@@ -344,9 +350,9 @@ class VoidOffSaleActivity : BaseActivity() {
 			val oldTransDb = HexUtil.hexStringToByte(batchTableModel.batchData)
 			oldTransDb.copyInto(TransData.transactionDb, 0, 0, oldTransDb.size)
 			TransData.transactionDbLen = oldTransDb.size - 2
-			TransData.entryModeLabel = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
-			TransData.cvm = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_CVM, 16)
-			TransData.aid = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_AID, 16)
+			TransData.entryModeLabel = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
+			TransData.cvm = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM, 16)
+			TransData.aid = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_AID, 16)
 			posReference?.let {
 				TransData.posReference = it
 				helperLog.appendLine(helperLogClassName, "Add Pos Reference >> $it")
@@ -360,7 +366,7 @@ class VoidOffSaleActivity : BaseActivity() {
 					IsoActivity.processVoidSaleComp(mContext, isNotCompl, helperLog)
 					helperLog.appendLine(helperLogClassName, "Trans Result :: ${TransData.transResult}")
 					helperLog.appendLine(helperLogClassName, "Resp Code :: ${TransData.respCode}")
-					helperLog.appendLine(helperLogClassName, "Void Sale Comp result :: ${if (TransData.transResult == Global.iso.err.txnApproved) "APPROVED" else "DECLINED"} for invoice ${TransData.prevInvoice} / RRN ${TransData.prevRRN} / PAN ${TransData.maskedPan}")
+					helperLog.appendLine(helperLogClassName, "Void Sale Comp result :: ${if (TransData.transResult == TerminalConstants.iso.err.txnApproved) "APPROVED" else "DECLINED"} for invoice ${TransData.prevInvoice} / RRN ${TransData.prevRRN} / PAN ${TransData.maskedPan}")
 					isNotCompl[0] = false
 				}
 			}.start()
@@ -423,13 +429,13 @@ class VoidOffSaleActivity : BaseActivity() {
 		val strPreAuthBatchNo = TransData.getFromTransactionDb("BF60", 256)
 		val strRespCode =  Utility.HexString2ASCII(TransData.respCode)
 		val strAid = TransData.aid
-		val mti = TransData.getFromTransactionDb(Global.iso.tag.MTI, 16)
+		val mti = TransData.getFromTransactionDb(TerminalConstants.iso.tag.MTI, 16)
 		val strNii = TransData.getFromTransactionDb("DF24", 16)
 		val strMaskPanBcd = TransData.maskedPan
 		val strHashedPanBcd = TransData.hashedPan
 		val strEntryType = TransData.entryModeLabel
-		val strARQC = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ARQC, 16)
-		val strTVR = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_TVR, 16)
+		val strARQC = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, 16)
+		val strTVR = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_TVR, 16)
 		val strPosReference = TransData.posReference
 		val strCardLabel = Utils.byteArrayToAsciiString(TransData.appLabel, 0, TransData.appLabelLen)
 		val strCvm = TransData.cvm

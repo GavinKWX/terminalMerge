@@ -1,4 +1,5 @@
 package com.sc.mf919.kotlin.activity
+import enums.EnumResponseCode
 
 import android.content.Context
 import android.content.Intent
@@ -189,12 +190,12 @@ class BnplScanActivity : ActivityBase(), LoaderManager.LoaderCallbacks<Any> {
 //            }
 //        }
         txn_map = HashMap()
-        txn_map["ResponseCode"] = "SHC005"
-        txn_map["ResponseDescription"] = "User Cancel the Transaction"
+        txn_map["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+        txn_map["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
 
         try {
-            jObject.put("ResponseCode", "SHC005")
-            jObject.put("ResponseDescription", "User Cancel the Transaction")
+            jObject.put("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+            jObject.put("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
         } catch (e: JSONException) {
             e.printStackTrace()
         }

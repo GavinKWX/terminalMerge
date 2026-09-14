@@ -1,12 +1,11 @@
 package com.sc.mf919.kotlin.helper_common
 
+import android.os.SystemClock
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import com.sc.mf919.java.activity.Utils
-import com.sc.mf919.kotlin.data_enum.EnumWebsocket
-import com.sc.mf919.kotlin.data_enum.variables.TransData
+import enums.EnumWebsocket
 import com.sc.mf919.kotlin.database.repo.DenominationListRepo
 import env.EnvironmentManager
 import env.EnvironmentVariables
@@ -38,9 +37,21 @@ object WebSocketClientSingleton {
 
     private val _messageFlow = MutableSharedFlow<String>(extraBufferCapacity = 64)
     val messageFlow = _messageFlow.asSharedFlow()
-    var temp = ""
 
     private val sendQueue = ConcurrentLinkedQueue<String>()
+
+    /*
+     * Duplicate suppression state. @Volatile because it is written on the socket's own thread and
+     * cleared from an IO coroutine.
+     */
+    private const val DEDUP_WINDOW_MS = 3000L
+
+    @Volatile
+    private var lastMessage = ""
+
+    /** Bounded form of a message for a log line -- these are commands, not card data. */
+    private fun brief(message: String): String =
+        if (message.length <= 200) message else message.take(200) + "...(${message.length} chars)"
 
     /**
      * Connection-lifecycle log: one flushed block per connect / disconnect / error.
@@ -79,11 +90,47 @@ object WebSocketClientSingleton {
     @Volatile
     private var consecutiveFailures = 0
 
+    /*
+     * A connection is only treated as healthy -- and the failure run only reset -- once it has
+     * held this long. A server that accepts and instantly drops used to reset the run on every
+     * onOpen, so every disconnect looked like the first failure of a new run and the throttle
+     * never engaged. Measured on a terminal: accept-then-1006 every ~3.2s, ~19 log blocks a
+     * minute.
+     */
+    private const val HEALTHY_CONNECTION_MS = 10_000L
+
+    @Volatile
+    private var openedAtMs = 0L
+
     private fun logConnectFailure(event: String) {
         val failures = ++consecutiveFailures
         if (failures == 1 || failures % FAILURE_LOG_INTERVAL == 0) {
             logWs("$event (consecutive failure #$failures)", isError = true)
         }
+    }
+
+    /**
+     * Connect succeeded. Throttled on the same run counter: while a server is flapping, the
+     * success line would otherwise loop exactly as fast as the failure line.
+     */
+    private fun logConnectSuccess(event: String) {
+        if (consecutiveFailures == 0 || consecutiveFailures % FAILURE_LOG_INTERVAL == 0) {
+            logWs(event)
+        }
+    }
+
+    /**
+     * How long the connection that just dropped had been open, and reset of the failure run when
+     * it held long enough to count as healthy. -1 means it never opened.
+     */
+    private fun heldMs(): Long {
+        if (openedAtMs == 0L) return -1
+        val held = SystemClock.elapsedRealtime() - openedAtMs
+        openedAtMs = 0L
+        if (held >= HEALTHY_CONNECTION_MS) {
+            consecutiveFailures = 0
+        }
+        return held
     }
 
     fun connect(uri: String) {
@@ -102,29 +149,39 @@ object WebSocketClientSingleton {
             override fun onOpen(handshakedata: ServerHandshake) {
                 println("WebSocket connected")
                 isConnected = true
-                consecutiveFailures = 0
-                logWs("Connected to server :: $targetUri (queued=${sendQueue.size})")
+                openedAtMs = SystemClock.elapsedRealtime()
+                // NOT consecutiveFailures = 0 -- see HEALTHY_CONNECTION_MS. The run is reset on
+                // disconnect, and only if the connection actually held.
+                logConnectSuccess("Connected to server :: $targetUri (queued=${sendQueue.size})")
                 reconnectJob?.cancel()
                 flushSendQueue()
                 threadPingPong()
             }
 
             override fun onMessage(message: String) {
-                var returnMessage = message
-                if(temp == message) {
-                    println("Received :: duplicate ${Utils.DateTimeFormat(TransData.transDateAsci)}")
-                    return
-                }
-                println("Received :: $message")
-                temp = message
-                CoroutineScope(Dispatchers.IO).launch {
-                    delay(3000)
-                    temp = ""
-                }
-                if(message.uppercase() == "PONG") {
+                // Keep-alive first: it must never enter the dedup state (a repeated PONG is not
+                // a duplicate worth reporting) and never reaches messageFlow.
+                if (message.uppercase() == "PONG") {
                     return
                 }
 
+                // The server can repeat a push, and the commands below are not idempotent from
+                // the UI's point of view -- an UpdatePrice truncate re-running mid-render shows
+                // an empty list. So a repeat inside the window is dropped, but it is LOGGED:
+                // a silent drop is indistinguishable from a message that never arrived when
+                // reading a terminal log after the fact.
+                if (message == lastMessage) {
+                    logWs("Duplicate ignored (within ${DEDUP_WINDOW_MS}ms) :: ${brief(message)}")
+                    return
+                }
+                println("Received :: $message")
+                lastMessage = message
+                CoroutineScope(Dispatchers.IO).launch {
+                    delay(DEDUP_WINDOW_MS)
+                    lastMessage = ""
+                }
+
+                var returnMessage = message
                 var jsonObject: JsonObject? = null
                 try {
                     try {
@@ -139,7 +196,7 @@ object WebSocketClientSingleton {
                                 JsonParser.parseString(inner).asJsonObject
                             }
                             else -> {
-                                println( "Ignore non-JSON message: $message")
+                                println("Ignore non-JSON message: $message")
                                 return
                             }
                         }
@@ -155,23 +212,24 @@ object WebSocketClientSingleton {
                 }
 
                 try {
-                    if(jsonObject != null) {
+                    if (jsonObject != null) {
                         returnMessage = Gson().toJson(jsonObject)
                         val jsonCommand = jsonObject.get("Command").asString
                         println("jsonCommand :: $jsonCommand")
 
-                        when(jsonCommand) {
+                        when (jsonCommand) {
                             EnumWebsocket.UpdatePrice.socketCommand -> {
+                                // The denomination list is only re-fetched from TMS when the local
+                                // copy is empty, so without clearing it a price change on TMS never
+                                // reaches a terminal that already has a list.
                                 DenominationListRepo.truncateTable(ServiceHolder.mContext)
                             }
-//                            EnumWebsocket.TerminalDMDispense.socketCommand -> {
-//                                println("Doing")
-//                                CoroutineScope(Dispatchers.IO).launch {
-//                                    HelperCommon.manualDispenseToken(ServiceHolder.mContext, returnMessage)
-//                                }
-//                            }
                             else -> {
-                                println("Invalid Command")
+                                // Not "invalid" -- the server is entitled to send it, we have no
+                                // handler. Through logWs, not println, so an unhandled live
+                                // command is visible in the uploaded log instead of only on a
+                                // logcat nobody is watching.
+                                logWs("Unhandled command :: $jsonCommand")
                             }
                         }
                     }
@@ -187,7 +245,10 @@ object WebSocketClientSingleton {
             override fun onClose(code: Int, reason: String, remote: Boolean) {
                 println("WebSocket closed: $reason")
                 isConnected = false
-                logConnectFailure("Disconnected :: code=$code remote=$remote reason=${reason.ifBlank { "-" }}")
+                logConnectFailure(
+                    "Disconnected :: code=$code remote=$remote " +
+                    "reason=${reason.ifBlank { "-" }} heldMs=${heldMs()}"
+                )
                 scheduleReconnect()
             }
 

@@ -106,11 +106,14 @@ class TransactionResultQrActivity : AppCompatActivity(), FragmentResultQr.OnFrag
         }
     }
 
-    private fun processApprovedTransaction() {
+    private suspend fun processApprovedTransaction() = withContext(Dispatchers.Main) {
+        // Fragment commits are main-thread only. This ran on the caller's Dispatchers.Default
+        // and raced FragmentManager's back-press callback list -- a ConcurrentModificationException
+        // that killed the app after the sale was already authorised.
         supportFragmentManager.beginTransaction().replace(R.id.transFrameLayout, FragmentReceiptQr()).addToBackStack(null).commit()
     }
 
-    private fun processDeclinedTransaction() {
+    private suspend fun processDeclinedTransaction() = withContext(Dispatchers.Main) {
         supportFragmentManager.beginTransaction().replace(R.id.transFrameLayout, FragmentResultQr()).addToBackStack(null).commit()
     }
 

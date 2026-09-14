@@ -1,4 +1,5 @@
 package com.sc.mf919.java.activity;
+import enums.EnumResponseCode;
 
 import android.app.ActivityManager;
 import android.content.Intent;
@@ -100,8 +101,8 @@ public class TransactionReceiver extends AppCompatActivity {
                     ServiceHolder.Companion.setTxnType(Integer.parseInt(Objects.requireNonNull(txn_map.get("TransactionType"))));
 
                     if(ServiceHolder.Companion.getAutoSettlementIsRunning()) {
-                        txn_map.put("ResponseCode", "SHC002");
-                        txn_map.put("ResponseDescription", "Auto Settlement is running");
+                        txn_map.put("ResponseCode", EnumResponseCode.AUTO_SETTLEMENT_RUNNING.getCode());
+                        txn_map.put("ResponseDescription", EnumResponseCode.AUTO_SETTLEMENT_RUNNING.getDescription());
                         onBackToApp();
                         return;
                     }
@@ -170,8 +171,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     public void run() { Toast.makeText(getApplicationContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show(); }
                                 });
-                                txn_map.put("ResponseCode", "SHC010");
-                                txn_map.put("ResponseDescription", "Transaction Not Supported");
+                                txn_map.put("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.getDescription());
                                 onBackToApp();
                                 break;
                             }
@@ -182,8 +183,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                     runOnUiThread(new Runnable() {
                                         public void run() { Toast.makeText(getApplicationContext(), "Please Run Settlement for Last day Transaction before Proceed", Toast.LENGTH_SHORT).show(); }
                                     });
-                                    txn_map.put("ResponseCode", "SHC011");
-                                    txn_map.put("ResponseDescription", "Please Run Settlement for Last day Transaction before Proceed");
+                                    txn_map.put("ResponseCode", EnumResponseCode.SETTLE_PREVIOUS_DAY_FIRST.getCode());
+                                    txn_map.put("ResponseDescription", EnumResponseCode.SETTLE_PREVIOUS_DAY_FIRST.getDescription());
                                     onBackToApp();
                                     break;
                                 }
@@ -228,8 +229,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     public void run() { Toast.makeText(getApplicationContext(), "System Error", Toast.LENGTH_SHORT).show(); }
                                 });
-                                txn_map.put("ResponseCode", "SHC007");
-                                txn_map.put("ResponseDescription", "Terminal System Error");
+                                txn_map.put("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getDescription());
                                 onBackToApp();
                                 break;
                             }
@@ -297,8 +298,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     public void run() { Toast.makeText(getApplicationContext(), "System Error", Toast.LENGTH_SHORT).show(); }
                                 });
-                                txn_map.put("ResponseCode", "SHC007");
-                                txn_map.put("ResponseDescription", "Terminal System Error");
+                                txn_map.put("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getDescription());
                                 onBackToApp();
                                 break;
                             }
@@ -343,8 +344,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     public void run() { Toast.makeText(getApplicationContext(), "System Error", Toast.LENGTH_SHORT).show(); }
                                 });
-                                txn_map.put("ResponseCode", "SHC007");
-                                txn_map.put("ResponseDescription", "Terminal System Error");
+                                txn_map.put("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getDescription());
                                 onBackToApp();
                                 break;
                             }
@@ -363,8 +364,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     public void run() { Toast.makeText(getApplicationContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show(); }
                                 });
-                                txn_map.put("ResponseCode", "SHC010");
-                                txn_map.put("ResponseDescription", "Transaction Not Supported");
+                                txn_map.put("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.getDescription());
                                 onBackToApp();
                                 break;
                             }
@@ -408,8 +409,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     public void run() { Toast.makeText(getApplicationContext(), "System Error", Toast.LENGTH_SHORT).show(); }
                                 });
-                                txn_map.put("ResponseCode", "SHC007");
-                                txn_map.put("ResponseDescription", "Terminal System Error");
+                                txn_map.put("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getDescription());
                                 onBackToApp();
                                 break;
                             }
@@ -431,8 +432,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     public void run() { Toast.makeText(getApplicationContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show(); }
                                 });
-                                txn_map.put("ResponseCode", "SHC010");
-                                txn_map.put("ResponseDescription", "Transaction Not Supported");
+                                txn_map.put("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.getDescription());
                                 onBackToApp();
                                 break;
                             }
@@ -506,8 +507,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     public void run() { Toast.makeText(getApplicationContext(), "System Error", Toast.LENGTH_SHORT).show(); }
                                 });
-                                txn_map.put("ResponseCode", "SHC007");
-                                txn_map.put("ResponseDescription", "Terminal System Error");
+                                txn_map.put("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getDescription());
                                 onBackToApp();
                                 break;
                             }
@@ -566,8 +567,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     public void run() { Toast.makeText(getApplicationContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show(); }
                                 });
-                                txn_map.put("ResponseCode", "SHC010");
-                                txn_map.put("ResponseDescription", "Transaction Not Supported");
+                                txn_map.put("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.getDescription());
                                 onBackToApp();
                                 break;
                             }
@@ -622,8 +623,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                     runOnUiThread(new Runnable() {
                                         public void run() { Toast.makeText(getApplicationContext(), "System Error", Toast.LENGTH_SHORT).show(); }
                                     });
-                                    txn_map.put("ResponseCode", "SHC007");
-                                    txn_map.put("ResponseDescription", "Terminal System Error");
+                                    txn_map.put("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getCode());
+                                    txn_map.put("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getDescription());
                                     onBackToApp();
                                     break;
                                 }
@@ -673,8 +674,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                     runOnUiThread(new Runnable() {
                                         public void run() { Toast.makeText(getApplicationContext(), "System Error", Toast.LENGTH_SHORT).show(); }
                                     });
-                                    txn_map.put("ResponseCode", "SHC007");
-                                    txn_map.put("ResponseDescription", "Terminal System Error");
+                                    txn_map.put("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getCode());
+                                    txn_map.put("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getDescription());
                                     onBackToApp();
                                     break;
                                 }
@@ -721,8 +722,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     public void run() { Toast.makeText(getApplicationContext(), "System Error", Toast.LENGTH_SHORT).show(); }
                                 });
-                                txn_map.put("ResponseCode", "SHC007");
-                                txn_map.put("ResponseDescription", "Terminal System Error");
+                                txn_map.put("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getDescription());
                                 onBackToApp();
                                 break;
                             }
@@ -786,8 +787,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     public void run() { Toast.makeText(getApplicationContext(), "Transaction Not Supported", Toast.LENGTH_SHORT).show(); }
                                 });
-                                txn_map.put("ResponseCode", "SHC010");
-                                txn_map.put("ResponseDescription", "Transaction Not Supported");
+                                txn_map.put("ResponseCode", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_SUPPORTED.getDescription());
                                 onBackToApp();
                                 break;
                             }
@@ -877,8 +878,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     public void run() { Toast.makeText(getApplicationContext(), "System Error", Toast.LENGTH_SHORT).show(); }
                                 });
-                                txn_map.put("ResponseCode", "SHC007");
-                                txn_map.put("ResponseDescription", "Terminal System Error");
+                                txn_map.put("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getDescription());
                                 onBackToApp();
                                 break;
                             }
@@ -917,8 +918,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     public void run() { Toast.makeText(getApplicationContext(), "System Error", Toast.LENGTH_SHORT).show(); }
                                 });
-                                txn_map.put("ResponseCode", "SHC007");
-                                txn_map.put("ResponseDescription", "Terminal System Error");
+                                txn_map.put("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getDescription());
                                 onBackToApp();
                                 break;
                             }
@@ -937,8 +938,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     public void run() { Toast.makeText(getApplicationContext(), "Invalid PosReference No", Toast.LENGTH_SHORT).show(); }
                                 });
-                                txn_map.put("ResponseCode", "SHC001");
-                                txn_map.put("ResponseDescription", "Invalid PosReference No");
+                                txn_map.put("ResponseCode", EnumResponseCode.INVALID_POS_REFERENCE_NO.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.INVALID_POS_REFERENCE_NO.getDescription());
                             } else {
                                 DbModelReceiptUpload dbmodelReceiptUpload = ReceiptUploadRepo.Companion.getSingleDesc(this,
                                         new ArrayList<>(List.of("POS_REF_NO")),
@@ -977,8 +978,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                             txn_map.put("TransactionDateTime", transactionDateTime);
 
                                         } else {
-                                            txn_map.put("ResponseCode", "SHC008");
-                                            txn_map.put("ResponseDescription", "QR Transaction Not Found");
+                                            txn_map.put("ResponseCode", EnumResponseCode.QR_TRANSACTION_NOT_FOUND.getCode());
+                                            txn_map.put("ResponseDescription", EnumResponseCode.QR_TRANSACTION_NOT_FOUND.getDescription());
                                         }
                                     } else {
                                         String desc = "Failed";
@@ -1027,8 +1028,8 @@ public class TransactionReceiver extends AppCompatActivity {
                                         }
                                     }
                                 } else {
-                                    txn_map.put("ResponseCode", "SHC008");
-                                    txn_map.put("ResponseDescription", "Transaction Not Found");
+                                    txn_map.put("ResponseCode", EnumResponseCode.TRANSACTION_NOT_FOUND.getCode());
+                                    txn_map.put("ResponseDescription", EnumResponseCode.TRANSACTION_NOT_FOUND.getDescription());
                                 }
                             }
 
@@ -1039,8 +1040,8 @@ public class TransactionReceiver extends AppCompatActivity {
                             runOnUiThread(new Runnable() {
                                 public void run() { Toast.makeText(getApplicationContext(), "Invalid Transaction Type", Toast.LENGTH_SHORT).show(); }
                             });
-                            txn_map.put("ResponseCode", "SHC001");
-                            txn_map.put("ResponseDescription", "Invalid Transaction Type");
+                            txn_map.put("ResponseCode", EnumResponseCode.INVALID_TRANSACTION_TYPE.getCode());
+                            txn_map.put("ResponseDescription", EnumResponseCode.INVALID_TRANSACTION_TYPE.getDescription());
                             onBackToApp();
                             break;
                         }

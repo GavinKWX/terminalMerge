@@ -1,4 +1,6 @@
 package com.sc.mf919pro.kotlin.fragment
+import emv.EmvUtil
+import enums.EnumResponseCode
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
@@ -17,7 +19,7 @@ import com.google.gson.JsonObject
 import com.library.terminal.Utility
 import com.sc.mf919pro.R
 import com.sc.mf919pro.databinding.FragmentVoidsalerefundBinding
-import com.sc.mf919pro.java.activity.Global
+import constants.TerminalConstants
 import com.sc.mf919pro.java.activity.UploadTMS
 import com.sc.mf919pro.java.activity.Utils
 import utils.HexUtil
@@ -235,14 +237,14 @@ class VoidSaleFragment : BaseFragment() {
             alertDialog?.dismiss()
             if (ServiceHolder.appIntent) {
                 val txnMap: HashMap<String, String> = HashMap()
-                txnMap["ResponseCode"] = "SHC005"
-                txnMap["ResponseDescription"] = "User Cancel the Transaction"
+                txnMap["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+                txnMap["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
                 onBackToApp(txnMap)
             } else if (ServiceHolder.appHTTP) {
                 val jObject = JSONObject()
                 try {
-                    jObject.put("ResponseCode", "SHC005")
-                    jObject.put("ResponseDescription", "User Cancel the Transaction")
+                    jObject.put("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+                    jObject.put("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
                 } catch (e: JSONException) {
                     e.printStackTrace()
                 }
@@ -345,13 +347,13 @@ class VoidSaleFragment : BaseFragment() {
         val strBatchNo = transData.batchNo
         val strRespCode = Utility.HexString2ASCII(transData.respCode)
         val strAid = transData.aid
-        val mti = transData.getFromTransactionDb(Global.iso.tag.MTI, 16)
+        val mti = transData.getFromTransactionDb(TerminalConstants.iso.tag.MTI, 16)
         val strNii = transData.getFromTransactionDb("DF24", 16)
         val strMaskPanBcd = transData.maskedPan
         val strHashedPanBcd = transData.hashedPan
         val strEntryType = transData.entryModeLabel
-        val strARQC = transData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ARQC, 16)
-        val strTVR = transData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_TVR, 16)
+        val strARQC = transData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, 16)
+        val strTVR = transData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_TVR, 16)
         val strPosReference = transData.posReference
         val strCardLabel = Utils.byteArrayToAsciiString(transData.appLabel, 0, transData.appLabelLen)
         val strCvm = transData.cvm

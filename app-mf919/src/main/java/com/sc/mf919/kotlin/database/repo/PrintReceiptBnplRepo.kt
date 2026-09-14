@@ -2,7 +2,7 @@ package com.sc.mf919.kotlin.database.repo
 
 import android.content.Context
 import com.google.gson.reflect.TypeToken
-import com.sc.mf919.java.utils.EmvUtil
+import emv.EmvUtil
 import com.sc.mf919.kotlin.database.infrastructure.DatabaseTables
 import database.DbHandler
 import com.sc.mf919.kotlin.database.model.DbModelPrintReceiptBnpl

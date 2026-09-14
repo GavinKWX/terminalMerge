@@ -3,7 +3,7 @@ package com.sc.mf919.kotlin.migration
 import com.sc.mf919.kotlin.database.infrastructure.DatabaseTables
 import database.DbHandler
 import helpers.HelperLog
-import com.sc.mf919.kotlin.helper_common.HelperLogFileName
+import enums.EnumLogFileName
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import java.lang.StringBuilder
 
@@ -53,7 +53,7 @@ class Migration137 {
 			alterNewQrPayTables(dbHandler);
 		}
 		HelperLog.appendLine(sbLog, "Finish Running Migration 137")
-		HelperLog.logToFile(sbLog, HelperLogFileName.TerminaLog)
+		HelperLog.logToFile(sbLog, EnumLogFileName.TerminaLog)
 	}
 
 	private fun renameTempToOriTableName(dbHandler: DbHandler, tableName: String) {

@@ -14,8 +14,8 @@ import com.library.terminal.Utility
 import com.morefun.yapi.engine.DeviceInfoConstrants
 import com.sc.mf919pro.R
 import com.sc.mf919pro.java.MF919
-import com.sc.mf919pro.java.activity.Global
-import com.sc.mf919pro.java.activity.IsoComm
+import constants.TerminalConstants
+import iso.IsoComm
 import com.sc.mf919pro.java.activity.Utils
 import com.sc.mf919pro.java.device.DeviceHelper
 import com.sc.mf919pro.kotlin.data_enum.AcquirerSettingModel
@@ -71,7 +71,7 @@ class ServiceHolder {
 
 		@SuppressLint("StaticFieldLeak")
 		var isoComm: IsoComm? = null
-		var cardResult: Int = Global.iso.err.txnApproved
+		var cardResult: Int = TerminalConstants.iso.err.txnApproved
 		var settlementDialogMessage: String = ""
 
 
@@ -270,7 +270,6 @@ class ServiceHolder {
 					terminalSerialNumber
 				}
 			}
-			return "98213199990004"
 			return result ?: ""
 		}
 
@@ -289,7 +288,6 @@ class ServiceHolder {
 					deviceModel
 				}
 			}
-			return "MF919"
 			return result ?: ""
 		}
 

@@ -1,5 +1,7 @@
 package com.sc.mf919.java.activity;
 
+import crypto.Encryption;
+
 import utils.HexUtil;
 
 public class TleGobiz

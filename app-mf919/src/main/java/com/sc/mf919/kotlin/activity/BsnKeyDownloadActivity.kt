@@ -17,7 +17,7 @@ import com.morefun.yapi.ServiceResult
 import com.morefun.yapi.card.cpu.CPUCardHandler
 import com.morefun.yapi.device.reader.icc.*
 import com.sc.mf919.R
-import com.sc.mf919.java.activity.Encryption
+import crypto.Encryption
 import com.sc.mf919.java.activity.Utils
 import com.sc.mf919.java.device.DeviceHelper
 import com.sc.mf919.java.utils.*

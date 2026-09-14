@@ -1,5 +1,7 @@
 package com.sc.mf919.java.activity;
 
+import constants.TerminalConstants;
+
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -281,7 +283,7 @@ public class Tms {
             //Calculate Hashkey
             String strHashKeyOut = "";
             try {
-                Utils.debugLogPrint("TAG", "ENV KEY=" + environmentManager.getByJava("serverHashKey") + "-->" + Utility.ASCIItoHexString(Global.envSettings.serverHashKey));
+                Utils.debugLogPrint("TAG", "ENV KEY=" + environmentManager.getByJava("serverHashKey") + "-->" + Utility.ASCIItoHexString(TerminalConstants.envSettings.serverHashKey));
                 strHashKeyOut = Cryptography.HMAC(Utility.ASCIItoHexString(body), Utility.ASCIItoHexString(environmentManager.getByJava("serverHashKey")), Cryptography.hashAlgorithm.SHA_256);
             } catch (Exception e) {
                 e.printStackTrace();

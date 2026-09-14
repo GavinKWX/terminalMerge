@@ -32,18 +32,18 @@ import com.morefun.yapi.emv.OnEmvProcessListener
 import com.sc.mf919.java.MF919
 import com.sc.mf919.java.activity.ActivityBase
 import com.sc.mf919.java.activity.CubeActivity
-import com.sc.mf919.java.activity.Dukpt
-import com.sc.mf919.java.activity.DukptVariant
-import com.sc.mf919.java.activity.Encryption
-import com.sc.mf919.java.activity.Global
+import crypto.Dukpt
+import crypto.DukptVariant
+import crypto.Encryption
+import constants.TerminalConstants
 import com.sc.mf919.kotlin.database.repo.SecureDataRepo
 import com.sc.mf919.java.activity.PinPad
 import com.sc.mf919.java.activity.PinPadListener
-import com.sc.mf919.java.activity.Tlv
+import emv.Tlv
 import com.sc.mf919.java.activity.Utils
 import com.sc.mf919.java.device.DeviceHelper
 import utils.CardUtil
-import com.sc.mf919.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.HexUtil
 import utils.TlvData
 import utils.TlvDataList
@@ -57,10 +57,10 @@ import com.sc.mf919.kotlin.database.repo.IsoBatchLongInfoRepo
 import com.sc.mf919.kotlin.database.repo.ProductListRepo.Companion.getSelectedProduct
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.selectedCacheModel
-import com.sc.mf919.kotlin.helper_common.iso.CardTagsEnum
+import iso.CardTagsEnum
 import com.sc.mf919.kotlin.helper_common.iso.IsoActivity
 import com.sc.mf919.kotlin.helper_common.iso.IsoActivity.updateReceiptInfo
-import com.sc.mf919.kotlin.helper_common.iso.IsoHelperNew
+import iso.IsoHelperNew
 import enums.EnumDateFormat
 import enums.EnumLogFileName
 import helpers.HelperCommon
@@ -68,6 +68,8 @@ import helpers.HelperLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import helpers.LogRedact
+import com.sc.mf919.kotlin.helper_common.MfHelper
 
 open class EmvActivity: ActivityBase() {
     var cube: CubeActivity? = null
@@ -110,7 +112,7 @@ open class EmvActivity: ActivityBase() {
     protected var mPinNum: String? = null
     var mAmount: String = ""
     var mOptData: String = ""
-    protected var payMethod = Global.paymentMethod.Non.toByte()
+    protected var payMethod = TerminalConstants.paymentMethod.Non.toByte()
 
     var isOptIn = false
     //var cvmLimit = 250.00
@@ -172,8 +174,12 @@ open class EmvActivity: ActivityBase() {
                     logEmv("Search Card", "onFindMagCard")
                     ServiceHolder.appRunningProcess = true
                     mAmount = amount
-                    TransData.payMethod = Global.paymentMethod.Meg
-                    payMethod = Global.paymentMethod.Meg.toByte()
+                    TransData.payMethod = TerminalConstants.paymentMethod.Meg
+                    payMethod = TerminalConstants.paymentMethod.Meg.toByte()
+
+                    // D7 — a swipe never reaches EmvUtil.readTrack2(), so nothing else arms the log sink
+                    // for mag-stripe. Register before the builder below, which logs the raw tracks.
+                    LogRedact.registerCardData(magCardInfoEntity.cardNo, magCardInfoEntity.tk2)
 
                     val builder = java.lang.StringBuilder()
                     builder.append("PAN:" + magCardInfoEntity.cardNo)
@@ -254,32 +260,33 @@ open class EmvActivity: ActivityBase() {
                     TransData.magTrack2Len = magTrack2Byte.size
 
                     tempHelperLog.appendLine(logClassName, "schemeType[${TransData.schemeType}]; schemeId[${TransData.schemeId}]")
-                    TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_SCHEME_ID, TransData.schemeId)
+                    TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_SCHEME_ID, TransData.schemeId)
 
-                    TransData.removeTlvFromTransDb(Global.cube.CUBE_TAG_CARD_CVM)
-                    TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_CVM, "4E3020")
+                    TransData.cvm = "4E3020"
+                    TransData.removeTlvFromTransDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM)
+                    TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_CVM, "4E3020")
                     TransData.entryModeLabel = "MagStripe"
-                    TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("MagStripe"))
-                    TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(magCardInfoEntity.cardNo)))
-                    TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(magCardInfoEntity.cardNo.substring(0,9)))
+                    TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("MagStripe"))
+                    TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(magCardInfoEntity.cardNo)))
+                    TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(magCardInfoEntity.cardNo.substring(0,9)))
 
-                    when (TransData.salesType) {
-                        8 -> {IsoActivity.processPreauth(tempContext, tempHelperLog)}
-                        4 -> {IsoActivity.processSaleCompCardPresented(tempContext, tempHelperLog)}
-                        ProductCatSelectionDataEnum.CASH_OUT.data.SalesType -> {IsoActivity.processCashOutSale(tempContext, tempHelperLog)}
-                        ProductCatSelectionDataEnum.EPP.data.SalesType -> {IsoActivity.processEppSale(tempContext, tempHelperLog)}
-                        else -> {IsoActivity.processOnlineSale(tempContext, tempHelperLog)}
+                    // D8 -- hold the host guard across the whole flow, so a back press cannot
+                    // blank stan/invoiceNo/respCode after the approval arrives but before it is
+                    // persisted. sendToHost raises the same counter again inside.
+                    IsoActivity.withHostRequest {
+                        when (TransData.salesType) {
+                            8 -> {IsoActivity.processPreauth(tempContext, tempHelperLog)}
+                            4 -> {IsoActivity.processSaleCompCardPresented(tempContext, tempHelperLog)}
+                            ProductCatSelectionDataEnum.CASH_OUT.data.SalesType -> {IsoActivity.processCashOutSale(tempContext, tempHelperLog)}
+                            ProductCatSelectionDataEnum.EPP.data.SalesType -> {IsoActivity.processEppSale(tempContext, tempHelperLog)}
+                            else -> {IsoActivity.processOnlineSale(tempContext, tempHelperLog)}
+                        }
                     }
                     isNotCompl[0] = false
 
                     // Send Reversal if timeout
-                    val respCode = Utility.HexString2ASCII(TransData.respCode)
-                    if(respCode == "00") {
-                        TransData.transResult = Global.iso.err.failed
-                        TransData.respCode = Utils.ASCIItoHexString("ZW")
-                        TransData.prevInvoice = TransData.invoiceNo
-                        TransData.prevStan = TransData.stan
-
+                    if(TransData.transResult != TerminalConstants.iso.err.txnApproved && TransData.transResult != TerminalConstants.iso.err.txnNotAllowed &&
+                        (TransData.transResult == TerminalConstants.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
                         val isNotCompl = booleanArrayOf(true)
                         ServiceHolder.isoComm = null
                         isNotCompl[0] = true
@@ -353,8 +360,8 @@ open class EmvActivity: ActivityBase() {
                 override fun onFindICCard() {
                     logEmv("Search Card", "onFindICCard")
                     ServiceHolder.appRunningProcess = true
-                    payMethod = Global.paymentMethod.ICC.toByte()
-                    TransData.payMethod = Global.paymentMethod.ICC
+                    payMethod = TerminalConstants.paymentMethod.ICC.toByte()
+                    TransData.payMethod = TerminalConstants.paymentMethod.ICC
                     startProgressDialog("Card Detected", "Read Card Info...")
                     emvTrans(amount, cashOutAmountString, isEnableContact, isEnableContactless, EmvChannelType.FROM_ICC)
                 }
@@ -363,8 +370,8 @@ open class EmvActivity: ActivityBase() {
                 override fun onFindRFCard() {
                     logEmv("Search Card", "onFindRFCard")
                     ServiceHolder.appRunningProcess = true
-                    payMethod = Global.paymentMethod.RF.toByte()
-                    TransData.payMethod = Global.paymentMethod.RF
+                    payMethod = TerminalConstants.paymentMethod.RF.toByte()
+                    TransData.payMethod = TerminalConstants.paymentMethod.RF
                     startProgressDialog("Card Detected", "Read Card Info...")
                     emvTrans(amount, cashOutAmountString, isEnableContact, isEnableContactless, EmvChannelType.FROM_PICC)
                 }
@@ -392,239 +399,6 @@ open class EmvActivity: ActivityBase() {
             endEMV()
         }
     }
-
-    //TODO REVAMP
-    //@Throws(java.lang.Exception::class)
-    /*fun startEMV(currentContext: Context, amount: String, cashOutAmount: Long, forceContact: Boolean, log: HelperLog) {
-        isNotEnd = true
-        tempHelperLog = log
-        var cashOutAmountString = Utils.getActualAmount(cashOutAmount.toString())
-        if(cashOutAmountString == "0") {
-            cashOutAmountString = "0.00"
-        }
-
-        try {
-            tempContext = currentContext
-            DeviceHelper.getDeviceService().login(Bundle(), "00000000")
-            DeviceHelper.getEmvHandler().initTermConfig(EmvUtil.getInitTermConfig())
-            startTick = System.currentTimeMillis()
-
-            val terminalConfig = ServiceHolder.getTerminalConfig()
-            isOptIn = DbModelTerminalConfig.getBooleanValue(terminalConfig, "OptIn")
-
-            *//* Check for Contact Enable *//*
-            val isEnableContact = DbModelTerminalConfig.getBooleanValue(terminalConfig, "Contact")
-            tempHelperLog.appendLine(logClassName, "isEnableContact :: $isEnableContact")
-            if(isEnableContact) {
-                iccCardReader = DeviceHelper.getIccCardReader(IccReaderSlot.ICSlOT1)
-            }
-
-            *//* Check for Contactless Enable *//*
-            var isEnableContactless = DbModelTerminalConfig.getBooleanValue(terminalConfig, "Contactless")
-            tempHelperLog.appendLine(logClassName, "isEnableContactless :: $isEnableContactless")
-            if(forceContact) isEnableContactless = false
-            if(isEnableContactless) {
-                rfReader = DeviceHelper.getIccCardReader(IccReaderSlot.RFSlOT)
-            }
-
-            *//* Check for Magstripe Enable *//*
-            if (DbModelTerminalConfig.getBooleanValue(terminalConfig, "MagStripe")) {
-                magCardReader = DeviceHelper.getMagCardReader()
-            }
-
-            magCardReader?.searchCard(object : OnSearchMagCardListener.Stub() {
-                @RequiresApi(Build.VERSION_CODES.O)
-                @Throws(RemoteException::class)
-                override fun onSearchResult(retCode: Int, magCardInfoEntity: MagCardInfoEntity) {
-                    Utils.printLog("magCardReader = $retCode")
-                    if (retCode == ServiceResult.Success) {
-                        ServiceHolder.appRunningProcess = true
-                        mAmount = amount
-                        TransData.payMethod = Global.paymentMethod.Meg
-                        payMethod = Global.paymentMethod.Meg.toByte()
-
-                        val builder = java.lang.StringBuilder()
-                        builder.append("PAN:" + magCardInfoEntity.cardNo)
-                        builder.append("TRACK1:${magCardInfoEntity.tk1}".trimIndent())
-                        builder.append("TRACK2:${magCardInfoEntity.tk2}".trimIndent())
-                        builder.append("TRACK3:${magCardInfoEntity.tk3}".trimIndent())
-                        builder.append("KSN: ${magCardInfoEntity.ksn}".trimIndent())
-                        builder.append("SERVICE CODE: ${magCardInfoEntity.serviceCode}".trimIndent())
-                        Utils.printLog("Builder $builder")
-
-                        //get pin
-                        Utils.printLog("MagCard Online Pin $payMethod  $mAmount")
-                        pinWait = true
-                        //TODO GetPin
-                        getPin(true, magCardInfoEntity.cardNo)
-                        if(pinCancel){
-                            val online = Bundle()
-                            DeviceHelper.getEmvHandler().onSetOnlineProcResponse(ServiceResult.Emv_Terminate, online)
-                            stopSearch()
-                            endEMV()
-                            return
-                        }
-
-                        startProgressDialog("Bank Authorization", "Waiting for Approval")
-
-                        // online txn
-                        // Form LEVEL 3 data
-                        if (magCardInfoEntity.serviceCode.startsWith("2")
-                            || magCardInfoEntity.serviceCode.startsWith("6")) {
-                            Utils.printLog("magCardInfoEntity.getServiceCode()=${magCardInfoEntity.serviceCode}")
-                            TransData.schemeId  = "20"
-                        } else {
-                            TransData.schemeId  = "97"
-                        }
-                        Utils.printLog("strSchemeIdnow=${TransData.schemeId}")
-
-                        val txnDt = "20" + EmvUtil.getCurrentTime("yyMMddHHmmss")
-                        val magTrack2 = magCardInfoEntity.tk2.replace("=", "D")
-                        if (magTrack2.length >= 38) {
-                            Utils.printLog("Track 2 length more than 37. Declined")
-                            val online = Bundle()
-                            online.putString(EmvOnlineResult.REJCODE, "05")
-                            DeviceHelper.getEmvHandler().onSetOnlineProcResponse(ServiceResult.Emv_Declined, online)
-                            return
-                        }
-                        val magTrack2Byte = magTrack2.toByteArray()
-
-                        val D2: String = if (magTrack2.length % 2 != 0) {
-                            "D2" + Utils.zeroPadding(
-                                Integer.toHexString((magTrack2.length + 1) / 2),
-                                2
-                            ) + magTrack2 + "F"
-                        } else {
-                            "D2" + Utils.zeroPadding(
-                                Integer.toHexString(magTrack2.length / 2),
-                                2
-                            ) + magTrack2
-                        }
-                        val de55 = "9F0206" + Utils.zeroPadding(mAmount.replace(".", ""), 12)
-                        Utils.printLog("onSearchResult: $de55")
-                        val bD3 = ByteArray(2)
-                        val de55len = de55.length / 2
-                        Utils.printLog("track2len=$de55len")
-                        myTlv!!.encodeLen(de55len, bD3, 0)
-                        val D3 = "D309$de55"
-                        val vl3 = TransData.schemeId + txnDt + D2 + D3
-                        Utils.printLog("VL3:$vl3")
-                        Utils.printLog("VL3 len:" + vl3.length)
-                        val bVl3 = HexUtil.hexStringToByte(vl3)
-                        val bVl3Len = bVl3.size
-                        val optData = ByteArray(100)
-                        val optDataLen = 0
-                        Utils.printLog("bvl3:" + HexUtil.bytesToHexString(bVl3))
-                        Utils.printLog("bvl3len=$bVl3Len")
-                        Utils.printLog("optData:" + HexUtil.bytesToHexString(optData))
-                        val isNotCompl = booleanArrayOf(true)
-                        Utils.printLog("onlineProc: magCard")
-
-                        magTrack2Byte.copyInto(TransData.magTrack2, 0, 0, magTrack2Byte.size)
-                        TransData.magTrack2Len = magTrack2Byte.size
-
-                        tempHelperLog.appendLine(logClassName, "schemeType[${TransData.schemeType}]; schemeId[${TransData.schemeId}]")
-                        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_SCHEME_ID, TransData.schemeId)
-
-                        TransData.removeTlvFromTransDb(Global.cube.CUBE_TAG_CARD_CVM)
-                        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_CVM, "4E3020")
-                        TransData.entryModeLabel = "MagStripe"
-                        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("MagStripe"))
-                        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_MASKBCD, Utils.ASCIItoHexString(Utils.hideCardDetails(magCardInfoEntity.cardNo)))
-                        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARDPAN_HASH, Utils.ASCIItoHexString(magCardInfoEntity.cardNo.substring(0,9)))
-
-                        when (TransData.salesType) {
-                            8 -> {IsoActivity.processPreauth(tempContext, tempHelperLog)}
-                            ProductCatSelectionDataEnum.CASH_OUT.data.SalesType -> {IsoActivity.processCashOutSale(tempContext, tempHelperLog)}
-                            ProductCatSelectionDataEnum.EPP.data.SalesType -> {IsoActivity.processEppSale(tempContext, tempHelperLog)}
-                            else -> {IsoActivity.processOnlineSale(tempContext, tempHelperLog)}
-                        }
-                        isNotCompl[0] = false
-
-                        // Send Reversal if timeout
-                        val respCode = Utility.HexString2ASCII(TransData.respCode)
-                        if(respCode == "00") {
-                            TransData.transResult = Global.iso.err.failed
-                            TransData.respCode = Utils.ASCIItoHexString("ZW")
-                            TransData.prevInvoice = TransData.invoiceNo
-                            TransData.prevStan = TransData.stan
-
-                            val isNotCompl = booleanArrayOf(true)
-                            ServiceHolder.isoComm = null
-                            isNotCompl[0] = true
-                            object : Thread() {
-                                override fun run() {
-                                    super.run()
-                                    var loop = 0
-                                    val maxLoop = 3
-                                    while (loop < maxLoop) {
-                                        loop++
-                                        pDTitle = "Reversal ($loop)"
-                                        runOnUiThread(changeTitle)
-
-                                        val acquirerRevIsoModel = IsoHelperNew.getIsoHelperObject(
-                                            TransData.acqCode,
-                                            "reversal"
-                                        )
-                                        acquirerRevIsoModel?.let { revIsoModel ->
-                                            val allIsoString = HexUtil.bytesToHexString(
-                                                TransData.transactionDb,
-                                                0,
-                                                TransData.transactionDbLen + 2
-                                            )
-                                            val result = IsoActivity.processReversal(
-                                                tempContext,
-                                                true,
-                                                revIsoModel,
-                                                allIsoString,
-                                                false,
-                                                tempHelperLog
-                                            )
-                                            tempHelperLog.appendLine(
-                                                logClassName,
-                                                "reversal result :: $result"
-                                            )
-                                            if (result != null) {
-                                                loop = maxLoop // used for exit
-                                            }
-                                        }
-                                    }
-                                    isNotCompl[0] = false
-                                }
-                            }.start()
-                            while (isNotCompl[0]) {
-                                if (ServiceHolder.isoComm != null) {
-                                    pDMsg = ServiceHolder.isoComm!!.connectionStatus
-                                    if (pDMsg != null) {
-                                        if (pDMsg!!.isNotEmpty()) {
-                                            runOnUiThread(changeMessage)
-                                        }
-                                    }
-                                }
-                                Utils.DelayMili(100)
-                            }
-                        }
-
-                        CoroutineScope(Dispatchers.IO).launch {
-                            updateReceiptInfo(tempContext)
-                        }
-                        AppServices.receiptUploadToTms(tempContext)
-                    }
-                    stopSearch()
-                    endEMV()
-                }
-            }, 60, Bundle())
-
-            emvTrans(amount, cashOutAmountString, isEnableContact, isEnableContactless)
-        } catch (ex: Exception) {
-            runOnUiThread {
-                isNotEnd = false
-                stopSearch()
-                endEMV()
-                //Toast.makeText(tempContext, "Search Card, Please Tap Longer or Insert Card", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }*/
 
     @Throws(RemoteException::class)
     private fun emvTrans(amount: String, cashOutAmount: String, isEnableContact: Boolean, isEnableContactless: Boolean, channel: Int) {
@@ -761,7 +535,7 @@ open class EmvActivity: ActivityBase() {
             @Throws(RemoteException::class)
             override fun onOnlineProc(data: Bundle) {
                 logEmv("Callback:onOnlineProc")
-                if (pinCancel || payMethod.toInt() == Global.paymentMethod.Non) {
+                if (pinCancel || payMethod.toInt() == TerminalConstants.paymentMethod.Non) {
                     logEmv("Manual Cancel Transaction")
                     DeviceHelper.getEmvHandler().onSetOnlineProcResponse(ServiceResult.Emv_Terminate, Bundle())
                     return
@@ -847,328 +621,11 @@ open class EmvActivity: ActivityBase() {
         }
     }
 
-    //TODO REVAMP
-    /*@Throws(RemoteException::class)
-    private fun emvTrans(amount: String, cashOutAmount: String, isEnableContact: Boolean, isEnableContactless: Boolean) {
-        Utils.printLog("START EMV TRANS")
-        val ret = DeviceHelper.getEmvHandler().emvTrans(EmvUtil.getTransBundle(amount, cashOutAmount, isEnableContact, isEnableContactless), object : OnEmvProcessListener.Stub() {
-            @Throws(RemoteException::class)
-            override fun onSelApp(appNameList: List<String>, isFirstSelect: Boolean) {
-                Utils.printLog("onSelApp")
-                if(readTimer != null) {
-                    readTimer?.cancel()
-                    readTimer = null
-                }
-                selApp(appNameList)
-            }
-
-            @Throws(RemoteException::class)
-            override fun onConfirmCardNo(cardNo: String) {
-                Utils.printLog("onConfirmCardNo:$cardNo")
-                Utils.printLog("time = " + (System.currentTimeMillis() - startTick) + "ms")
-                DeviceHelper.getEmvHandler().onSetConfirmCardNoResponse(true)
-//                DialogUtils.showAlertDialog(getActivity(), cardNo, object : OnClickListener() {
-//                    fun onConfirm() {
-//                        try {
-//                            DeviceHelper.getEmvHandler().onSetConfirmCardNoResponse(true)
-//                        } catch (e: RemoteException) {
-//                            e.printStackTrace()
-//                        }
-//                    }
-//
-//                    fun onCancel() {
-//                        try {
-//                            DeviceHelper.getEmvHandler().onSetConfirmCardNoResponse(false)
-//                        } catch (e: RemoteException) {
-//                            e.printStackTrace()
-//                        }
-//                    }
-//                })
-            }
-
-            *//**
-             *
-             * @param isOnlinePin
-             * @param offlinePinType  3:offline pin normal 2:offline pin again 1:offline pin last
-             * @throws RemoteException
-             *//*
-            @Throws(RemoteException::class)
-            override fun onCardHolderInputPin(isOnlinePin: Boolean, offlinePinType: Int) {
-                Utils.printLog("onCardHolderInputPin isOnlinePin:$isOnlinePin, Paymethod:$payMethod")
-                Utils.printLog("time = ${(System.currentTimeMillis() - startTick)} ms")
-                Utils.printLog("9F34 : ${EmvUtil.getPbocData("9F34", true)}")
-                val cardNo: String = EmvUtil.readPan()
-                if(readTimer != null) {
-                    readTimer?.cancel()
-                    readTimer = null
-                }
-
-                if (!isOnlinePin && pinCancel) {
-                    Utils.printLog("Manual Cancel Transaction")
-                    DeviceHelper.getEmvHandler().onSetOnlineProcResponse(ServiceResult.Emv_Terminate, Bundle())
-                    return
-                }
-
-                if (isOnlinePin) {
-                    getPin(true, cardNo)
-                } else {
-                    getPin(false, cardNo)
-                }
-                Utils.printLog("onGetCardHolderInputPin???")
-
-                try {
-                    DeviceHelper.getEmvHandler().onSetCardHolderInputPin(HexUtil.hexStringToByte(mPinNum))
-                } catch (e: RemoteException) {
-                    e.printStackTrace()
-                    Utils.printLog("OnlinePin Exception $e")
-                }
-            }
-
-            @Throws(RemoteException::class)
-            override fun onPinPress(keyCode: Byte) {
-                Utils.printLog("Callback:onPinPress")
-            }
-
-            @Throws(RemoteException::class)
-            override fun onDisplayOfflinePin(retCode: Int) {
-                Utils.printLog("Callback:onDisplayOfflinePin: $retCode,is succeed: ${(retCode == 0)}")
-            }
-
-            @Throws(RemoteException::class)
-            override fun inputAmount(type: Int) {
-                Utils.printLog("Callback:inputAmount ")
-                try {
-                    DeviceHelper.getEmvHandler().onSetInputAmountResponse("0.3")
-                } catch (e: RemoteException) {
-                    e.printStackTrace()
-                }
-            }
-
-            @Throws(RemoteException::class)
-            override fun onGetCardResult(retCode: Int, bundle: Bundle) {
-                readTimer = Timer()
-                readTimer?.schedule((readCountDown * 1000).toLong()) {
-                    closeProgressDialog()
-                    readTimer = null
-                    val online = Bundle()
-                    DeviceHelper.getEmvHandler().onSetOnlineProcResponse(ServiceResult.Emv_Terminate, online)
-                    TransData.respCode = Utility.ASCIItoHexString("SHC006")
-                    stopSearch()
-                    endEMV()
-                }
-                startProgressDialog("Card Detected", "Read Card Info (${readCountDown--})")
-                object : Thread() {
-                    override fun run() {
-                        super.run()
-                        while (readTimer != null) {
-                            if(readTimer != null) {
-                                pDMsg = "Read Card Info (${readCountDown--})"
-                                runOnUiThread(changeMessage)
-                            }
-                            sleep(1000)
-                        }
-                    }
-                }.start()
-                Utils.printLog("onGetCardResult: $retCode")
-
-                if (retCode == ServiceResult.Success) {
-                    startTick = System.currentTimeMillis()
-                    // 7: TAP card 1:DIP card
-                    val emvCardType = bundle.getInt(ICCSearchResult.CARDOTHER)
-                    val tempPayMethod = when(emvCardType){
-                        1 -> Global.paymentMethod.ICC
-                        7 -> Global.paymentMethod.RF
-                        else -> Global.paymentMethod.Non
-                    }
-                    payMethod = tempPayMethod.toByte()
-                    TransData.payMethod = tempPayMethod
-                    Utils.printLog("onGetCardResult PayMethod: $payMethod")
-                } else {
-                    if(readTimer != null) {
-                        readTimer?.cancel()
-                        readTimer = null
-                    }
-                    Utils.printLog("READ CARD FAIL: $retCode")
-                    //TransData.respCode = Utility.ASCIItoHexString("SHC006")
-                    closeProgressDialog()
-                    stopSearch()
-                    endEMV()
-                }
-            }
-
-            @Throws(RemoteException::class)
-            override fun onDisplayMessage() {
-                Utils.printLog("CallBack:onDisplayMessage")
-                DeviceHelper.getEmvHandler().onSetConfirmDisplayMessage(0)
-                *//*val aid: String = EmvUtil.getPbocData("4F", true)
-                DialogUtils.showAlertDialog(getActivity(), aid, object : OnClickListener() {
-                    fun onConfirm() {
-                        try {
-                            DeviceHelper.getEmvHandler().onSetConfirmDisplayMessage(0)
-                        } catch (e: RemoteException) {
-                            e.printStackTrace()
-                        }
-                    }
-                    fun onCancel() {
-                        try {
-                            DeviceHelper.getEmvHandler().onSetConfirmDisplayMessage(0)
-                        } catch (e: RemoteException) {
-                            e.printStackTrace()
-                        }
-                    }
-                })*//*
-            }
-
-            @Throws(RemoteException::class)
-            override fun onUpdateServiceAmount(serviceRelatedData: String) {
-                Utils.printLog("CallBack:onUpdateServiceAmount")
-            }
-
-            @Throws(RemoteException::class)
-            override fun onCheckServiceBlackList(pan: String, amount: String) {
-                Utils.printLog("CallBack:onCheckServiceBlackList")
-            }
-
-            @Throws(RemoteException::class)
-            override fun onGetServiceDirectory(directory: ByteArray) {
-                DeviceHelper.getEmvHandler().onGetServiceDirectory(0)
-            }
-
-            @Throws(RemoteException::class)
-            override fun onRupayCallback(type: Int, bundle: Bundle) {
-                //val data = bundle.getByteArray(EmvRupayCallback.RUPAY_DATA_OUT)
-                val ret = Bundle()
-                ret.putInt(EmvRupayCallback.KEY_RET_CODE, 0)
-                DeviceHelper.getEmvHandler().onSetRupayCallback(type, ret)
-            }
-
-            /**
-             * Added by YSDK 6.14 (absent in 6.05). The kernel asks whether the terminal wants to
-             * intervene at a particular kernel/flow step; KEY_RET_CODE 0 means "not executed",
-             * 1 means "apply the parameter update I am returning".
-             *
-             * We answer 0 unconditionally. That reproduces exactly how the kernel behaved on 6.05,
-             * where this callback did not exist, so upgrading the jar cannot change EMV outcomes.
-             * The kernel waits for onSetEmvKernelCallback, so it must always be answered -- an
-             * empty body would stall the transaction.
-             *
-             * kernelType/flowStep are logged so that if we later want to use this (e.g. the
-             * Mastercard pre-auth DF8126 tag, or the contactless multi-AID list the demo shows),
-             * we can see which steps this fleet's cards actually reach.
-             */
-            @Throws(RemoteException::class)
-            override fun onEmvKernelCallback(kernelType: Int, flowStep: Int, bundle: Bundle) {
-                logEmv("Callback:onEmvKernelCallback kernelType=$kernelType flowStep=$flowStep")
-                val ret = Bundle()
-                ret.putInt(EmvKernelCallback.KEY_RET_CODE, 0)
-                DeviceHelper.getEmvHandler().onSetEmvKernelCallback(ret)
-            }
-
-            @RequiresApi(Build.VERSION_CODES.O)
-            @Throws(RemoteException::class)
-            override fun onOnlineProc(data: Bundle) {
-                Utils.printLog("Callback:onOnlineProc")
-                if(readTimer != null) {
-                    readTimer?.cancel()
-                    readTimer = null
-                }
-                if (pinCancel || payMethod.toInt() == Global.paymentMethod.Non) {
-                    Utils.printLog("Manual Cancel Transaction")
-                    DeviceHelper.getEmvHandler().onSetOnlineProcResponse(ServiceResult.Emv_Terminate, Bundle())
-                    return
-                }
-                Utils.printLog("time = ${(System.currentTimeMillis() - startTick)}ms")
-                //TODO ISO_SERVER
-                val isIsoServer = false *//*temporary hardcoded *//*
-                if(isIsoServer) onlineProcIsoServer() else onlineProc()
-            }
-
-            @Throws(RemoteException::class)
-            override fun onContactlessOnlinePlaceCardMode(mode: Int) {
-                Utils.printLog("Callback:onContactlessOnlinePlaceCardMode")
-                if (mode == EmvListenerConstrants.NEED_CHECK_CONTACTLESS_CARD_AGAIN) {
-                    *//*startSearchContractLess(object : OnSearchIccCardListener.Stub() {
-                        @Throws(RemoteException::class)
-                        override fun onSearchResult(retCode: Int, bundle: Bundle) {
-                            stopSearch()
-                            try {
-                                DeviceHelper.getEmvHandler().onSetContactlessOnlinePlaceCardModeResponse(ServiceResult.Success == retCode)
-                            } catch (e: RemoteException) {
-                                e.printStackTrace()
-                            }
-                        }
-                    })*//*
-                    DeviceHelper.getEmvHandler().onSetContactlessOnlinePlaceCardModeResponse(true)
-                } else {
-                    //show Dialog Prompt the user not to remove the card
-                    DeviceHelper.getEmvHandler().onSetContactlessOnlinePlaceCardModeResponse(true)
-                }
-            }
-
-            @RequiresApi(Build.VERSION_CODES.O)
-            @Throws(RemoteException::class)
-            override fun onFinish(retCode: Int, data: Bundle) {
-                if(readTimer != null) {
-                    readTimer?.cancel()
-                    readTimer = null
-                }
-
-                Utils.printLog("Callback: onFinish")
-                Utils.printLog("time = ${(System.currentTimeMillis() - startTick)}ms")
-                Utils.printLog("cvm_flag: ${data.getInt(EmvOnlineRequest.CVM_FLAG)}")
-                Utils.printLog("CVM_SIGNATURE: ${data.getBoolean(EmvOnlineRequest.CVM_SIGNATURE)}")
-                emvFinish(retCode, data)
-            }
-
-            @Throws(RemoteException::class)
-            override fun onCertVerify(certName: String, certInfo: String) {
-                Utils.printLog("Callback:onCertVerify")
-                DeviceHelper.getEmvHandler().onSetCertVerifyResponse(true)
-            }
-
-            @Throws(RemoteException::class)
-            override fun onSetAIDParameter(aid: String) {
-                Utils.printLog("Callback:onSetAIDParameter")
-            }
-
-            @Throws(RemoteException::class)
-            override fun onSetCAPubkey(rid: String, index: Int, algMode: Int) {
-                Utils.printLog("Callback:onSetCAPubkey")
-            }
-
-            @Throws(RemoteException::class)
-            override fun onTRiskManage(pan: String, panSn: String) {
-                Utils.printLog("Callback:onTRiskManage")
-            }
-
-            @Throws(RemoteException::class)
-            override fun onSelectLanguage(language: String) {
-                Utils.printLog("Callback:onSelectLanguage")
-            }
-
-            @Throws(RemoteException::class)
-            override fun onSelectAccountType(accountTypes: List<String>) {
-                Utils.printLog("Callback:onSelectAccountType")
-            }
-
-            @Throws(RemoteException::class)
-            override fun onIssuerVoiceReference(pan: String) {
-                Utils.printLog("Callback:onIssuerVoiceReference")
-            }
-        })
-
-        if (ret != 0) {
-            Utils.printLog("EMV INIT ERROR: $ret")
-            //DialogUtils.dismissProgressDialog(getActivity())
-            endEMV()
-        }
-    }*/
-
     private fun getPin(isOnline: Boolean, cardNo: String) {
         pinRequired = true
         pinWait = true
         runOnUiThread {
-            HelperCommon.bottomActionBarEvent(tempContext, "1")
+            MfHelper.lockStatusBarAndNavigation(true)
             val newCardNo = cardNo.replace("F", "");
             val pinPad: PinPad = if (isOnline) {
                 PinPad(
@@ -1187,7 +644,7 @@ open class EmvActivity: ActivityBase() {
                 @RequiresApi(Build.VERSION_CODES.O)
                 override fun onReadPinSuccess(pinBlock: String) {
                     //TODO ISO_SERVER pin block
-                    HelperCommon.bottomActionBarEvent(tempContext, "0")
+                    MfHelper.lockStatusBarAndNavigation(false)
                     if (isOnline) {
                         try {
                             mPinNum = if (pinBlock.isEmpty()) {
@@ -1243,7 +700,7 @@ open class EmvActivity: ActivityBase() {
 
                 override fun onReadPinCancel() {
                     logEmv( "onReadPinCancel -------")
-                    HelperCommon.bottomActionBarEvent(tempContext, "0")
+                    MfHelper.lockStatusBarAndNavigation(false)
 
                     //TransData.respCode = "4535"
                     pinWait = false
@@ -1329,14 +786,14 @@ open class EmvActivity: ActivityBase() {
         if (ret == ServiceResult.Success) { //trans accept
             //onFinishShow(bundle)
             logEmv("emvFinish: Success")
-            if (payMethod.toInt() == Global.paymentMethod.ICC) {
+            if (payMethod.toInt() == TerminalConstants.paymentMethod.ICC) {
                 IsoActivity.processTcUpload(tempContext, tempHelperLog)
             }
         } else if (ret == ServiceResult.Emv_FallBack) { // fallback
             logEmv("emvFinish: Emv_FallBack")
             //TODO
-            // cube!!.tlv_remove_tag(Global.cube.CUBE_TAG_RESPCODE)
-            // cube!!.tlv_add_by_tv_in_string(Global.cube.CUBE_TAG_RESPCODE, Utils.ASCIItoHexString("ZX"))
+            // cube!!.tlv_remove_tag(TerminalConstants.cube.CUBE_TAG_RESPCODE)
+            // cube!!.tlv_add_by_tv_in_string(TerminalConstants.cube.CUBE_TAG_RESPCODE, Utils.ASCIItoHexString("ZX"))
         } else if (ret == ServiceResult.Emv_Terminate) { // trans end
             logEmv("emvFinish: Emv_Terminate")
             if (errorCode != null) {
@@ -1361,7 +818,7 @@ open class EmvActivity: ActivityBase() {
             //TODO Reversal
             val respCode = Utility.HexString2ASCII(TransData.respCode)
             if(respCode == "00"){
-                TransData.transResult = Global.iso.err.failed
+                TransData.transResult = TerminalConstants.iso.err.failed
                 TransData.respCode = Utils.ASCIItoHexString("ZW")
                 TransData.prevInvoice = TransData.invoiceNo
                 TransData.prevStan = TransData.stan
@@ -1488,7 +945,7 @@ open class EmvActivity: ActivityBase() {
 
         val stringAid = EmvUtil.getPbocData("4F", true)
         val cardScheme = CardUtil.getCardTypFromAid(stringAid)
-        val schemeId = Global.iso.isoInfo.getSchemeId(TransData.schemeType, TransData.payMethod, TransData.acqCode)
+        val schemeId = TerminalConstants.iso.isoInfo.getSchemeId(TransData.schemeType, TransData.payMethod, TransData.acqCode)
 
         //TODO Obtain DF22
         val strSchemeTagWithSchemeId = "$schemeTag-$schemeId"
@@ -1590,7 +1047,7 @@ open class EmvActivity: ActivityBase() {
 
             if(fullPan.isEmpty() || reqPan.isEmpty() || fullPan != reqPan) {
                 logEmv("Card Verification Failed :: presented card is not the pre-auth card")
-                TransData.transResult = Global.iso.err.txnNotAllowed
+                TransData.transResult = TerminalConstants.iso.err.txnNotAllowed
                 TransData.respCode = Utils.ASCIItoHexString("ZR")
                 val online = Bundle()
                 online.putString(EmvOnlineResult.REJCODE, "05")
@@ -1624,11 +1081,11 @@ open class EmvActivity: ActivityBase() {
         TransData.schemeType = CardUtil.getCardTypFromAid(stringAid)
         TransData.aid = stringAid
         tempHelperLog.appendLine(logClassName, "AID :: $stringAid")
-        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_AID, TransData.aid)
+        TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_AID, TransData.aid)
 
-        TransData.schemeId = Global.iso.isoInfo.getSchemeId(TransData.schemeType, TransData.payMethod, TransData.acqCode)
+        TransData.schemeId = TerminalConstants.iso.isoInfo.getSchemeId(TransData.schemeType, TransData.payMethod, TransData.acqCode)
         tempHelperLog.appendLine(logClassName, "schemeType[${TransData.schemeType}]; schemeId[${TransData.schemeId}]")
-        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_SCHEME_ID, TransData.schemeId)
+        TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_SCHEME_ID, TransData.schemeId)
 
         var appLabel = EmvUtil.getPbocData("50", true) ?: ""
         if(appLabel.isEmpty()) {
@@ -1643,11 +1100,11 @@ open class EmvActivity: ActivityBase() {
         if(appLabelByte != null){
             appLabelByte.copyInto(TransData.appLabel, 0, 0, appLabelByte.size)
             TransData.appLabelLen = appLabelByte.size
-            TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_APPLABEL, appLabel)
+            TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_APPLABEL, appLabel)
         }
 
         val arqc = EmvUtil.getPbocData("9F26", true)
-        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_ARQC, arqc)
+        TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, arqc)
 
         var cvm: String? = EmvUtil.getPbocData("9F34", true)
         tempHelperLog.appendLine(logClassName, "onlineProc -> -$mPinNum-")
@@ -1698,7 +1155,7 @@ open class EmvActivity: ActivityBase() {
         }*/
         tempHelperLog.appendLine(logClassName, "onlineProc_cvm_m -> $cvm")
         TransData.cvm = cvm
-        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_CVM, cvm)
+        TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_CVM, cvm)
 
         var tvr = EmvUtil.getPbocData("95", true)
         var override95 = false
@@ -1712,25 +1169,25 @@ open class EmvActivity: ActivityBase() {
                 }
             }
         }
-        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_TVR, tvr)
+        TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_TVR, tvr)
         tempHelperLog.appendLine(logClassName, "TVR :: $tvr")
 
         when (TransData.payMethod) {
-            Global.paymentMethod.ICC -> {
+            TerminalConstants.paymentMethod.ICC -> {
                 TransData.entryModeLabel = "Contact"
-                TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("Contact"))
+                TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("Contact"))
             }
-            Global.paymentMethod.RF -> {
+            TerminalConstants.paymentMethod.RF -> {
                 TransData.entryModeLabel = "Contactless"
-                TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("Contactless"))
+                TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("Contactless"))
             }
-            Global.paymentMethod.Meg -> {
+            TerminalConstants.paymentMethod.Meg -> {
                 TransData.entryModeLabel = "MagStripe"
-                TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("MagStripe"))
+                TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString("MagStripe"))
             }
             else -> {
                 TransData.entryModeLabel = " "
-                TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString(" "))
+                TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, Utils.ASCIItoHexString(" "))
             }
         }
         tempHelperLog.appendLine(logClassName, "Entry Label :: ${TransData.entryModeLabel}")
@@ -1765,7 +1222,7 @@ open class EmvActivity: ActivityBase() {
         tempHelperLog.appendLine(logClassName, "onlineProc: ${TransData.payMethod}")
         tempHelperLog.logToFile(EnumLogFileName.TerminaLog)
 
-        if (payMethod.toInt() == Global.paymentMethod.ICC) {
+        if (payMethod.toInt() == TerminalConstants.paymentMethod.ICC) {
             if (pinCancel) {
                 val online = Bundle()
                 DeviceHelper.getEmvHandler().onSetOnlineProcResponse(ServiceResult.Emv_Terminate, online)
@@ -1782,7 +1239,7 @@ open class EmvActivity: ActivityBase() {
             override fun run() {
                 super.run()
                 do {
-                    /*if (TransData.transResult == Global.iso.err.txnDeclined_pinNeeded) {
+                    /*if (TransData.transResult == TerminalConstants.iso.err.txnDeclined_pinNeeded) {
                         count--
                         TransData.resetTransactionDbFromBak()
                         val cardNo: String = EmvUtil.readPan()
@@ -1796,17 +1253,22 @@ open class EmvActivity: ActivityBase() {
                         }
 
                         TransData.cvm = cvm.toString()
-                        TransData.removeTlvFromTransDb(Global.cube.CUBE_TAG_CARD_CVM)
-                        TransData.addHexStrIntoTransDB(Global.cube.CUBE_TAG_CARD_CVM, TransData.cvm)
+                        TransData.removeTlvFromTransDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM)
+                        TransData.addHexStrIntoTransDB(TerminalConstants.cube.CUBE_TAG_CARD_CVM, TransData.cvm)
                     }*/
-                    when (TransData.salesType) {
-                        8 -> {IsoActivity.processPreauth(tempContext, tempHelperLog)}
-                        4 -> {IsoActivity.processSaleCompCardPresented(tempContext, tempHelperLog)}
-                        ProductCatSelectionDataEnum.CASH_OUT.data.SalesType -> {IsoActivity.processCashOutSale(tempContext, tempHelperLog)}
-                        ProductCatSelectionDataEnum.EPP.data.SalesType -> {IsoActivity.processEppSale(tempContext, tempHelperLog)}
-                        else -> {IsoActivity.processOnlineSale(tempContext, tempHelperLog)}
+                    // D8 -- hold the host guard across the whole flow, so a back press cannot
+                    // blank stan/invoiceNo/respCode after the approval arrives but before it is
+                    // persisted. sendToHost raises the same counter again inside.
+                    IsoActivity.withHostRequest {
+                        when (TransData.salesType) {
+                            8 -> {IsoActivity.processPreauth(tempContext, tempHelperLog)}
+                            4 -> {IsoActivity.processSaleCompCardPresented(tempContext, tempHelperLog)}
+                            ProductCatSelectionDataEnum.CASH_OUT.data.SalesType -> {IsoActivity.processCashOutSale(tempContext, tempHelperLog)}
+                            ProductCatSelectionDataEnum.EPP.data.SalesType -> {IsoActivity.processEppSale(tempContext, tempHelperLog)}
+                            else -> {IsoActivity.processOnlineSale(tempContext, tempHelperLog)}
+                        }
                     }
-                } while (TransData.transResult == Global.iso.err.txnDeclined_pinNeeded && count != 0)
+                } while (TransData.transResult == TerminalConstants.iso.err.txnDeclined_pinNeeded && count != 0)
                 tempHelperLog.appendLine(logClassName, "onlineProc: Bank waiting done")
                 isNotCompl[0] = false
             }
@@ -1850,7 +1312,7 @@ open class EmvActivity: ActivityBase() {
             // txnNotAllowed means StorageGuard refused the sale before any host request was formed.
             // There is nothing at the host to reverse, so the 3-attempt loop below would send
             // reversals for a transaction that never existed. Only StorageGuard sets this code.
-            if(TransData.transResult != Global.iso.err.txnApproved && TransData.transResult != Global.iso.err.txnNotAllowed && (TransData.transResult == Global.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
+            if(TransData.transResult != TerminalConstants.iso.err.txnApproved && TransData.transResult != TerminalConstants.iso.err.txnNotAllowed && (TransData.transResult == TerminalConstants.iso.err.communicationTimeout || TransData.respCode.isEmpty())) {
                 ServiceHolder.isoComm = null
                 isNotCompl[0] = true
                 object : Thread() {
@@ -1921,7 +1383,7 @@ open class EmvActivity: ActivityBase() {
             iccCardReader?.stopSearch()
             rfReader?.stopSearch()
             magCardReader?.stopSearch()
-            payMethod = Global.paymentMethod.Cancel.toByte()
+            payMethod = TerminalConstants.paymentMethod.Cancel.toByte()
         } catch (e: RemoteException) {
             e.printStackTrace()
         } catch (e: NullPointerException) {
@@ -1937,7 +1399,7 @@ open class EmvActivity: ActivityBase() {
         // to call unconditionally.
         hideProgress()
         try {
-            payMethod = Global.paymentMethod.Non.toByte()
+            payMethod = TerminalConstants.paymentMethod.Non.toByte()
             //DeviceHelper.getEmvHandler().endPBOC()
             DeviceHelper.getEmvHandler().cancelCheckCard()
         } catch (e: Exception) {
@@ -1954,7 +1416,7 @@ open class EmvActivity: ActivityBase() {
             iccCardReader?.stopSearch()
             rfReader?.stopSearch()
             magCardReader?.stopSearch()
-            payMethod = Global.paymentMethod.Non.toByte()
+            payMethod = TerminalConstants.paymentMethod.Non.toByte()
             DeviceHelper.getEmvHandler().endPBOC()
             //DeviceHelper.getEmvHandler().cancelCheckCard()
         } catch (e: Exception) {
@@ -2021,7 +1483,7 @@ open class EmvActivity: ActivityBase() {
 
     private fun startProgressDialog(title: String, msg: String) {
         startProgressDialog(tempContext, title, msg)
-        //HelperCommon.bottomActionBarEvent(tempContext, "1")
+        //MfHelper.lockStatusBarAndNavigation(true)
     }
 
     private fun inputPinDetectCardRemove() {

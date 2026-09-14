@@ -2,7 +2,7 @@ package com.sc.mf919pro.kotlin.migration
 
 import com.sc.mf919pro.kotlin.database.infrastructure.DatabaseTables
 import database.DbHandler
-import com.sc.mf919pro.kotlin.helper_common.HelperLogFileName
+import enums.EnumLogFileName
 import helpers.HelperLog
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
 
@@ -98,7 +98,7 @@ class Migration1004 {
         /* FoodLink [End] */
 
         HelperLog.appendLine(sbLog, "----------------- Finish Running Migration -------------")
-        HelperLog.logToFile(sbLog, HelperLogFileName.TerminaLog)
+        HelperLog.logToFile(sbLog, EnumLogFileName.TerminaLog)
     }
 
     private fun createTables(tableName: String, tableField: List<String>) {

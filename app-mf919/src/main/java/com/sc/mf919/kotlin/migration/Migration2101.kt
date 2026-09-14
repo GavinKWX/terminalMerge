@@ -6,7 +6,7 @@ import com.sc.mf919.kotlin.database.model.DbModelIsoBatchInfo
 import com.sc.mf919.kotlin.database.repo.IsoBatchInfoRepo
 import com.sc.mf919.kotlin.database.repo.ReceiptUploadRepo
 import helpers.HelperLog
-import com.sc.mf919.kotlin.helper_common.HelperLogFileName
+import enums.EnumLogFileName
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import java.lang.StringBuilder
 
@@ -120,7 +120,7 @@ class Migration2101 {
 
         /*  Table Exist [End]*/
         HelperLog.appendLine(sbLog, "----------------- Finish Running Migration -------------")
-        HelperLog.logToFile(sbLog, HelperLogFileName.TerminaLog)
+        HelperLog.logToFile(sbLog, EnumLogFileName.TerminaLog)
     }
 
     private fun deleteRecords(tableName: String, tag: String, subtag: String, value: String) {
@@ -209,7 +209,7 @@ class Migration2101 {
             if (rowsBefore > copied) {
                 HelperLog.appendLine(sbLog, "RECEIPT ROWS LOST :: ${rowsBefore - copied} unreadable " +
                     "row(s) in $name - reconcile receipt uploads against TMS")
-                HelperLog.logToFile(sbLog, HelperLogFileName.TerminaDbException)
+                HelperLog.logToFile(sbLog, EnumLogFileName.TerminaDbException)
             }
         }
 
@@ -286,7 +286,7 @@ class Migration2101 {
 
         HelperLog.appendLine(sbLog, "HEAL $name :: present=$present missingColumns=${missing.size} " +
             "- resetting to canonical schema")
-        HelperLog.logToFile(sbLog, HelperLogFileName.TerminaDbException)
+        HelperLog.logToFile(sbLog, EnumLogFileName.TerminaDbException)
         dropTables(name + "_temp")
         dropTables(name)
         createTables(name, receiptUploadField)

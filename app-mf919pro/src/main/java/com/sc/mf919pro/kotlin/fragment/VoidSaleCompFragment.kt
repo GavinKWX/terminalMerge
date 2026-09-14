@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.fragment
+import enums.EnumResponseCode
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
@@ -17,11 +18,11 @@ import com.google.gson.JsonObject
 import com.library.terminal.Utility
 import com.sc.mf919pro.R
 import com.sc.mf919pro.databinding.FragmentVoidsalerefundBinding
-import com.sc.mf919pro.java.activity.EmvTag
-import com.sc.mf919pro.java.activity.Global
+import emv.EmvTag
+import constants.TerminalConstants
 import com.sc.mf919pro.java.activity.UploadTMS
 import com.sc.mf919pro.java.activity.Utils
-import com.sc.mf919pro.java.utils.EmvUtil
+import emv.EmvUtil
 import utils.HexUtil
 import com.sc.mf919pro.kotlin.activity.TransactionTransmitter
 import com.sc.mf919pro.kotlin.data_enum.variables.TransData
@@ -164,19 +165,19 @@ class VoidSaleCompFragment: BaseFragment() {
 
                 if (batchTableModel.schemeId in listOf("81", "82", "98", "99")) {
                     helperLog.appendLine(helperLogClassName, "MyDebit Completion Void is not supported")
-                    showToast("MyDebit Completion Void is not supported", Toast.LENGTH_SHORT)
+                    showToast(EnumResponseCode.MYDEBIT_COMPLETION_VOID_UNSUPPORTED.description, Toast.LENGTH_SHORT)
                     if (ServiceHolder.appIntent) {
                         val txnMap = java.util.HashMap<String, String>()
-                        txnMap["ResponseCode"] = "SHC010"
-                        txnMap["ResponseDescription"] = "MyDebit Completion Void is not supported"
+                        txnMap["ResponseCode"] = EnumResponseCode.MYDEBIT_COMPLETION_VOID_UNSUPPORTED.code
+                        txnMap["ResponseDescription"] = EnumResponseCode.MYDEBIT_COMPLETION_VOID_UNSUPPORTED.description
                         delay(500L)
                         hideProgress()
                         onBackToApp(txnMap)
                     } else if (ServiceHolder.appHTTP) {
                         val jObject = JsonObject()
                         try {
-                            jObject.addProperty("ResponseCode", "SHC010")
-                            jObject.addProperty("ResponseDescription", "MyDebit Completion Void is Not Supported")
+                            jObject.addProperty("ResponseCode", EnumResponseCode.MYDEBIT_COMPLETION_VOID_UNSUPPORTED.code)
+                            jObject.addProperty("ResponseDescription", EnumResponseCode.MYDEBIT_COMPLETION_VOID_UNSUPPORTED.description)
                         } catch (e: Exception) {
                             e.printStackTrace()
                         }
@@ -210,16 +211,16 @@ class VoidSaleCompFragment: BaseFragment() {
                 showToast("Invalid Input", Toast.LENGTH_SHORT)
                 if (ServiceHolder.appIntent) {
                     val txnMap = HashMap<String, String>()
-                    txnMap["ResponseCode"] = "SHC001"
-                    txnMap["ResponseDescription"] = "Invalid Transaction Invoice"
+                    txnMap["ResponseCode"] = EnumResponseCode.INVALID_TRANSACTION_INVOICE.code
+                    txnMap["ResponseDescription"] = EnumResponseCode.INVALID_TRANSACTION_INVOICE.description
                     delay(500L)
                     hideProgress()
                     onBackToApp(txnMap)
                 } else if (ServiceHolder.appHTTP) {
                     val jObject = JsonObject()
                     try {
-                        jObject.addProperty("ResponseCode", "SHC001")
-                        jObject.addProperty("ResponseDescription", "Invalid Transaction Invoice")
+                        jObject.addProperty("ResponseCode", EnumResponseCode.INVALID_TRANSACTION_INVOICE.code)
+                        jObject.addProperty("ResponseDescription", EnumResponseCode.INVALID_TRANSACTION_INVOICE.description)
                     } catch (e: JSONException) {
                         e.printStackTrace()
                     }
@@ -253,14 +254,14 @@ class VoidSaleCompFragment: BaseFragment() {
             helperLog.appendLine(helperLogClassName, "User Cancel :: void declined at confirmation dialog")
             if (ServiceHolder.appIntent) {
                 val txn_map: HashMap<String, String> = HashMap()
-                txn_map["ResponseCode"] = "SHC005"
-                txn_map["ResponseDescription"] = "User Cancel the Transaction"
+                txn_map["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+                txn_map["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
                 onBackToApp(txn_map)
             } else if (ServiceHolder.appHTTP) {
                 val jObject = JsonObject()
                 try {
-                    jObject.addProperty("ResponseCode", "SHC005")
-                    jObject.addProperty("ResponseDescription", "User Cancel the Transaction")
+                    jObject.addProperty("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+                    jObject.addProperty("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
                 } catch (e: JSONException) {
                     e.printStackTrace()
                 }
@@ -344,9 +345,9 @@ class VoidSaleCompFragment: BaseFragment() {
                 val oldTransDb = HexUtil.hexStringToByte(batchTableModel.batchData)
                 oldTransDb.copyInto(TransData.transactionDb, 0, 0, oldTransDb.size)
                 TransData.transactionDbLen = oldTransDb.size - 2
-                TransData.entryModeLabel = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
-                TransData.cvm = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_CVM, 16)
-                TransData.aid = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_AID, 16)
+                TransData.entryModeLabel = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
+                TransData.cvm = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM, 16)
+                TransData.aid = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_AID, 16)
                 posReference?.let {
                     TransData.posReference = it
                     helperLog.appendLine(helperLogClassName, "Add Pos Reference :: $it")
@@ -402,13 +403,13 @@ class VoidSaleCompFragment: BaseFragment() {
         val strPreAuthBatchNo = TransData.getFromTransactionDb("BF60", 256)
         val strRespCode =  Utility.HexString2ASCII(TransData.respCode)
         val strAid = TransData.aid
-        val mti = TransData.getFromTransactionDb(Global.iso.tag.MTI, 16)
+        val mti = TransData.getFromTransactionDb(TerminalConstants.iso.tag.MTI, 16)
         val strNii = TransData.getFromTransactionDb("DF24", 16)
         val strMaskPanBcd = TransData.maskedPan
         val strHashedPanBcd = TransData.hashedPan
         val strEntryType = TransData.entryModeLabel
-        val strARQC = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_ARQC, 16)
-        val strTVR = TransData.getFromTransactionDb(Global.cube.CUBE_TAG_CARD_TVR, 16)
+        val strARQC = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ARQC, 16)
+        val strTVR = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_TVR, 16)
         val strPosReference = TransData.posReference
         val strCardLabel = Utils.byteArrayToAsciiString(TransData.appLabel, 0, TransData.appLabelLen)
         val strCvm = TransData.cvm
