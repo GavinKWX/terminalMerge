@@ -224,6 +224,16 @@ object WebSocketClientSingleton {
                                 // reaches a terminal that already has a list.
                                 DenominationListRepo.truncateTable(ServiceHolder.mContext)
                             }
+                            EnumWebsocket.TerminalDMDispense.socketCommand -> {
+                                // KNOWN command, deliberately not acted on. Production sends this
+                                // with a real dispense payload; neither app has a handler yet.
+                                //
+                                // Do NOT add one here without the TerminalSN check first: nothing
+                                // in onMessage verifies a message is addressed to this terminal,
+                                // and dispensing goods on another terminal's instruction is the
+                                // failure that check exists to prevent. See the audit doc, 57/61.
+                                logWs("TerminalDMDispense received :: no handler, ignored")
+                            }
                             else -> {
                                 // Not "invalid" -- the server is entitled to send it, we have no
                                 // handler. Through logWs, not println, so an unhandled live
