@@ -32,7 +32,16 @@ object TerminalInfo {
 
 		/** `BuildConfig.DEFAULT_ENV` -- "development", "staging" or "production". */
 		fun defaultEnvId(): String
+
+		/** Install token, sent as `INSTALL-APP-VER`. "" means unknown, never a mismatch. */
+		fun installToken(): String = ""
+
+		/** Local IP, sent as `TERMINAL_IP` on UpdateToken. */
+		fun ipAddress(): String = ""
 	}
+
+	/** `APP-TYPE` sent with the install token. The same for both apps (audit item 72). */
+	const val APP_TYPE = "POS"
 
 	@Volatile
 	private var provider: Provider? = null
@@ -67,4 +76,10 @@ object TerminalInfo {
 
 	@JvmStatic
 	fun defaultEnvId(): String = provider?.defaultEnvId() ?: "production"
+
+	@JvmStatic
+	fun installToken(): String = provider?.installToken() ?: ""
+
+	@JvmStatic
+	fun ipAddress(): String = provider?.ipAddress() ?: ""
 }

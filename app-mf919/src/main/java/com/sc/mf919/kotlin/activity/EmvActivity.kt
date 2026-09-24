@@ -198,6 +198,7 @@ open class EmvActivity: ActivityBase() {
                     if(pinCancel){
                         val online = Bundle()
                         DeviceHelper.getEmvHandler().onSetOnlineProcResponse(ServiceResult.Emv_Terminate, online)
+                        TransData.respCode = Utils.ASCIItoHexString("ZQ")
                         endEMV()
                         return
                     }
@@ -438,6 +439,7 @@ open class EmvActivity: ActivityBase() {
                 if (!isOnlinePin && pinCancel) {
                     logEmv("Manual Cancel Transaction")
                     DeviceHelper.getEmvHandler().onSetOnlineProcResponse(ServiceResult.Emv_Terminate, Bundle())
+                    TransData.respCode = Utils.ASCIItoHexString("ZQ")
                     return
                 }
 
@@ -538,6 +540,7 @@ open class EmvActivity: ActivityBase() {
                 if (pinCancel || payMethod.toInt() == TerminalConstants.paymentMethod.Non) {
                     logEmv("Manual Cancel Transaction")
                     DeviceHelper.getEmvHandler().onSetOnlineProcResponse(ServiceResult.Emv_Terminate, Bundle())
+                    TransData.respCode = Utils.ASCIItoHexString("ZQ")
                     return
                 }
                 logEmv("time = ${(System.currentTimeMillis() - startTick)}ms")
@@ -1068,6 +1071,7 @@ open class EmvActivity: ActivityBase() {
             if (pinCancel) {
                 val online = Bundle()
                 DeviceHelper.getEmvHandler().onSetOnlineProcResponse(ServiceResult.Emv_Terminate, online)
+                TransData.respCode = Utils.ASCIItoHexString("ZQ")
                 return
             }
         }
@@ -1226,6 +1230,7 @@ open class EmvActivity: ActivityBase() {
             if (pinCancel) {
                 val online = Bundle()
                 DeviceHelper.getEmvHandler().onSetOnlineProcResponse(ServiceResult.Emv_Terminate, online)
+                TransData.respCode = Utils.ASCIItoHexString("ZQ")
                 return
             }
         }

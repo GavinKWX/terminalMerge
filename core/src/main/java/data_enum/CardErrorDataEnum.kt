@@ -109,6 +109,7 @@ enum class CardErrorDataEnum(val data: String) {
 	TAG_SHC009("Payment Session Terminated"),
 	TAG_SHC010("Transaction Not Supported"),
 	TAG_SHC011("Please Run Settlement for Last day Transaction before Proceed"),
+	TAG_ZQ("PIN Not Entered"),
 	TAG_ZR("Card Does Not Match Pre-Auth Card"),
 	// Set only by the StorageGuard blocks. Without its own code the blocked-sale screen
 	// inherits whatever the ISO layer last set — on MF919 that read "Empty Secure Key", pointing

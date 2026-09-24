@@ -32,6 +32,7 @@ import com.sc.mf919.kotlin.database.model.DbModelTerminalConfig
 import com.sc.mf919.kotlin.database.model.DbModelTerminalConfig.Companion.getBooleanValue
 import com.sc.mf919.kotlin.database.repo.DenominationListRepo
 import com.sc.mf919.kotlin.helper_common.Helper
+import com.sc.mf919.kotlin.helper_common.ReceiptReconciler
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.getAcquirerSetting
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.getAppVersion
@@ -76,6 +77,7 @@ import com.sc.mf919.kotlin.migration.Migration2215
 import com.sc.mf919.kotlin.migration.Migration2216
 import com.sc.mf919.kotlin.migration.Migration2217
 import com.sc.mf919.kotlin.migration.Migration2221
+import com.sc.mf919.kotlin.migration.Migration2227
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperCommon.Companion.getSession
@@ -332,6 +334,12 @@ class MainActivity : AppCompatActivity() {
 							currVersion = 2221
 							setMigrationVersion(currVersion)
 						}
+						if (currVersion < 2227) {
+							val m2227 = Migration2227()
+							m2227.startMigration()
+							currVersion = 2227
+							setMigrationVersion(currVersion)
+						}
 						setMigrationVersion(latestVersion)
 					}
 					// new features
@@ -583,6 +591,14 @@ class MainActivity : AppCompatActivity() {
 					// back at 000001, which means reusing invoice/STAN numbers already sent to the
 					// host. Reapply the SharedPreferences high-water marks, which survive a DB wipe.
 					CounterGuard.restore(applicationContext)
+
+					// A transaction that the host answered but whose app process died before
+					// updateReceiptInfo() ran leaves a ReceiptUpload row unresolved, while the
+					// settlement totals already count the sale. Rebuild those rows from
+					// batchTable / preauthTable / revBatchTable before the upload scheduler
+					// ships them as pending. After the migration latch so the DB is ready, and
+					// outside the appFreshLoad branch so it runs on every start.
+					ReceiptReconciler.reconcileOrphanReceipts(applicationContext)
 
 					if (ServiceHolder.appFreshLoad) {
 						val log = HelperLog(

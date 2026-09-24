@@ -33,6 +33,14 @@ interface MdbTransport {
 
     /** Queue one reader response for the VMC. Returns false when the driver rejects it. */
     fun send(data: ByteArray): Boolean
+
+    /**
+     * Driver return code from the most recent [send] attempt, or null when the driver reported
+     * none (it threw, or this transport does not surface one). Both SDKs return 0 for success
+     * and a negative code otherwise, and that code is the only clue when a frame never reaches
+     * the VMC - a retry that eventually succeeds hides it entirely from the Boolean result.
+     */
+    val lastSendStatus: Int? get() = null
 }
 
 /**
@@ -1008,11 +1016,16 @@ object MdbController {
      * at their call site. Only a send the transport could not place is written to file.
      */
     private fun send(data: ByteArray) {
-        host.printLog("MDB Send :: ${HexUtil.bytesToHexString(data)}")
+        val hex = HexUtil.bytesToHexString(data)
+        // Logged AFTER the driver call so the line can carry its return code. The frame is on the
+        // wire by then, so this reports the outcome rather than the intent.
         // A null transport means the link was never brought up; treat that as a failed send
         // rather than crashing the state machine.
-        if (transport?.send(data) != true) {
-            vendLine("MDB send failed after retries :: ${HexUtil.bytesToHexString(data)}")
+        val ok = transport?.send(data) == true
+        val status = transport?.lastSendStatus
+        host.printLog("MDB Send (${status ?: "n/a"}) :: $hex")
+        if (!ok) {
+            vendLine("MDB send failed after retries :: $hex (driver status ${status ?: "n/a"})")
         }
     }
 

@@ -757,6 +757,7 @@ object TmsHelper {
 				terminalConfigRes.DENOMINATION.toString(),
 				merchantInfoSize,
 				txnInfoSize,
+				terminalConfigRes.BYPASS_PIN.toString(),
 			)
 			TerminalConfigurationRepo.truncateTable(mContext)
 			TerminalConfigurationRepo.insertToDb(mContext, dbModel)

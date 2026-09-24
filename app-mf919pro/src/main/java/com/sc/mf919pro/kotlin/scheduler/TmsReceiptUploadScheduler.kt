@@ -10,13 +10,17 @@ import com.sc.mf919pro.kotlin.database.infrastructure.DatabaseTables
 import database.DbHandler
 import com.sc.mf919pro.kotlin.database.model.DbModelReceiptUpload
 import com.sc.mf919pro.kotlin.helper_common.Helper
+import com.sc.mf919pro.kotlin.helper_common.InstallIdentity
+import com.sc.mf919pro.kotlin.helper_common.ReceiptReconciler
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
 import com.sc.mf919pro.kotlin.helper_common.TmsHelper
 import env.EnvironmentManager
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperLog
+import helpers.HelperText
 import tms.handlers.ReceiptUploadHandler
+import tms.handlers.UpdateTokenHandler
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
@@ -25,6 +29,16 @@ class TmsReceiptUploadScheduler(appContext: Context, workerParams: WorkerParamet
 	Worker(appContext, workerParams) {
 	val mContext = appContext
 	val className: String = TmsReceiptUploadScheduler::javaClass.name
+
+	companion object {
+		/**
+		 * How old an unresolved row must be before this worker treats it as stranded rather than
+		 * in flight. A transaction resolves its row in seconds, and the row cannot upload before
+		 * the 30-minute arm of the SELECT below anyway, so a couple of minutes costs nothing and
+		 * keeps the reconciler off rows a live transaction still owns.
+		 */
+		private const val IN_FLIGHT_GRACE_MINUTES = 2
+	}
 
 	override fun doWork(): Result {
 		val log = HelperLog(
@@ -56,9 +70,59 @@ class TmsReceiptUploadScheduler(appContext: Context, workerParams: WorkerParamet
 			val environmentManager = EnvironmentManager(Helper.getInstance().getPrefs()!!)
 			val receiptUploadHandler = ReceiptUploadHandler(environmentManager)
 
+			/*
+			 * Report the install token before the receipts that carry it. UpdateToken is what puts this
+			 * installation into Terminal_App_History and links it to the one it replaces; the receipts
+			 * only carry the value. The backend confirmed the registration has to land first, so this
+			 * gates the run -- see the skip branch below. The call is idempotent, so a retry is free.
+			 */
+			val installToken = InstallIdentity.getToken()
+			if (InstallIdentity.needsReporting(installToken)) {
+				var tokenReported = false
+				try {
+					UpdateTokenHandler(environmentManager).invoke(log, installToken)
+					InstallIdentity.markReported(installToken)
+					tokenReported = true
+					log.appendLine(className, "Install token reported to TMS :: [$installToken]")
+				} catch (ex: Exception) {
+					ex.printStackTrace()
+					log.appendLine(className, "Install token report FAILED :: ", HelperText.oneLine(ex.toString()))
+				}
+				if (!tokenReported) {
+					/*
+					 * The server needs the token registered before it sees receipts carrying it, so
+					 * nothing uploads until UpdateToken succeeds. The receipts stay IsSend[false] and
+					 * go up on a later run -- exactly where a failed upload leaves them. Only reached
+					 * for a non-blank token: a blank one is "unknown" to the server and settles as it
+					 * does today, so it never blocks.
+					 *
+					 * Release the lock before returning. Leaving uploadingReceipt set would block
+					 * every subsequent run until the one-hour stale-lock takeover above clears it.
+					 */
+					ServiceHolder.uploadingReceipt = false
+					ServiceHolder.uploadingReceiptTimeStamp = 0L
+					log.appendLine(className, "Receipt upload SKIPPED this run :: install token [$installToken] is not registered with TMS yet, receipts left queued for retry")
+					log.logToFile(EnumLogFileName.TerminaLog)
+					return Result.success()
+				}
+				log.logToFile(EnumLogFileName.TerminaLog)
+			}
+
 			val dbHandler = DbHandler.getInstance(mContext)!!
 			val currDT = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH).format(Date())
 			var exitJob = false
+
+			// Repair rows stranded unresolved (app killed between the host response and
+			// updateReceiptInfo) BEFORE deciding what to upload. This worker is periodic, so
+			// WorkManager starts the process and runs it even when nobody reopens the app - a
+			// startup-only reconcile would never fire in that case, and the 30-minute arm below
+			// would ship the row still reading "-".
+			// The grace period is not optional. insertPendingTransactionInto() enqueues an
+			// immediate upload job, so this worker routinely runs while the host request is still
+			// in flight (measured at 234 ms after the ISO request went out, on A99). Anything that
+			// recent is a healthy in-flight transaction, not an orphan.
+			val repaired = ReceiptReconciler.reconcile(mContext, IN_FLIGHT_GRACE_MINUTES)
+			log.appendLine(className, "Reconciled stranded receipt rows: ", repaired.toString())
 
 			log.appendLine(className, "Getting Data from ReceiptUpload tables")
 			val listReceiptType = object : TypeToken<List<DbModelReceiptUpload>>() {}.type

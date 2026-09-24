@@ -44,6 +44,7 @@ data class DbModelTerminalConfig(
     var DENOMINATION: String?,
     var RECEIPT_MERCHANT_INFO_SIZE: String?,
     var RECEIPT_TXN_INFO_SIZE: String?,
+    var BYPASS_PIN: String?,
     ) {
     companion object {
         fun getSafeValue(mcModel: DbModelTerminalConfig?, attr: String): String {

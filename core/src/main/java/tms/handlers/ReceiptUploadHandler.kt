@@ -116,6 +116,13 @@ class ReceiptUploadHandler(private val envManager: EnvironmentManager) {
 		val httpHeaders: MutableMap<String, String> = mutableMapOf()
 		httpHeaders["DEV-SN"] = TerminalInfo.serialNumber()
 		httpHeaders["APP-VER"] = TerminalInfo.appVersion()
+		/*
+		 * Every receipt -- sale, void, sale completion, pre-auth and settle -- carries the install
+		 * token, and this is the only place that posts one, so they cannot drift apart. Headers and
+		 * not body fields: the server reads the body copy only when the header is absent.
+		 */
+		httpHeaders["INSTALL-APP-VER"] = TerminalInfo.installToken()
+		httpHeaders["APP-TYPE"] = TerminalInfo.APP_TYPE
 		httpHeaders["TERMINAL-DT"] = HelperDate.getDateString(
 			EnumDateFormat.yyyyMMddHHmmss.dateFormat
 		)

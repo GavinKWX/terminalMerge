@@ -13,6 +13,8 @@ import com.sc.mf919pro.R
 import com.sc.mf919pro.java.activity.Keypad
 import com.sc.mf919pro.java.activity.PinPadListener
 import com.sc.mf919pro.java.activity.onKeypadEventListener
+import com.sc.mf919pro.kotlin.database.model.DbModelTerminalConfig
+import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
 import com.sc.mf919pro.kotlin.helper_common.utils.PinBlockUtil
 
 class PinPadDialogFragment : DialogFragment() {
@@ -118,7 +120,13 @@ class PinPadDialogFragment : DialogFragment() {
             if (isOK) {
                 if (msg != null) {
                     if (msg.isEmpty()) {
-                        listener.onReadPinSuccess("")
+                        val terminalConfig: DbModelTerminalConfig? = ServiceHolder.getTerminalConfig()
+                        val isBypassPIN: Boolean = DbModelTerminalConfig.Companion.getBooleanValue(terminalConfig, "BYPASS_PIN")
+                        if (isBypassPIN) {
+                            listener.onReadPinSuccess("")
+                        } else {
+                            listener.onReadPinNotEntered()
+                        }
                     } else {
                         val pinBlock = PinBlockUtil.pinBlockEncode(msg, cardNumber, isoType).uppercase()
                         listener.onReadPinSuccess(pinBlock)

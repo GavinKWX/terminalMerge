@@ -20,7 +20,9 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.sc.mf919.R;
+import com.sc.mf919.kotlin.database.model.DbModelTerminalConfig;
 import com.sc.mf919.kotlin.helper_common.MfHelper;
+import com.sc.mf919.kotlin.helper_common.ServiceHolder;
 
 import java.util.Random;
 
@@ -114,7 +116,13 @@ public class PinPad  extends AppCompatActivity {
             if (isOK) {
                 if (msg != null) {
                     if (msg.isEmpty()) {
-                        pinPadListener.onReadPinSuccess("");
+                        DbModelTerminalConfig terminalConfig = ServiceHolder.getTerminalConfig();
+                        boolean isBypassPIN = DbModelTerminalConfig.Companion.getBooleanValue(terminalConfig, "BYPASS_PIN");
+                        if (isBypassPIN) {
+                            pinPadListener.onReadPinSuccess("");
+                        } else {
+                            pinPadListener.onReadPinCancel();
+                        }
                     } else {
                         pinPadListener.onReadPinSuccess(PinBlockEncode(msg, CardNumber, type.ordinal()).toUpperCase());
                     }

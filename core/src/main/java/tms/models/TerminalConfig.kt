@@ -61,6 +61,7 @@ data class TerminalConfigResp (
 	val DENOMINATION: String?,
 	val RECEIPT_MERCHANT_INFO_SIZE: String? = null,
 	val RECEIPT_TXN_INFO_SIZE: String? = null,
+	val BYPASS_PIN: String? = null,
 )
 
 data class EWProducts(

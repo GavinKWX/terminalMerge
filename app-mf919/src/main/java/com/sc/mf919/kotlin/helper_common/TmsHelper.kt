@@ -759,6 +759,7 @@ object TmsHelper {
 				terminalConfigRes.SALES_CARD.toString(),
 				terminalConfigRes.SALES_EWALLET.toString(),
 				terminalConfigRes.DENOMINATION.toString(),
+				terminalConfigRes.BYPASS_PIN.toString(),
 			)
 			TerminalConfigurationRepo.truncateTable(mContext)
 			TerminalConfigurationRepo.insertToDb(mContext, dbModel)

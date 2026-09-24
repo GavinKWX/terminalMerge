@@ -14,6 +14,11 @@ class MorefunMdbTransport(private val host: MdbHost) : MdbTransport {
 
     private val devicePath = "/dev/ttyACM0"
 
+    // Return code of the last send call, read by MdbController for the "MDB Send (n) ::" line.
+    // Null means there was no driver code: the SDK threw, or there was no service to ask.
+    @Volatile private var lastStatus: Int? = null
+    override val lastSendStatus: Int? get() = lastStatus
+
     /**
      * Link-layer log. Built per event and only on the failure paths: a healthy bus sends a
      * frame for every VMC poll, so anything unconditional here would be a per-poll disk write.
@@ -71,7 +76,9 @@ class MorefunMdbTransport(private val host: MdbHost) : MdbTransport {
         while (attemptsLeft > 0) {
             attemptsLeft--
             try {
-                val ret = host.mdbService()?.send(data, data.size) ?: -1
+                val service = host.mdbService()
+                val ret = service?.send(data, data.size) ?: -1
+                lastStatus = if (service != null) ret else null
                 if (ret == 0) {
                     // Boundary: the frame is out. Emit the retry trail as one block so a
                     // recovered send is distinguishable from one that gave up below.
@@ -85,6 +92,8 @@ class MorefunMdbTransport(private val host: MdbHost) : MdbTransport {
                 failLog?.appendLine(TAG, "MDB send failed (ret=$ret), retries left: $attemptsLeft")
             } catch (ex: Exception) {
                 ex.printStackTrace()
+                // No driver code to report for this attempt.
+                lastStatus = null
                 if (failLog == null) failLog = newLog()
                 failLog?.appendLine(TAG, "MDB send exception (${ex.javaClass.simpleName}: ${ex.message}), retries left: $attemptsLeft")
             }

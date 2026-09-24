@@ -22,6 +22,7 @@ import com.sc.mf919.R
 import com.sc.mf919.java.activity.*
 import com.sc.mf919.java.device.DeviceHelper
 import enums.EnumWebsocket
+import data_enum.ConnMethodEnum
 import com.sc.mf919.kotlin.data_enum.ProductCatSelectionDataEnum
 import com.sc.mf919.kotlin.data_enum.ProductCatSelectionDataEnum.Companion.getProductCatForHttp
 import com.sc.mf919.kotlin.data_enum.SaleModelNew
@@ -30,6 +31,7 @@ import com.sc.mf919.kotlin.data_enum.variables.TransData
 import com.sc.mf919.kotlin.database.model.DbModelMerchantConfig
 import com.sc.mf919.kotlin.database.model.DbModelMerchantConfig.Companion.getSafeValue
 import com.sc.mf919.kotlin.database.model.DbModelProductList
+import com.sc.mf919.kotlin.database.model.DbModelTerminalConfig
 import com.sc.mf919.kotlin.database.model.DbModelTerminalConfig.Companion.getBooleanValue
 import com.sc.mf919.kotlin.database.repo.IsoBatchInfoRepo
 import com.sc.mf919.kotlin.database.repo.SecureDataRepo
@@ -95,17 +97,6 @@ class SettingsActivity : ActivityBase() {
 		dynamicScreenOption()
 
 		val terminalConfig = getTerminalConfig()
-		println("ISO_WEBSOCKET >> ${getBooleanValue(terminalConfig, "ISO_WEBSOCKET")}")
-		if (!getBooleanValue(terminalConfig, "ISO_WEBSOCKET")) {
-			//ISOSocketEnabled = true
-			//val webSocketClient = getWebSocketClient()
-			/*lifecycleScope.launch {
-				webSocketClient?.messagesFlow?.collect { message ->
-					println("Message received 123: ${message}")
-					handleWebSocketResponse(message)
-				}
-			}*/
-		}
 
 		val dbModelMerchantConfig = getMerchantInfo()
 
@@ -114,8 +105,9 @@ class SettingsActivity : ActivityBase() {
 				arrayOf("GENERATE_QR", "QR_UNIONPAY")
 		)
 
+		val connMethod = DbModelTerminalConfig.getSafeValue(terminalConfig, "CABLE_CONNECTION")
 		val txnHistory = findViewById<LinearLayout>(R.id.txnHistoryBtn)
-		if (qrGenUPIDetail != null || dbModelMerchantConfig?.Action2 == "UPIQR") {
+		if (qrGenUPIDetail != null || dbModelMerchantConfig?.Action2 == "UPIQR" || connMethod == ConnMethodEnum.MDB.value) {
 			txnHistory.visibility = View.VISIBLE
 		} else {
 			txnHistory.visibility = View.GONE

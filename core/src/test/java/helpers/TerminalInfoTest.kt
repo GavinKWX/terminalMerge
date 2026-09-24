@@ -102,4 +102,18 @@ class TerminalInfoTest {
 		assertTrue(NullProvider.serialNumber().isEmpty())
 		assertFalse(Fake().serialNumber().isEmpty())
 	}
+
+	@Test
+	fun `install token and IP default to empty when a provider does not supply them`() {
+		// "" is what the server reads as an unknown token, so a provider that predates the
+		// install token must degrade to that, never to a made-up value.
+		TerminalInfo.register(Fake())
+		assertEquals("", TerminalInfo.installToken())
+		assertEquals("", TerminalInfo.ipAddress())
+	}
+
+	@Test
+	fun `APP_TYPE is POS for both apps`() {
+		assertEquals("POS", TerminalInfo.APP_TYPE)
+	}
 }

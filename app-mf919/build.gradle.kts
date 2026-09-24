@@ -20,7 +20,7 @@ android {
         // MainActivity compares `currVersion < getAppVersion().replace(".","").toInt()`.
         // Editing this string silently re-runs or skips DB migrations on live
         // terminals. See Migration1004's header comment for a prior instance.
-        versionName = "2.2.26"
+        versionName = "2.2.27"
 
         multiDexEnabled = true
         resValue("string", "app_name", "SHARECOMMERCE")

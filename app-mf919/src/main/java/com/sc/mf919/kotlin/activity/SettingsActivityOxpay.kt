@@ -428,95 +428,112 @@ class SettingsActivityOxpay: ActivityBase(), DialogFragmentPasswordCheck.DialogF
     var preAuthSelectionDialog = View.OnClickListener { v ->
         when (v.id) {
             R.id.preauth -> {
-                try{
-                    val (Product, AcqCode, AcqMid, AcqTid, QrProductCode, ProductName, EppProductCode, EppTenure, EppTenureCode) =
-                        ServiceHolder.getSpecificProduct(ProductCatSelectionDataEnum.CARD_SETTINGS.name) ?: throw Exception()
-                    val salesModel = SalesModel(
-                        8,
-                        Product,
-                        AcqCode,
-                        AcqMid,
-                        AcqTid,
-                        QrProductCode,
-                        ProductName,
-                        EppProductCode,
-                        EppTenure,
-                        EppTenureCode
-                    )
-                    ServiceHolder.selectedCacheModel = salesModel
+                try {
+                    val dbProductModel = ProductListRepo.getSinglev2(applicationContext, listOf("Product"), listOf(ProductCatSelectionDataEnum.CARD_SETTINGS.name)) ?: throw Exception()
+                    val jsonProductList = Gson().toJson(dbProductModel)
+                    val saleModelOld = Gson().fromJson(jsonProductList, SalesModel::class.java)
+                    ServiceHolder.selectedCacheModel = saleModelOld
+                    val saleModelNew = Gson().fromJson(jsonProductList, SaleModelNew::class.java)
+                    saleModelNew.SalesType = 8
+                    ServiceHolder.saleModelCache = saleModelNew
                     alertDialog?.dismiss()
-                }catch (ex: Exception){
+
+                    helperLog.appendLine(helperLogClassName, "Selected :: Pre-Auth [SELECT PRE-AUTH FUNCTION]")
+                    helperLog.appendLine(helperLogClassName, "Validation passed :: navigate -> KeypadActivity")
+                    helperLog.logToFile(EnumLogFileName.TerminaLog)
+
+                    val intent = Intent(this@SettingsActivityOxpay, KeypadActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    intent.putExtra("typeofSale", 8)
+                    intent.putExtra("indexM", 1)
+                    intent.putExtra("indexT", 1)
+                    startActivity(intent)
+                } catch (ex: Exception) {
                     helperLog.appendLine(helperLogClassName, "Pre-Auth product lookup failed :: ${ex.message}")
                     helperLog.logToFile(EnumLogFileName.TerminaLogException)
                     ex.printStackTrace()
                 }
-                helperLog.appendLine(helperLogClassName, "Selected :: Pre-Auth [SELECT PRE-AUTH FUNCTION]")
-                helperLog.appendLine(helperLogClassName, "Validation passed :: navigate -> KeypadActivity")
-                helperLog.logToFile(EnumLogFileName.TerminaLog)
-                val intent = Intent(this@SettingsActivityOxpay, KeypadActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                intent.putExtra("typeofSale", 8)
-                intent.putExtra("indexM", 1)
-                intent.putExtra("indexT", 1)
-                startActivity(intent)
             }
             R.id.SaleComp -> {
                 try{
-                    val (Product, AcqCode, AcqMid, AcqTid, QrProductCode, ProductName, EppProductCode, EppTenure, EppTenureCode) =
-                        ServiceHolder.getSpecificProduct(ProductCatSelectionDataEnum.CARD_SETTINGS.name) ?: throw Exception()
-                    val salesModel = SalesModel(
-                        4,
-                        Product,
-                        AcqCode,
-                        AcqMid,
-                        AcqTid,
-                        QrProductCode,
-                        ProductName,
-                        EppProductCode,
-                        EppTenure,
-                        EppTenureCode
-                    )
-                    ServiceHolder.selectedCacheModel = salesModel
+                    val dbProductModel = ProductListRepo.getSinglev2(applicationContext, listOf("Product"), listOf(ProductCatSelectionDataEnum.CARD_SETTINGS.name)) ?: throw Exception()
+                    val jsonProductList = Gson().toJson(dbProductModel)
+                    val saleModelOld = Gson().fromJson(jsonProductList, SalesModel::class.java)
+                    ServiceHolder.selectedCacheModel = saleModelOld
+                    val saleModelNew = Gson().fromJson(jsonProductList, SaleModelNew::class.java)
+                    saleModelNew.SalesType = 4
+                    ServiceHolder.saleModelCache = saleModelNew
                     alertDialog?.dismiss()
-                }catch (ex: Exception){
+
+                    helperLog.appendLine(helperLogClassName, "Selected :: Sale Complete [SELECT PRE-AUTH FUNCTION]")
+                    helperLog.appendLine(helperLogClassName, "Validation passed :: navigate -> KeypadActivity")
+                    helperLog.logToFile(EnumLogFileName.TerminaLog)
+
+                    val intent = Intent(this@SettingsActivityOxpay, KeypadActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    intent.putExtra("typeofSale", 4)
+                    intent.putExtra("indexM", 1)
+                    intent.putExtra("indexT", 1)
+                    startActivity(intent)
+                } catch (ex: Exception) {
                     helperLog.appendLine(helperLogClassName, "Sale-Complete product lookup failed :: ${ex.message}")
                     helperLog.logToFile(EnumLogFileName.TerminaLogException)
                     ex.printStackTrace()
                 }
-                helperLog.appendLine(helperLogClassName, "Selected :: Sale Complete [SELECT PRE-AUTH FUNCTION]")
-                helperLog.appendLine(helperLogClassName, "Validation passed :: navigate -> KeypadActivity")
-                helperLog.logToFile(EnumLogFileName.TerminaLog)
-                //val intent = Intent(this@SettingsActivityOxpay, KeypadActivitySaleCom::class.java)
-                val intent = Intent(this@SettingsActivityOxpay, KeypadActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                intent.putExtra("typeofSale", 4)
-                intent.putExtra("indexM", 1)
-                intent.putExtra("indexT", 1)
-                startActivity(intent)
             }
             R.id.PCancel -> {
-                helperLog.appendLine(helperLogClassName, "Selected :: Pre-Auth Cancel [SELECT PRE-AUTH FUNCTION]")
-                helperLog.appendLine(helperLogClassName, "Validation passed :: navigate -> VoidPreauthActivity")
-                helperLog.logToFile(EnumLogFileName.TerminaLog)
-                alertDialog?.dismiss()
-                val intent = Intent(this@SettingsActivityOxpay, VoidPreauthActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                intent.putExtra("typeofSale", 4)
-                intent.putExtra("indexM", 1)
-                intent.putExtra("indexT", 1)
-                startActivity(intent)
+                try{
+                    val dbProductModel = ProductListRepo.getSinglev2(applicationContext, listOf("Product"), listOf(ProductCatSelectionDataEnum.CARD_SETTINGS.name)) ?: throw Exception()
+                    val jsonProductList = Gson().toJson(dbProductModel)
+                    val saleModelNew = Gson().fromJson(jsonProductList, SaleModelNew::class.java)
+                    saleModelNew.SalesType = 4
+                    ServiceHolder.saleModelCache = saleModelNew
+                    alertDialog?.dismiss()
+
+                    helperLog.appendLine(helperLogClassName, "Selected :: Pre-Auth Cancel [SELECT PRE-AUTH FUNCTION]")
+                    helperLog.appendLine(helperLogClassName, "Validation passed :: navigate -> VoidPreauthActivity")
+                    helperLog.logToFile(EnumLogFileName.TerminaLog)
+
+                    val intent = Intent(this@SettingsActivityOxpay, VoidPreauthActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    intent.putExtra("typeofSale", 4)
+                    intent.putExtra("indexM", 1)
+                    intent.putExtra("indexT", 1)
+                    startActivity(intent)
+                } catch (ex: Exception) {
+                    alertDialog?.dismiss()
+                    helperLog.appendLine(helperLogClassName, "REJECT :: product not configured for Pre-Auth Cancel")
+                    helperLog.logToFile(EnumLogFileName.TerminaLogException)
+                    ex.printStackTrace()
+                    ToastMake(this@SettingsActivityOxpay, "Product Not Configured", Toast.LENGTH_SHORT)
+                }
             }
             R.id.VoidSaleComp -> {
-                helperLog.appendLine(helperLogClassName, "Selected :: Void Sale Complete [SELECT PRE-AUTH FUNCTION]")
-                helperLog.appendLine(helperLogClassName, "Validation passed :: navigate -> VoidOffSaleActivity")
-                helperLog.logToFile(EnumLogFileName.TerminaLog)
-                alertDialog?.dismiss()
-                val intent = Intent(this@SettingsActivityOxpay, VoidOffSaleActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                intent.putExtra("typeofSale", 4)
-                intent.putExtra("indexM", 1)
-                intent.putExtra("indexT", 1)
-                startActivity(intent)
+                try {
+                    val dbProductModel = ProductListRepo.getSinglev2(applicationContext, listOf("Product"), listOf(ProductCatSelectionDataEnum.CARD_SETTINGS.name)) ?: throw Exception()
+                    val jsonProductList = Gson().toJson(dbProductModel)
+                    val saleModelNew = Gson().fromJson(jsonProductList, SaleModelNew::class.java)
+                    saleModelNew.SalesType = 4
+                    ServiceHolder.saleModelCache = saleModelNew
+                    alertDialog?.dismiss()
+
+                    helperLog.appendLine(helperLogClassName, "Selected :: Void Sale Complete [SELECT PRE-AUTH FUNCTION]")
+                    helperLog.appendLine(helperLogClassName, "Validation passed :: navigate -> VoidOffSaleActivity")
+                    helperLog.logToFile(EnumLogFileName.TerminaLog)
+
+                    val intent = Intent(this@SettingsActivityOxpay, VoidOffSaleActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    intent.putExtra("typeofSale", 4)
+                    intent.putExtra("indexM", 1)
+                    intent.putExtra("indexT", 1)
+                    startActivity(intent)
+                } catch (ex: Exception) {
+                    alertDialog?.dismiss()
+                    helperLog.appendLine(helperLogClassName, "REJECT :: product not configured for Void Sale Complete")
+                    helperLog.logToFile(EnumLogFileName.TerminaLogException)
+                    ex.printStackTrace()
+                    ToastMake(this@SettingsActivityOxpay, "Product Not Configured", Toast.LENGTH_SHORT)
+                }
             }
             R.id.cancel_btn_preauth -> {
                 helperLog.appendLine(helperLogClassName, "User Cancel :: dismissed [SELECT PRE-AUTH FUNCTION]")

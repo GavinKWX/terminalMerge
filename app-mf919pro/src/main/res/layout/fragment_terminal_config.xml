@@ -116,6 +116,22 @@
                 tools:ignore="UseSwitchCompatOrMaterialXml" />
 
             <Switch
+                android:id="@+id/bypassPin"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:showText="true"
+                android:text="ENABLE BYPASS PIN"
+                android:textOff="@string/sw_off"
+                android:textOn="@string/sw_on"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:thumb="@drawable/sw_thumb"
+                android:track="@drawable/sw_track"
+                tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+            <Switch
                 android:id="@+id/printIso"
                 android:layout_width="match_parent"
                 android:layout_height="50dp"

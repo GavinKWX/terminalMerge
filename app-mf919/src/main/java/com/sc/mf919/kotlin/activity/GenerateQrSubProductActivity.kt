@@ -72,7 +72,10 @@ class GenerateQrSubProductActivity : ActivityBase() {
             txnAmt = if (intent.getStringExtra("txnAmt") == null) "0.00" else intent.getStringExtra("txnAmt")!!
             denominationType = intent.getStringExtra("denomination_type")
             denominationProduct = intent.getStringExtra("denomination_product")
-            denominationNavigation(log)
+            if (denominationNavigation(log)) {
+                // Already navigated to GenerateQrActivity and finished this activity.
+                return
+            }
         }
 
         renderDynamicProduct(log)
@@ -136,6 +139,9 @@ class GenerateQrSubProductActivity : ActivityBase() {
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             startActivity(intent)
             finish()
+            // Same fall-through as above, one scope down: without this the render loop below
+            // builds the full list onto an activity that is already finishing.
+            return
         }
 
         try {
@@ -201,7 +207,8 @@ class GenerateQrSubProductActivity : ActivityBase() {
         }
     }
 
-    private fun denominationNavigation(log: helpers.HelperLog) {
+    /** @return true when it navigated to GenerateQrActivity (and finished this activity). */
+    private fun denominationNavigation(log: helpers.HelperLog): Boolean {
         log.appendLine(helperlogClassName, "denominationNavigation >> $paymentCode")
         val specificQrGenModel = ProductListRepo.getSingle(
             mContext,
@@ -211,7 +218,7 @@ class GenerateQrSubProductActivity : ActivityBase() {
         if (specificQrGenModel == null) {
             log.appendLine(helperlogClassName, "REJECT :: no active GENERATE_QR product for paymentCode $paymentCode")
             log.logToFile(EnumLogFileName.TerminaLog)
-            return
+            return false
         }
 
         val (_, _, SalesType) = ProductCatSelectionDataEnum.valueOf("GENERATE_QR").data
@@ -239,5 +246,6 @@ class GenerateQrSubProductActivity : ActivityBase() {
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(intent)
         finish()
+        return true
     }
 }

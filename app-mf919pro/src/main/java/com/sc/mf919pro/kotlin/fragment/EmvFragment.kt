@@ -14,6 +14,7 @@ import com.morefun.yapi.device.reader.mag.MagCardInfoEntity
 import com.morefun.yapi.emv.EmvChannelType
 import com.morefun.yapi.emv.EmvErrorCode
 import com.morefun.yapi.emv.EmvErrorConstrants
+import com.morefun.yapi.emv.EmvKernelCallback
 import com.morefun.yapi.emv.EmvListenerConstrants
 import com.morefun.yapi.emv.EmvOnlineRequest
 import com.morefun.yapi.emv.EmvOnlineResult
@@ -502,8 +503,12 @@ abstract class EmvFragment : BaseFragment() {
                 DeviceHelper.getEmvHandler().onSetRupayCallback(type, ret)
             }
 
+            // Was TODO(), which threw and killed the app mid-sale (audit item 81). Answer as MF919 does.
             override fun onEmvKernelCallback(p0: Int, p1: Int, p2: Bundle?) {
-                TODO("Not yet implemented")
+                logX("Callback:onEmvKernelCallback kernelType=$p0 flowStep=$p1")
+                val ret = Bundle()
+                ret.putInt(EmvKernelCallback.KEY_RET_CODE, 0)
+                DeviceHelper.getEmvHandler().onSetEmvKernelCallback(ret)
             }
 
             @RequiresApi(Build.VERSION_CODES.O)
@@ -1187,6 +1192,14 @@ abstract class EmvFragment : BaseFragment() {
                     }
                     override fun onReadPinCancel() {
                         logX( "onReadPinCancel -------")
+                        // Same as MF919: a Cancel-key press also reports ZQ "PIN Not Entered".
+                        TransData.respCode = Utils.ASCIItoHexString("ZQ")
+                        pinWait = false
+                        pinCancel = true
+                    }
+                    override fun onReadPinNotEntered() {
+                        logX( "onReadPinNotEntered -------")
+                        TransData.respCode = Utils.ASCIItoHexString("ZQ")
                         pinWait = false
                         pinCancel = true
                     }

@@ -54,6 +54,7 @@ import helpers.LogRedact
 import helpers.HelperLog
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -72,6 +73,14 @@ object IsoActivity: Serializable {
     private var thisIsoDbBufLen = 0
     private var thisIsoDbBuf: ByteArray = ByteArray(6000)
     private var cacheDe55 = ""
+
+    /**
+     * The detached insert of the pending ReceiptUpload row, started before the host request goes
+     * out. finalizeReceiptRow() joins it so the UPDATE that fills in the host outcome can never run
+     * against a row that has not been written yet - the two are unordered launch{} blocks racing on
+     * the same row, and an update that lands first silently matches nothing.
+     */
+    private var pendingReceiptJob: Job? = null
 
     private val logClassName: String = this::class.java.simpleName
 
@@ -400,7 +409,7 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "strPosEntryMode :: $strPosEntryMode")
             TransData.addHexStrIntoTransDB("DF22", strPosEntryMode)
 
-            CoroutineScope(Dispatchers.IO + postApprovalHandler).launch {
+            pendingReceiptJob = CoroutineScope(Dispatchers.IO + postApprovalHandler).launch {
                 insertPendingTransactionInto(context, TransData.txnTypeLabel)
             }
 
@@ -555,7 +564,7 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "strPosEntryMode :: $strPosEntryMode")
             TransData.addHexStrIntoTransDB("DF22", strPosEntryMode)
 
-            CoroutineScope(Dispatchers.IO + postApprovalHandler).launch {
+            pendingReceiptJob = CoroutineScope(Dispatchers.IO + postApprovalHandler).launch {
                 println("insertPendingTransactionInto")
                 insertPendingTransactionInto(context, TransData.txnTypeLabel)
             }
@@ -638,7 +647,7 @@ object IsoActivity: Serializable {
                 TransData.addHexStrIntoTransDB("DF22", "0010")
             }
 
-            CoroutineScope(Dispatchers.IO + postApprovalHandler).launch {
+            pendingReceiptJob = CoroutineScope(Dispatchers.IO + postApprovalHandler).launch {
                 insertPendingTransactionInto(context, TransData.txnTypeLabel)
             }
 
@@ -996,7 +1005,7 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "strPosEntryMode :: $strPosEntryMode")
             TransData.addHexStrIntoTransDB("DF22", strPosEntryMode)
 
-            CoroutineScope(Dispatchers.IO + postApprovalHandler).launch {
+            pendingReceiptJob = CoroutineScope(Dispatchers.IO + postApprovalHandler).launch {
                 insertPendingTransactionInto(context, TransData.txnTypeLabel)
             }
 
@@ -1586,7 +1595,7 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "strPosEntryMode -> $strPosEntryMode")
             TransData.addHexStrIntoTransDB("DF22", strPosEntryMode)
 
-            CoroutineScope(Dispatchers.IO + postApprovalHandler).launch {
+            pendingReceiptJob = CoroutineScope(Dispatchers.IO + postApprovalHandler).launch {
                 insertPendingTransactionInto(context, TransData.txnTypeLabel)
             }
 
@@ -1799,8 +1808,23 @@ object IsoActivity: Serializable {
         UploadTMS.getInstance().addReceipt(jsonObject.toString())
     }
 
+    /**
+     * Writes the host outcome onto the pending ReceiptUpload row that insertPendingTransactionInto()
+     * created before the request went out. Split out of updateReceiptInfo() so it can also run from
+     * checkTransactionStatus() the moment the host approves - see the call site there. It only
+     * touches the DB (no upload trigger), so it is safe to run twice for the same transaction: the
+     * second write puts back the same values.
+     *
+     * @return the response code that was written, in ASCII.
+     */
     @RequiresApi(Build.VERSION_CODES.O)
-    suspend fun updateReceiptInfo(context: Context) = withContext(Dispatchers.IO){
+    suspend fun finalizeReceiptRow(context: Context): String = withContext(Dispatchers.IO){
+        // The row this updates is written by a separate, unordered coroutine started before the
+        // host request. The host round-trip normally covers it, but nothing guarantees that - under
+        // DB lock contention the insert can still be in flight, and the UPDATE below would then
+        // match zero rows and silently leave the receipt stranded.
+        pendingReceiptJob?.join()
+
         val strStan = TransData.stan
         val batchNo = TransData.batchNo
         val strRrn = TransData.rrn
@@ -1832,8 +1856,15 @@ object IsoActivity: Serializable {
         criteriaHM["STAN"] = strStan
         criteriaHM["BATCH_NO"] = batchNo
 
-        println("updateReceiptInfo::${valueHM}")
+        println("finalizeReceiptRow::${valueHM}")
         ReceiptUploadRepo.updateData(context, valueHM, criteriaHM)
+
+        return@withContext strRespCode
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    suspend fun updateReceiptInfo(context: Context) = withContext(Dispatchers.IO){
+        finalizeReceiptRow(context)
         AppServices.receiptUploadToTms(context)
     }
 
@@ -2024,6 +2055,15 @@ object IsoActivity: Serializable {
                 // leaving the batch out of balance.
                 // Contain it: log and carry on, never crash.
                 CoroutineScope(Dispatchers.IO + postApprovalHandler).launch {
+                    // Finalise the pending ReceiptUpload row FIRST, in the same coroutine that
+                    // moves the settlement totals. The flows only get around to calling
+                    // updateReceiptInfo() later, from their own detached launch{} or from
+                    // EmvFragment, and if the app dies in between - task switcher, watchdog
+                    // restart - the totals include the sale while the receipt row still reads
+                    // RESP_CODE "-", which is what TMS then receives. Doing it here means the row
+                    // can never be less current than the settlement. updateReceiptInfo() still
+                    // runs afterwards and rewrites the same values.
+                    finalizeReceiptRow(context)
                     updateSettlementValue(context, log, false)
                 }
             }
@@ -2549,7 +2589,7 @@ object IsoActivity: Serializable {
             log.appendLine(logClassName, "strPosEntryMode :: $strPosEntryMode")
             TransData.addHexStrIntoTransDB("DF22", strPosEntryMode)
 
-            CoroutineScope(Dispatchers.IO + postApprovalHandler).launch {
+            pendingReceiptJob = CoroutineScope(Dispatchers.IO + postApprovalHandler).launch {
                 insertPendingTransactionInto(context, TransData.txnTypeLabel)
             }
 

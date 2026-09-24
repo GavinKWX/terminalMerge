@@ -45,6 +45,7 @@ class TerminalConfigActivity: ActivityBase() {
 	lateinit var ForceSettlementCheck: Switch
 	lateinit var ForceSettlementDaily: Switch
 	lateinit var ForceLockHome: Switch
+	lateinit var BypassPin: Switch
 
 	
 	override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,6 +87,7 @@ class TerminalConfigActivity: ActivityBase() {
 		ForceSettlementCheck = findViewById(R.id.forceSettlementCheck)
 		ForceSettlementDaily = findViewById(R.id.forceSettlementDaily)
 		ForceLockHome = findViewById(R.id.forceLockHome)
+		BypassPin = findViewById(R.id.bypassPin)
 
 		val terminalConfig = ServiceHolder.getTerminalConfig()
 
@@ -110,6 +112,7 @@ class TerminalConfigActivity: ActivityBase() {
 		ForceSettlementCheck.isChecked = DbModelTerminalConfig.getBooleanValue(terminalConfig, "FORCE_SETTLEMENT")
 		ForceSettlementDaily.isChecked = DbModelTerminalConfig.getBooleanValue(terminalConfig, "FORCE_SETTLEMENT_DAILY")
 		ForceLockHome.isChecked = DbModelTerminalConfig.getBooleanValue(terminalConfig, "FORCE_LOCK_HOME")
+		BypassPin.isChecked = DbModelTerminalConfig.getBooleanValue(terminalConfig, "BYPASS_PIN")
 
 		onBackPressedDispatcher.addCallback(this, object: OnBackPressedCallback(true) {
 			override fun handleOnBackPressed() {
@@ -161,6 +164,7 @@ class TerminalConfigActivity: ActivityBase() {
 			"FORCE_SETTLEMENT_DAILY" to DbModelTerminalConfig.setBooleanValue(ForceSettlementDaily.isChecked),
 			"FORCE_LOCK_HOME" to DbModelTerminalConfig.setBooleanValue(ForceLockHome.isChecked),
 			"CASHOUT" to DbModelTerminalConfig.setBooleanValue(CashOut.isChecked),
+			"BYPASS_PIN" to DbModelTerminalConfig.setBooleanValue(BypassPin.isChecked),
 		)
 
 		TerminalConfigurationRepo.updateTerminalConfig(applicationContext, updateMap)

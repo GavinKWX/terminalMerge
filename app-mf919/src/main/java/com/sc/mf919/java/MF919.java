@@ -160,6 +160,8 @@ public class MF919 extends Application {
             @Override public String sqnNum()       { return ServiceHolder.Companion.getSqnNum(); }
             @Override public String deviceModel()  { return ServiceHolder.Companion.getDeviceModel(); }
             @Override public String defaultEnvId() { return BuildConfig.DEFAULT_ENV; }
+            @Override public String installToken() { return com.sc.mf919.kotlin.helper_common.InstallIdentity.getToken(); }
+            @Override public String ipAddress()    { return com.sc.mf919.java.activity.Utils.getIPAddress(); }
         });
 
         // :core's DbHandler self-heals missing tables but cannot see this app's schema -- the two

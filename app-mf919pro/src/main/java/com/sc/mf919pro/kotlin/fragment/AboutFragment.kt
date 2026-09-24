@@ -20,6 +20,7 @@ import com.sc.mf919pro.databinding.FragmentAboutBinding
 import com.sc.mf919pro.java.activity.Utils
 import com.sc.mf919pro.kotlin.database.model.DbModelMerchantConfig.Companion.getSafeValue
 import com.sc.mf919pro.kotlin.database.model.DbModelTerminalConfig
+import com.sc.mf919pro.kotlin.helper_common.InstallIdentity
 import com.sc.mf919pro.kotlin.helper_common.MfHelper
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder.Companion.getAppVersion
@@ -142,6 +143,8 @@ class AboutFragment : BaseFragment() {
         main.removeAllViews()
         val dbModelMerchantConfig = getMerchantInfo()
         renderSimpleLinearView("MODEL", ServiceHolder.getDeviceModel())
+        // Support needs this to match a device against a row on the Portal manual-settle worklist.
+        renderSimpleLinearView("INSTALL ID", InstallIdentity.getShortToken())
         renderSimpleLinearView("IP", ServiceHolder.getCurrentLocalIpAddress())
         renderSimpleLinearView("", getTerminalSerialNumber())
         renderSimpleLinearView("", getSafeValue(dbModelMerchantConfig, "MerchantName", "-"))

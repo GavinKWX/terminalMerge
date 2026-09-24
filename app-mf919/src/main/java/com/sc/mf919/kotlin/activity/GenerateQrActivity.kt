@@ -36,6 +36,7 @@ import com.sc.mf919.kotlin.database.repo.TransactionQrRepo
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import java.util.concurrent.atomic.AtomicBoolean
 import com.sc.mf919.kotlin.helper_common.AppBus
 import com.sc.mf919.kotlin.helper_common.UiEvent
 import com.sc.mf919.kotlin.helper_common.GenerateQr
@@ -81,6 +82,32 @@ class  GenerateQrActivity : ActivityBase() {
 	// where a NEW transaction silently took ownership of TransData before this flow noticed
 	// (defense in depth on top of isForceStop).
 	@Volatile var isForceStop = false
+
+	/**
+	 * A VMC abort is being handled. Deliberately narrower than [isForceStop], which onDestroy and
+	 * abortSession() also set: only this one means "the vend is cancelled, so any payload we are
+	 * about to create - or just created - has to be cancelled at the acquirer". Gating the host
+	 * call on isForceStop would fire an acquirer cancel from ordinary screen teardown.
+	 *
+	 * processGenerateQrResult() reads it on BOTH sides of qrPayloadGenerate(). Measured on the A80
+	 * 2026-09-21: qrRefId is assigned ~1.1s before the payload exists at the acquirer, so an abort
+	 * landing in that window made onMdbVendingForceEnd() cancel a refId the acquirer did not have
+	 * yet - the cancel failed, the payload was created anyway, and it stayed payable with the
+	 * screen already gone.
+	 */
+	@Volatile private var vendAbortPending = false
+
+	/**
+	 * True once qrPayloadGenerate() has actually created a payload at the acquirer. The abort
+	 * thread used to decide on qrRefId.isNotEmpty(), but qrRefId is assigned well BEFORE the
+	 * payload exists and the thread re-read that mutable field late - so an abort arriving before
+	 * generation cancelled a payload that was never created and logged a false "may still be
+	 * payable" warning. Measured on the A80 2026-09-21.
+	 */
+	@Volatile private var qrPayloadCreated = false
+
+	/** One cancel per payload: the abort thread and the post-generation guard both race for it. */
+	private val payloadCancelClaimed = AtomicBoolean(false)
 	private var txnSession = 0L
 	var stopTimer = false
 
@@ -321,6 +348,7 @@ class  GenerateQrActivity : ActivityBase() {
 		// below. Same trap abortSession() documents.
 		isForceStop = true
 		stopTimer = true
+		vendAbortPending = true
 		// Clearing mdbVending stops navigationToResultPage()/customOnBackPress from firing a second
 		// VEND DENIED if either still runs. Assigning false never re-broadcasts - the setter on
 		// mdbVendingForceEnd only emits on true.
@@ -332,14 +360,31 @@ class  GenerateQrActivity : ActivityBase() {
 		object : Thread() {
 			override fun run() {
 				super.run()
-				// An empty refId means qrPayloadGenerate() never returned - there is nothing at the
-				// acquirer to cancel, so skip the host call and just leave.
-				if (qrRefId.isNotEmpty()) {
-					cancelQrPayloadForVendAbort()
-				}
+				// Routed through cancelPayloadOnce so this cannot cancel a payload that generation
+				// never created, nor double-cancel one the post-generation guard already handled.
+				cancelPayloadOnce("abort thread")
 				runOnUiThread { navigateHomeAfterVendAbort() }
 			}
 		}.start()
+	}
+
+	/**
+	 * Cancel the payload exactly once, and only when one actually exists.
+	 *
+	 * Two callers race here: the thread spawned by onMdbVendingForceEnd(), and the post-generation
+	 * guard in processGenerateQrResult(). Whichever arrives first claims it; the other is a no-op.
+	 * If generation never produced a payload there is nothing at the acquirer, so cancelling would
+	 * both fail and raise a misleading warning.
+	 */
+	private fun cancelPayloadOnce(reason: String) {
+		if (!qrPayloadCreated) {
+			logGenQr("Vend abort ($reason) :: no payload was created, nothing to cancel")
+			if (this::helperLog.isInitialized) helperLog.logToFile(EnumLogFileName.TerminaLog)
+			return
+		}
+		if (!payloadCancelClaimed.compareAndSet(false, true)) return
+		logGenQr("Vend abort ($reason) :: cancelling payload refId $qrRefId")
+		cancelQrPayloadForVendAbort()
 	}
 
 	/**
@@ -436,7 +481,27 @@ class  GenerateQrActivity : ActivityBase() {
 				TransData.denominationProduct = dbModelDenominationList
 			}
 
+			// The abort can land before generation starts. Creating the payload now would put a
+			// payable QR at the acquirer with nothing left on screen to cancel it, so stop here; the
+			// trailing `if(!isForceStop) navigationToResultPage()` below is already suppressed.
+			if (vendAbortPending) {
+				closeProgressDialog()
+				log.appendLine(helperlogClassName, "Vend aborted before payload generation :: QR not generated")
+				log.logToFile(EnumLogFileName.TerminaLog)
+				return@let
+			}
+
 			if(qrPayloadGenerate(log, merchantConfig)) {
+				// The payload now exists at the acquirer - from here on an abort must cancel it.
+				qrPayloadCreated = true
+				// The abort landed while the payload was being generated, so the abort thread ran
+				// before it existed and correctly did nothing. It exists now - cancel it here or it
+				// stays payable for an already-denied vend.
+				if (vendAbortPending) {
+					closeProgressDialog()
+					cancelPayloadOnce("during payload generation")
+					return@let
+				}
 				try{
 					if(barcodeQR.isNotEmpty()){
 						CoroutineScope(Dispatchers.IO).launch {
@@ -841,7 +906,6 @@ class  GenerateQrActivity : ActivityBase() {
 	}
 
 	fun customOnBackPress() {
-		isOnBackPress = true
 		logGenQr("Dialog opened :: [CONFIRM EXIT QR PAYMENT]")
 		val builder = AlertDialog.Builder(mContext)
 		builder.setMessage("Are you sure to Exit? \nThis transaction will be treat as fail transaction")
@@ -852,6 +916,7 @@ class  GenerateQrActivity : ActivityBase() {
 				object : Thread() {
 					override fun run() {
 						super.run()
+						isOnBackPress = true
 						cancelGenerateQrPayload()
 					}
 				}.start()
