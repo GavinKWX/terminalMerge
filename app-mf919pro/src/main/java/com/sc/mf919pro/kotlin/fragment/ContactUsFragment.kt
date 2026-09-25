@@ -12,7 +12,7 @@ import com.sc.mf919pro.R
 import com.sc.mf919pro.databinding.FragmentContactUsBinding
 import com.sc.mf919pro.java.activity.Utils
 import com.sc.mf919pro.kotlin.database.model.DbModelMerchantConfig
-import com.sc.mf919pro.kotlin.helper_common.GenerateQr
+import utils.GenerateQr
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder.Companion.getTerminalConfig
 import com.sc.mf919pro.kotlin.helper_common.TmsHelper

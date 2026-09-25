@@ -31,6 +31,9 @@ class CurrentStoreTest {
 			calls += "batch:$tag:$subtag"
 			return if (tag == "niiTle") "0323" else null
 		}
+		override fun storeBatchInfo(context: Context, tag: String, subtag: String, value: String) {
+			calls += "store:$tag:$subtag"
+		}
 		override fun acquirerProduct(context: Context, mid: String, tid: String): AcquirerProduct? {
 			calls += "product:$mid:$tid"
 			return product

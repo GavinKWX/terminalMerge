@@ -1,4 +1,4 @@
-package com.sc.mf919pro.kotlin.datastore
+package datastore
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences

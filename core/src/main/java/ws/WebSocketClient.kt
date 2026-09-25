@@ -1,4 +1,4 @@
-package com.sc.mf919.kotlin.helper_common
+package ws
 
 import android.os.SystemClock
 import android.util.Log
@@ -6,12 +6,9 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import enums.EnumWebsocket
-import com.sc.mf919.kotlin.database.repo.DenominationListRepo
-import env.EnvironmentManager
-import env.EnvironmentVariables
 import enums.EnumLogFileName
-import helpers.HelperCommon
 import helpers.HelperLog
+import helpers.TerminalInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,7 +23,7 @@ import org.java_websocket.handshake.ServerHandshake
 import java.net.URI
 import java.util.concurrent.ConcurrentLinkedQueue
 
-val TAG = "WebSocketClient"
+private const val TAG = "WebSocketClient"
 object WebSocketClientSingleton {
 
     private var client: WebSocketClient? = null
@@ -65,7 +62,7 @@ object WebSocketClientSingleton {
     private fun logWs(event: String, isError: Boolean = false) {
         try {
             val log = HelperLog(
-                HelperCommon.getSession(),
+                newLogSession(),
                 false,
                 "",
                 TAG,
@@ -222,7 +219,7 @@ object WebSocketClientSingleton {
                                 // The denomination list is only re-fetched from TMS when the local
                                 // copy is empty, so without clearing it a price change on TMS never
                                 // reaches a terminal that already has a list.
-                                DenominationListRepo.truncateTable(ServiceHolder.mContext)
+                                CurrentWsHost.clearDenominationList()
                             }
                             EnumWebsocket.TerminalDMDispense.socketCommand -> {
                                 // KNOWN command, deliberately not acted on. Production sends this
@@ -291,8 +288,7 @@ object WebSocketClientSingleton {
             sendQueue.offer(message)
 
             if(client == null) {
-                val environmentManager = EnvironmentManager(Helper.getInstance().getPrefs()!!)
-                val wsURI = "${environmentManager.get(EnvironmentVariables::socketHandlerUrl)}?sn=${ServiceHolder.getTerminalSerialNumber()}"
+                val wsURI = "${CurrentWsHost.socketHandlerUrl()}?sn=${TerminalInfo.serialNumber()}"
                 connect(wsURI)
             }
         }

@@ -12,8 +12,8 @@ import com.sc.mf919.kotlin.database.infrastructure.DatabaseTables
 import database.DbHandler
 import com.sc.mf919.kotlin.database.model.DbModelReceiptUpload
 import com.sc.mf919.kotlin.helper_common.Helper
-import com.sc.mf919.kotlin.helper_common.InstallIdentity
-import com.sc.mf919.kotlin.helper_common.ReceiptReconciler
+import tms.InstallIdentity
+import tms.ReceiptReconciler
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import com.sc.mf919.kotlin.helper_common.TmsHelper
 import env.EnvironmentManager
@@ -88,12 +88,12 @@ class TmsReceiptUploadScheduler(appContext: Context, workerParams: WorkerParamet
 			 * only carry the value. The backend confirmed the registration has to land first, so this
 			 * gates the run -- see the skip branch below. The call is idempotent, so a retry is free.
 			 */
-			val installToken = InstallIdentity.getToken()
-			if (InstallIdentity.needsReporting(installToken)) {
+			val installToken = InstallIdentity.getToken(mContext)
+			if (InstallIdentity.needsReporting(mContext, installToken)) {
 				var tokenReported = false
 				try {
 					UpdateTokenHandler(environmentManager).invoke(log, installToken)
-					InstallIdentity.markReported(installToken)
+					InstallIdentity.markReported(mContext, installToken)
 					tokenReported = true
 					log.appendLine(className, "Install token reported to TMS :: [$installToken]")
 				} catch (ex: Exception) {

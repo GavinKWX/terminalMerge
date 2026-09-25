@@ -32,7 +32,7 @@ import com.sc.mf919.kotlin.database.model.DbModelTerminalConfig
 import com.sc.mf919.kotlin.database.model.DbModelTerminalConfig.Companion.getBooleanValue
 import com.sc.mf919.kotlin.database.repo.DenominationListRepo
 import com.sc.mf919.kotlin.helper_common.Helper
-import com.sc.mf919.kotlin.helper_common.ReceiptReconciler
+import tms.ReceiptReconciler
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.getAcquirerSetting
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.getAppVersion

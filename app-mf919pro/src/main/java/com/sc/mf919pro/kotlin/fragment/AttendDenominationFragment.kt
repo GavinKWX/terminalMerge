@@ -38,8 +38,8 @@ import com.sc.mf919pro.databinding.FragmentAttendDenominationBinding
 import com.sc.mf919pro.java.activity.Utils
 import com.sc.mf919pro.kotlin.activity.AppServices
 import com.sc.mf919pro.kotlin.activity.TokenPagerAdapter
-import com.sc.mf919pro.kotlin.helper_common.WebSocketClientSingleton
-import com.sc.mf919pro.kotlin.helper_common.WebSocketMessageListener
+import ws.WebSocketClientSingleton
+import ws.WebSocketMessageListener
 import com.sc.mf919pro.kotlin.activity.onAlertDialogListener
 import com.sc.mf919pro.kotlin.database.model.DbModelDenominationList
 import com.sc.mf919pro.kotlin.database.model.DbModelTerminalConfig

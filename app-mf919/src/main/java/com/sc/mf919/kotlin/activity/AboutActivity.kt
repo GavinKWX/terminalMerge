@@ -19,7 +19,7 @@ import com.sc.mf919.java.activity.Utils
 import com.sc.mf919.kotlin.database.model.DbModelMerchantConfig.Companion.getSafeValue
 import com.sc.mf919.kotlin.database.model.DbModelTerminalConfig
 import com.sc.mf919.kotlin.helper_common.Helper.Companion.getInstance
-import com.sc.mf919.kotlin.helper_common.InstallIdentity
+import tms.InstallIdentity
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.getAppVersion
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.getInternalFilesPaths
@@ -70,7 +70,7 @@ class AboutActivity: ActivityBase() {
 		val dbModelMerchantConfig = getMerchantInfo()
 		renderSimpleLinearView("MODEL", ServiceHolder.getDeviceModel())
 		// Support needs this to match a device against a row on the Portal manual-settle worklist.
-		renderSimpleLinearView("INSTALL ID", InstallIdentity.getShortToken())
+		renderSimpleLinearView("INSTALL ID", InstallIdentity.getShortToken(this))
 		renderSimpleLinearView("IP", ServiceHolder.getCurrentLocalIpAddress())
 		renderSimpleLinearView("", getTerminalSerialNumber())
 		renderSimpleLinearView("", getSafeValue(dbModelMerchantConfig, "MerchantName", "-"))

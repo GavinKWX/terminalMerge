@@ -39,7 +39,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import java.util.concurrent.atomic.AtomicBoolean
 import com.sc.mf919.kotlin.helper_common.AppBus
 import com.sc.mf919.kotlin.helper_common.UiEvent
-import com.sc.mf919.kotlin.helper_common.GenerateQr
+import utils.GenerateQr
 import com.sc.mf919.kotlin.helper_common.HTTPServer
 import mdb.MdbController
 import com.sc.mf919.kotlin.helper_common.Helper

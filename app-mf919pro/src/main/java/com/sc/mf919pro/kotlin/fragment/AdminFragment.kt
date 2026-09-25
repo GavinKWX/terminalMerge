@@ -9,8 +9,8 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import com.sc.mf919pro.kotlin.datastore.DataStoreManager
-import com.sc.mf919pro.kotlin.datastore.PrefKeys
+import datastore.DataStoreManager
+import datastore.PrefKeys
 import com.sc.mf919pro.R
 import com.sc.mf919pro.databinding.FragmentAdminBinding
 import com.sc.mf919pro.java.activity.Utils

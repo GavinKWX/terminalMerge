@@ -1,5 +1,6 @@
 package com.sc.mf919pro.kotlin.helper_common
 
+import com.sc.mf919pro.kotlin.database.model.DbModelIsoBatchInfo
 import android.content.Context
 import com.sc.mf919pro.kotlin.database.repo.IsoBatchInfoRepo
 import com.sc.mf919pro.kotlin.database.repo.ProductListRepo
@@ -21,6 +22,10 @@ object ProTransactionStore : TransactionStore {
 
 	override fun batchInfoValue(context: Context, tag: String, subtag: String): String? =
 		IsoBatchInfoRepo.getBatchInfo(context, tag, subtag)?.value
+
+	override fun storeBatchInfo(context: Context, tag: String, subtag: String, value: String) {
+		IsoBatchInfoRepo.insertToBatchInfo(context, DbModelIsoBatchInfo(tag, subtag, value))
+	}
 
 	override fun acquirerProduct(context: Context, mid: String, tid: String): AcquirerProduct? =
 		ProductListRepo.getSingle(context, listOf("AcqMid", "AcqTid"), arrayOf(mid, tid))?.let {

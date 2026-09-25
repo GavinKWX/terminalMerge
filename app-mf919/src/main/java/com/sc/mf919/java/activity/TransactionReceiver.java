@@ -48,6 +48,11 @@ import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import enums.EnumLogFileName;
+import helpers.HelperCommon;
+import helpers.HelperLog;
+import helpers.HelperNetwork;
+import helpers.HelperText;
 import tms.models.EppDetail;
 
 public class TransactionReceiver extends AppCompatActivity {
@@ -66,12 +71,37 @@ public class TransactionReceiver extends AppCompatActivity {
         return null;
     }
 
+    // One TerminaLog line per request received from a caller app; the reply is logged by TransactionTransmitter.
+    private void logRequest(HashMap<String, String> map) {
+        try {
+            HelperLog log = new HelperLog(
+                HelperCommon.getSession(),
+                HelperNetwork.isConnectedWifi(this),
+                Utils.getIPAddress(),
+                "TransactionReceiver",
+                "TransactionReceiver",
+                "App-to-App Request"
+            );
+            if (map == null) {
+                log.appendLine("TransactionReceiver", "App-to-app request REJECTED :: no txn_map in the intent");
+            } else {
+                log.appendLine("TransactionReceiver", "App-to-app request <- "
+                    + map.get("Package_Name") + "/" + map.get("Activity_Name")
+                    + " :: " + HelperText.oneLine(map.toString()));
+            }
+            log.logToFile(EnumLogFileName.TerminaLog);
+        } catch (Exception e) {
+            // Logging must never stop the request being handled.
+            e.printStackTrace();
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_txn_receiver);
         txn_map = (HashMap<String, String>) getIntent().getSerializableExtra("txn_map");
-        Utils.debugLogPrint("TransactionReceiver", txn_map.toString());
+        logRequest(txn_map);
 
         isMyServiceRunning();
         CountDownLatch migrationLatch = new CountDownLatch(1);

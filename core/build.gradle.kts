@@ -64,5 +64,11 @@ dependencies {
     // MdbController runs its auto-session supervisor and readiness waits on coroutines.
     api(libs.kotlinx.coroutines.android)
 
+    // datastore/ (settlement-block flag), moved from both apps.
+    api(libs.androidx.datastore.preferences)
+
+    // ws/ (ECR WebSocket server + TMS push client), moved from both apps.
+    api(libs.java.websocket)
+
     testImplementation(libs.junit)
 }

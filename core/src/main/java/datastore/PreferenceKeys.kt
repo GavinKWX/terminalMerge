@@ -1,4 +1,4 @@
-package com.sc.mf919pro.kotlin.datastore
+package datastore
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
 

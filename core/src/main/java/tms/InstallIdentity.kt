@@ -1,11 +1,12 @@
-package com.sc.mf919.kotlin.helper_common
+package tms
 
-import com.sc.mf919.kotlin.database.model.DbModelIsoBatchInfo
-import com.sc.mf919.kotlin.database.repo.IsoBatchInfoRepo
+import android.content.Context
 import enums.EnumDateFormat
-import helpers.HelperCommon
+import helpers.HelperDate
 import enums.EnumLogFileName
 import helpers.HelperLog
+import helpers.TerminalInfo
+import iso.CurrentStore
 import java.util.UUID
 
 /*
@@ -23,6 +24,9 @@ import java.util.UUID
  * from assets, schema self-heal reseeding the table) takes the token with it, and nothing else does.
  * SharedPreferences would survive an asset-DB recopy and report a reinstalled store as intact --
  * the incident, undetected.
+ *
+ * Moved to `:core` from both apps, where the copies were identical (audit item 86). The DB goes
+ * through `CurrentStore`, so each app keeps its own `IsoBatchInfoRepo`.
  *
  * Never give this tag a seedData entry in DatabaseTables: a seeded value would be the same constant
  * on every terminal in the fleet, which is exactly what a token must not be.
@@ -43,6 +47,9 @@ object InstallIdentity {
 
 	private const val REPORTED_TOKEN_PREF = "install_token_reported"
 
+	/** The same file each app's Helper.getPrefs() opens: named after the package. */
+	private fun prefs(context: Context) = context.getSharedPreferences(context.packageName, Context.MODE_PRIVATE)
+
 	/** Server-side limit on INSTALL-APP-VER. */
 	private const val MAX_TOKEN_LENGTH = 128
 
@@ -53,11 +60,9 @@ object InstallIdentity {
 	 */
 	@JvmStatic
 	@Synchronized
-	fun getToken(): String {
+	fun getToken(context: Context): String {
 		return try {
-			val context = ServiceHolder.getContext()
-
-			val existing = IsoBatchInfoRepo.getBatchInfo(context, TAG, SUBTAG)?.value
+			val existing = CurrentStore.batchInfoValue(context, TAG, SUBTAG)
 			if (!existing.isNullOrEmpty()) return existing
 
 			val sbLog = HelperLog.init("InstallIdentity")
@@ -68,7 +73,7 @@ object InstallIdentity {
 			 * parking good transactions onto the Operations worklist. Only generate once the anchor
 			 * proves the table really is readable.
 			 */
-			val anchor = IsoBatchInfoRepo.getBatchInfo(context, ANCHOR_TAG, ANCHOR_SUBTAG)?.value
+			val anchor = CurrentStore.batchInfoValue(context, ANCHOR_TAG, ANCHOR_SUBTAG)
 			if (anchor.isNullOrEmpty()) {
 				HelperLog.appendLine(
 					sbLog, className,
@@ -80,7 +85,7 @@ object InstallIdentity {
 			}
 
 			val freshToken = newToken()
-			IsoBatchInfoRepo.insertToBatchInfo(context, DbModelIsoBatchInfo(TAG, SUBTAG, freshToken))
+			CurrentStore.storeBatchInfo(context, TAG, SUBTAG, freshToken)
 			HelperLog.appendLine(
 				sbLog, className,
 				"New installation :: install token generated [$freshToken] -- will be reported to TMS " +
@@ -99,10 +104,9 @@ object InstallIdentity {
 
 	/** True when the server has not yet been told about the token this app is currently running. */
 	@JvmStatic
-	fun needsReporting(installToken: String): Boolean {
+	fun needsReporting(context: Context, installToken: String): Boolean {
 		if (installToken.isEmpty()) return false
-		val prefs = Helper.getInstance().getPrefs() ?: return true
-		return prefs.getString(REPORTED_TOKEN_PREF, null) != installToken
+		return prefs(context).getString(REPORTED_TOKEN_PREF, null) != installToken
 	}
 
 	/*
@@ -112,8 +116,8 @@ object InstallIdentity {
 	 * is the one call that links this installation to the previous one in Terminal_App_History.
 	 */
 	@JvmStatic
-	fun markReported(installToken: String) {
-		Helper.getInstance().getPrefs()?.edit()?.putString(REPORTED_TOKEN_PREF, installToken)?.apply()
+	fun markReported(context: Context, installToken: String) {
+		prefs(context).edit().putString(REPORTED_TOKEN_PREF, installToken).apply()
 	}
 
 	/**
@@ -123,8 +127,8 @@ object InstallIdentity {
 	 * support can still match the two. "-" when there is no token to show.
 	 */
 	@JvmStatic
-	fun getShortToken(): String {
-		val installToken = getToken()
+	fun getShortToken(context: Context): String {
+		val installToken = getToken(context)
 		return if (installToken.isEmpty()) "-" else installToken.substringBefore('-').take(8)
 	}
 
@@ -132,11 +136,11 @@ object InstallIdentity {
 	 * UUID + serial + install timestamp. The UUID alone already satisfies the spec, but pinning the
 	 * device and the moment of generation onto it means a token is still self-describing when it
 	 * turns up on the Portal worklist weeks later, and two terminals cannot collide even if a
-	 * platform RNG is ever seeded badly. Shape: <uuid>-<serial>-<yyyyMMddHHmmss>, 66 chars on MF919.
+	 * platform RNG is ever seeded badly. Shape: <uuid>-<serial>-<yyyyMMddHHmmss>.
 	 */
 	private fun newToken(): String {
-		val serial = sanitize(ServiceHolder.getTerminalSerialNumber())
-		val stamp = HelperCommon.getDateString(EnumDateFormat.yyyyMMddHHmmss_XDot.dateFormat)
+		val serial = sanitize(TerminalInfo.serialNumber())
+		val stamp = HelperDate.getDateString(EnumDateFormat.yyyyMMddHHmmss_XDot.dateFormat)
 		val token = "${UUID.randomUUID()}-${if (serial.isEmpty()) "NOSN" else serial}-$stamp"
 		// The UUID leads, so even a truncated token stays unique.
 		return if (token.length > MAX_TOKEN_LENGTH) token.substring(0, MAX_TOKEN_LENGTH) else token

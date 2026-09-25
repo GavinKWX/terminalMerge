@@ -47,7 +47,7 @@ import com.sc.mf919pro.kotlin.helper_common.AppBus
 import com.sc.mf919pro.kotlin.helper_common.CounterGuard
 import com.sc.mf919pro.kotlin.helper_common.HTTPServer
 import com.sc.mf919pro.kotlin.helper_common.Helper
-import com.sc.mf919pro.kotlin.helper_common.ReceiptReconciler
+import tms.ReceiptReconciler
 import com.sc.mf919pro.kotlin.helper_common.MfHelper
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder.Companion.getAcquirerSetting

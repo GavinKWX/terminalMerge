@@ -1,7 +1,6 @@
-package com.sc.mf919.kotlin.helper_common
+package utils
 
 import android.content.Context
-import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Matrix
@@ -13,6 +12,7 @@ import com.google.zxing.WriterException
 import com.google.zxing.common.BitMatrix
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 
+/** QR / CODE-128 bitmaps for both apps. Pro's version: adds an optional qrSize (defaults to 660). */
 class GenerateQr {
 	private val size = 660
 	private val size_width = 660
@@ -25,7 +25,8 @@ class GenerateQr {
 		type: String = "",
 		overlayBitmap: Bitmap? = null,
 		@ColorInt fgColor: Int = 0xff000000.toInt(),
-		@ColorInt bgColor: Int = 0xffF2F6F7.toInt()
+		@ColorInt bgColor: Int = 0xffF2F6F7.toInt(),
+		qrSize: Int = size
 	): Bitmap? {
 		val bitMatrix: BitMatrix?
 
@@ -34,8 +35,8 @@ class GenerateQr {
 				"qrCode" -> MultiFormatWriter().encode(
 					message,
 					BarcodeFormat.QR_CODE,
-					size,
-					size,
+					qrSize,
+					qrSize,
 					hashMapOf(
 						EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.H,
 						EncodeHintType.MARGIN to 0
@@ -67,7 +68,7 @@ class GenerateQr {
 			return null
 		}
 
-		return bitMatrix.encodeAsQrCodeBitmap(size, overlayBitmap, fgColor, bgColor)
+		return bitMatrix.encodeAsQrCodeBitmap(qrSize, overlayBitmap, fgColor, bgColor)
 	}
 
 	@Throws(WriterException::class)

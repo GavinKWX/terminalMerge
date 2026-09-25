@@ -39,7 +39,7 @@ import com.sc.mf919pro.kotlin.database.model.DbModelReceiptUpload
 import com.sc.mf919pro.kotlin.database.model.DbModelTransactionQr
 import com.sc.mf919pro.kotlin.database.repo.ReceiptUploadRepo
 import com.sc.mf919pro.kotlin.database.repo.TransactionQrRepo
-import com.sc.mf919pro.kotlin.helper_common.GenerateQr
+import utils.GenerateQr
 import com.sc.mf919pro.kotlin.helper_common.Helper
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
 import com.sc.mf919pro.kotlin.helper_common.TmsHelper

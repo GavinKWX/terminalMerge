@@ -160,7 +160,11 @@ public class MF919 extends Application {
             @Override public String sqnNum()       { return ServiceHolder.Companion.getSqnNum(); }
             @Override public String deviceModel()  { return ServiceHolder.Companion.getDeviceModel(); }
             @Override public String defaultEnvId() { return BuildConfig.DEFAULT_ENV; }
-            @Override public String installToken() { return com.sc.mf919.kotlin.helper_common.InstallIdentity.getToken(); }
+            @Override public String installToken() {
+                // ServiceHolder may not be ready this early; an unreadable token is sent as "" (unknown).
+                try { return tms.InstallIdentity.getToken(ServiceHolder.Companion.getContext()); }
+                catch (Exception e) { return ""; }
+            }
             @Override public String ipAddress()    { return com.sc.mf919.java.activity.Utils.getIPAddress(); }
         });
 
@@ -170,6 +174,10 @@ public class MF919 extends Application {
         DbSchema.register(java.util.Arrays.asList(DatabaseTables.values()));
         // MDB lives in :core now; this hands it MF919's Activity navigation and screen checks.
         MdbController.register(Mf919MdbHost.INSTANCE);
+        // The WebSocket pair (ECR server + TMS push client) lives in :core; this is its app side.
+        ws.CurrentWsHost.register(com.sc.mf919.kotlin.helper_common.Mf919WsHost.INSTANCE);
+        // The receipt reconciler lives in :core; this is the repo side it reads and writes through.
+        tms.CurrentReceiptStore.register(com.sc.mf919.kotlin.helper_common.Mf919ReceiptStore.INSTANCE);
 
         // The ISO forming code in :core reads the in-flight transaction through this seam.
         // TransData stays per app -- each fleet carries its own extra fields.

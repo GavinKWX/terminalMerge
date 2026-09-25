@@ -12,7 +12,7 @@ import crypto.Encryption
 import com.sc.mf919pro.java.activity.Utils
 import com.sc.mf919pro.java.device.DeviceHelper
 import utils.HexUtil
-import com.sc.mf919pro.kotlin.helper_common.WebSocketClientSingleton
+import ws.WebSocketClientSingleton
 import com.sc.mf919pro.kotlin.data_enum.AcquirerLogoDataEnum
 import com.sc.mf919pro.kotlin.database.model.*
 import com.sc.mf919pro.kotlin.database.repo.*

@@ -43,7 +43,7 @@ import com.sc.mf919.kotlin.helper_common.MfHelper
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import com.sc.mf919.kotlin.helper_common.TmsHelper
 import com.sc.mf919.kotlin.helper_common.UiEvent
-import com.sc.mf919.kotlin.helper_common.WebSocketMessageListener
+import ws.WebSocketMessageListener
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperCommon.Companion.getStringOrDefault

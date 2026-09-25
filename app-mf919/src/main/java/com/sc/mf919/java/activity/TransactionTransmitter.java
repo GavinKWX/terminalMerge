@@ -14,7 +14,11 @@ import com.sc.mf919.kotlin.helper_common.ServiceHolder;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import enums.EnumLogFileName;
 import helpers.HelperCommon;
+import helpers.HelperLog;
+import helpers.HelperNetwork;
+import helpers.HelperText;
 import com.sc.mf919.kotlin.helper_common.MfHelper;
 
 public class TransactionTransmitter extends AppCompatActivity {
@@ -38,11 +42,32 @@ public class TransactionTransmitter extends AppCompatActivity {
         }
 
         if (settlement_map != null) {
-            Utils.debugLogPrint("TransactionTransmitter", settlement_map.toString());
+            logResponse("settlement", settlement_map);
             transmitSettlement(settlement_map);
         } else {
-            Utils.debugLogPrint("TransactionTransmitter", txn_map.toString());
+            logResponse("transaction", txn_map);
             transmit(txn_map);
+        }
+    }
+
+    // One TerminaLog line per result handed back to the caller app, like HTTPServer's "Set Response Msg".
+    private void logResponse(String kind, Object payload) {
+        try {
+            HelperLog log = new HelperLog(
+                HelperCommon.getSession(),
+                HelperNetwork.isConnectedWifi(this),
+                Utils.getIPAddress(),
+                "TransactionTransmitter",
+                "TransactionTransmitter",
+                "App-to-App Response"
+            );
+            log.appendLine("TransactionTransmitter", "App-to-app " + kind + " response -> "
+                + ServiceHolder.Companion.getPackageName() + "/" + ServiceHolder.Companion.getActivityName()
+                + " :: " + HelperText.oneLine(String.valueOf(payload)));
+            log.logToFile(EnumLogFileName.TerminaLog);
+        } catch (Exception e) {
+            // Logging must never stop the result reaching the caller.
+            e.printStackTrace();
         }
     }
 

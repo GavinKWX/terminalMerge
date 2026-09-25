@@ -1,5 +1,6 @@
 package com.sc.mf919.kotlin.helper_common
 
+import ws.WebSocketClientSingleton
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities

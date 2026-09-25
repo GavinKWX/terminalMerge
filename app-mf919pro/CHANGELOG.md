@@ -32,5 +32,7 @@ Extracted verbatim from the comment block that headed `app/build.gradle.kts` bef
  *                      chore: Enhance NanoHttpD Read big packet network corrupt issue
  *                      chore: FoodLink Customization and Integration
  *                      chore: Fix DF37 38 39 Cache Issue
+ * 1.0.05   2026xxxx    feat: Add BYPASS_PIN in TerminalConfig to handle from Portal, gate the
+ *                      feat: empty-PIN entry on it, and add ZQ error code for PIN Not Entered
 */
 ```

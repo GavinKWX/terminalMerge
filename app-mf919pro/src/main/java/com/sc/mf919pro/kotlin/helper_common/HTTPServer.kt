@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.helper_common
+import ws.WebSocketServer
 import enums.EnumResponseCode
 
 import helpers.IntegrationMode

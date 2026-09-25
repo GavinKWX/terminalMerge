@@ -6,6 +6,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.sc.mf919pro.R
+import com.sc.mf919pro.java.activity.Utils
 import com.sc.mf919pro.kotlin.helper_common.intent_helper.Route
 import com.sc.mf919pro.kotlin.helper_common.intent_helper.TransactionParser
 import com.sc.mf919pro.kotlin.helper_common.intent_helper.TransactionRouter
@@ -17,6 +18,11 @@ import com.sc.mf919pro.kotlin.helper_common.intent_helper.SettlementUseCase
 import com.sc.mf919pro.kotlin.helper_common.intent_helper.TxnKeys
 import com.sc.mf919pro.kotlin.helper_common.intent_helper.TxnRequest
 import com.sc.mf919pro.kotlin.helper_common.intent_helper.VoidUseCase
+import enums.EnumLogFileName
+import helpers.HelperCommon
+import helpers.HelperLog
+import helpers.HelperNetwork
+import helpers.HelperText
 import kotlinx.coroutines.launch
 
 class TransactionReceiver : AppCompatActivity() {
@@ -47,15 +53,36 @@ class TransactionReceiver : AppCompatActivity() {
         lifecycleScope.launch {
             val reqRes = parser.parse(intent)
             if (reqRes.isFailure) {
+                logRequest("App-to-app request REJECTED :: ${reqRes.exceptionOrNull()?.message} :: extras=${intent.extras?.keySet()}")
                 loading.dismiss()
                 finish()
                 return@launch
             }
 
             currentReq = reqRes.getOrNull()
+            currentReq?.let { logRequest("App-to-app request <- ${it.returnPackage}/${it.returnActivity} :: ${HelperText.oneLine(it.toString())}") }
 
             loading.dismiss()
             dispatch(reqRes.getOrThrow())
+        }
+    }
+
+    // One TerminaLog line per request received from a caller app; the reply is logged by TransactionTransmitter.
+    private fun logRequest(line: String) {
+        try {
+            val log = HelperLog(
+                HelperCommon.getSession(),
+                HelperNetwork.isConnectedWifi(this),
+                Utils.getIPAddress(),
+                TAG,
+                TAG,
+                "App-to-App Request"
+            )
+            log.appendLine(TAG, line)
+            log.logToFile(EnumLogFileName.TerminaLog)
+        } catch (ex: Exception) {
+            // Logging must never stop the request being handled.
+            ex.printStackTrace()
         }
     }
 
@@ -86,5 +113,9 @@ class TransactionReceiver : AppCompatActivity() {
                 finish()
             }
         }
+    }
+
+    private companion object {
+        const val TAG = "TransactionReceiver"
     }
 }

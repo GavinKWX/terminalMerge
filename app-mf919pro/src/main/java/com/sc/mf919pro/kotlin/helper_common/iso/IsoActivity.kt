@@ -40,8 +40,8 @@ import com.sc.mf919pro.kotlin.database.repo.ProductListRepo.Companion.getUnSettl
 import com.sc.mf919pro.kotlin.database.repo.ReceiptUploadRepo
 import com.sc.mf919pro.kotlin.database.repo.ReversalBatchTableRepo
 import com.sc.mf919pro.kotlin.database.repo.SettlementSummaryRepo
-import com.sc.mf919pro.kotlin.datastore.DataStoreManager
-import com.sc.mf919pro.kotlin.datastore.PrefKeys
+import datastore.DataStoreManager
+import datastore.PrefKeys
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder.Companion.isoComm
 import com.sc.mf919pro.kotlin.helper_common.TmsHelper

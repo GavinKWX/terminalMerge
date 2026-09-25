@@ -47,6 +47,9 @@ interface TransactionStore {
 	/** A batch-info value (`isoTpduHeaderTle`, `niiTle`), or null when the row is absent. */
 	fun batchInfoValue(context: Context, tag: String, subtag: String): String?
 
+	/** Insert a batch-info row. Used for the install token (`installAppVer`/`pos`, item 86). */
+	fun storeBatchInfo(context: Context, tag: String, subtag: String, value: String)
+
 	// ---- acquirer product ----------------------------------------------------------------
 
 	/** The product row for this MID/TID pair, or null when there is none. */
@@ -103,6 +106,9 @@ object CurrentStore : TransactionStore {
 
 	override fun batchInfoValue(context: Context, tag: String, subtag: String): String? =
 		store.batchInfoValue(context, tag, subtag)
+
+	override fun storeBatchInfo(context: Context, tag: String, subtag: String, value: String) =
+		store.storeBatchInfo(context, tag, subtag, value)
 
 	override fun acquirerProduct(context: Context, mid: String, tid: String): AcquirerProduct? =
 		store.acquirerProduct(context, mid, tid)

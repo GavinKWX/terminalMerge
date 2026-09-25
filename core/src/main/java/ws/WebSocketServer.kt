@@ -1,11 +1,12 @@
-package com.sc.mf919pro.kotlin.helper_common
+package ws
 import enums.EnumResponseCode
 
 import android.util.Log
-import com.sc.mf919pro.java.activity.Utils
 import enums.EnumLogFileName
-import helpers.HelperCommon
+import helpers.HelperNetwork
 import helpers.HelperLog
+import helpers.HelperText
+import helpers.TerminalInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -27,7 +28,7 @@ class WebSocketServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         private const val MAX_QUEUED_MESSAGES = 20
 
         // Set from the WebSocket server's callback threads and spin-read by
-        // HTTPServer.startWebSocketServer.
+        // each app's HTTPServer.startWebSocketServer.
         @Volatile
         var socketConnected = false
         // Responses are queued so a client that disconnected before its response was
@@ -35,7 +36,7 @@ class WebSocketServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         val messageQueue = ConcurrentLinkedQueue<String>()
 
         @Volatile
-        private var activeInstance: com.sc.mf919pro.kotlin.helper_common.WebSocketServer? = null
+        private var activeInstance: ws.WebSocketServer? = null
 
         fun receiveResponseMessage(receiveMessage: String) {
             messageQueue.add(receiveMessage)
@@ -68,9 +69,9 @@ class WebSocketServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
         try {
             Log.d(TAG, msg)
             val log = HelperLog(
-                HelperCommon.getSession(),
-                TmsHelper.checkIsConnectedWifi(ServiceHolder.getContext()),
-                Utils.getIPAddress(),
+                newLogSession(),
+                HelperNetwork.isConnectedWifi(CurrentWsHost.context()),
+                TerminalInfo.ipAddress(),
                 TAG,
                 TAG,
                 "WebSocket Server"
@@ -99,8 +100,8 @@ class WebSocketServer(port: Int) : WebSocketServer(InetSocketAddress(port)) {
 
     override fun onMessage(conn: WebSocket?, message: String?) {
         message?.let {
-            wsLog("Message received :: ${HelperCommon.oneLine(it)}")
-            HTTPServer.checkWebSocketIncoming(it)
+            wsLog("Message received :: ${HelperText.oneLine(it)}")
+            CurrentWsHost.onEcrMessage(it)
         } ?: run {
             wsLog("REJECT :: null message from client")
             val jsonResponse = JSONObject()
