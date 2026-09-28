@@ -58,16 +58,42 @@ class TransactionParserTest {
 		assertNull(r.amount)
 	}
 
+	@Test fun `digits are judged by code point, like TextUtils isDigitsOnly`() {
+		// U+1D7CE MATHEMATICAL BOLD DIGIT ZERO: a digit as a code point, two non-digit chars.
+		val mathZero = String(Character.toChars(0x1D7CE))
+		assertFalse(parse("TransactionAmount" to mathZero).oldIntegration)
+		assertTrue(parse("TransactionAmount" to "1.5").oldIntegration)
+	}
+
 	@Test fun `channel is case-insensitive and falls back to SettlementType`() {
 		assertEquals(PaymentChannel.QR, parse("PaymentChannel" to "qr").channel)
 		assertEquals(PaymentChannel.ALL, parse("SettlementType" to "All").channel)
 		assertEquals(PaymentChannel.CARD, parse("PaymentChannel" to "CARD", "SettlementType" to "QR").channel)
+		assertEquals(PaymentChannel.CARD, parse("PaymentChannel" to "", "SettlementType" to "card").channel)
 	}
 
-	@Test fun `unknown channel and preauth type are null, not an exception`() {
-		assertNull(parse("PaymentChannel" to "BITCOIN").channel)
-		assertNull(parse("PreAuthType" to "REFUND").preAuthType)
+	@Test fun `unknown channel and preauth type are null and flagged, not an exception`() {
+		val c = parse("PaymentChannel" to "BITCOIN")
+		assertNull(c.channel)
+		assertTrue(c.invalidChannel)
+		val p = parse("PreAuthType" to "REFUND")
+		assertNull(p.preAuthType)
+		assertTrue(p.invalidPreAuthType)
+		assertTrue(parse("PreAuthType" to "").invalidPreAuthType)
 		assertEquals(PreAuthType.VOIDPREAUTH, parse("PreAuthType" to "voidPreAuth").preAuthType)
+	}
+
+	@Test fun `absent or empty values are not flagged`() {
+		val r = parse("PaymentChannel" to "")
+		assertFalse(r.invalidChannel)
+		assertFalse(r.invalidPreAuthType)
+		assertFalse(parse().invalidChannel)
+	}
+
+	@Test fun `the ack and invalid flags stay out of the request log line`() {
+		val s = parse("AcknowledgeCountdown" to "7", "PaymentChannel" to "junk").toString()
+		assertFalse(s.contains("ackCountdown"))
+		assertFalse(s.contains("invalidChannel"))
 	}
 
 	@Test fun `defaults and type`() {

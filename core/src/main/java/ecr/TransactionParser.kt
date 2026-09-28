@@ -7,8 +7,8 @@ import java.math.BigDecimal
 
 /**
  * Turns an App-to-App intent into a [TxnRequest]. Moved from Pro's intent_helper (item 98).
- * Two changes: an unknown PaymentChannel / PreAuthType becomes null (answered SHC001 by the use
- * case) instead of throwing, and AcknowledgeCountdown is returned for the app to apply.
+ * Two changes: an unknown PaymentChannel / PreAuthType is flagged (the router answers SHC001)
+ * instead of throwing, and AcknowledgeCountdown is returned for the app to apply.
  */
 class TransactionParser(
     private val host: NewIntegrationHost = CurrentNewIntegrationHost,
@@ -37,7 +37,7 @@ class TransactionParser(
         // Every intent extra is a String, so HTTP's "the amount arrived quoted" signal maps here
         // to "the amount is not digits-only" -- "10.00" is the old decimal-ringgit form, 1000 is
         // new-integration cents.
-        val amountInOldFormat = !amountString.isNullOrBlank() && !amountString.all { it.isDigit() }
+        val amountInOldFormat = !amountString.isNullOrBlank() && !isDigitsOnly(amountString)
 
         // Same rule as HTTP -- see helpers.IntegrationMode.
         val isOldIntegration = IntegrationMode.isOld(
@@ -55,18 +55,19 @@ class TransactionParser(
         } else {
             amountString.toLongOrNull()
         }
-        var channel = map[TxnKeys.CHANNEL]
-        if (channel.isNullOrEmpty()) {
-            channel = map[TxnKeys.SETTLEMENT_TYPE]
+        var channelRaw = map[TxnKeys.CHANNEL]
+        if (channelRaw.isNullOrEmpty()) {
+            channelRaw = map[TxnKeys.SETTLEMENT_TYPE]
         }
 
+        val preAuthRaw = map[TxnKeys.PREAUTH_TYPE]
         return Result.success(
             TxnRequest(
                 returnPackage = pkg,
                 returnActivity = act,
                 oldIntegration = isOldIntegration,
                 txnType = txnType,
-                channel = PaymentChannel.of(channel),
+                channel = PaymentChannel.of(channelRaw),
                 amount = amount,
                 amountString = amountString,
                 posReference = map[TxnKeys.POS_REF],
@@ -80,17 +81,24 @@ class TransactionParser(
                 invoice = map[TxnKeys.TXN_INVOICE],
                 transRefId = map[TxnKeys.TXN_REF_ID],
                 forceVoid = map["ForceVoid"]?.toIntOrNull() ?: 0,
-                preAuthType = PreAuthType.of(map[TxnKeys.PREAUTH_TYPE]),
+                preAuthType = PreAuthType.of(preAuthRaw),
                 approvalCode = map[TxnKeys.TXN_APPROVAL_CODE],
                 cardNo = map[TxnKeys.CARD_NO],
                 expiryDt = map[TxnKeys.EXPIRY_DT],
                 rrn = map[TxnKeys.TXN_RRN],
-                ackCountdown = map[TxnKeys.ACK_COUNTDOWN],
-                hasAckCountdown = map.containsKey(TxnKeys.ACK_COUNTDOWN),
                 raw = map
-            )
+            ).apply {
+                ackCountdown = map[TxnKeys.ACK_COUNTDOWN]
+                hasAckCountdown = map.containsKey(TxnKeys.ACK_COUNTDOWN)
+                // Values Pro's valueOf used to throw on (crashing the app); the router now rejects them.
+                invalidChannel = channelRaw != null && PaymentChannel.of(channelRaw) == null
+                invalidPreAuthType = preAuthRaw != null && PreAuthType.of(preAuthRaw) == null
+            }
         )
     }
+
+    // Same as android.text.TextUtils.isDigitsOnly (code points), but runs in JVM tests.
+    private fun isDigitsOnly(s: String): Boolean = s.codePoints().allMatch { Character.isDigit(it) }
 
     private fun extractMap(intent: Intent): HashMap<String, String>? {
         // Preferred: JSON
@@ -106,6 +114,6 @@ class TransactionParser(
     }
 
     private companion object {
-        const val TAG = "TransactionParser"
+        const val TAG = "Utils" // Pro logged this through Utils.printLog
     }
 }

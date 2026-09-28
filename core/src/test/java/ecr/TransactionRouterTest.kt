@@ -176,6 +176,25 @@ class TransactionRouterTest {
 		assertAnswer("SHC001", "Invalid Parameter - (PaymentChannel)", route("TransactionType" to "2", "TransactionAmount" to "50", "PaymentChannel" to "BITCOIN"))
 	}
 
+	@Test fun `a junk channel or preauth type is rejected on every path, not ignored`() {
+		host.products["CARD_SETTINGS"] = "cardRow"
+		// Before the move these threw in the parser; ignoring them would run the transaction.
+		assertAnswer("SHC001", "Invalid Parameter - (PaymentChannel)", route("IsOldIntegration" to "true", "TransactionType" to "1", "TransactionAmount" to "0.50", "PaymentChannel" to "junk"))
+		assertAnswer("SHC001", "Invalid Parameter - (PaymentChannel)", route("TransactionType" to "1", "PosReference" to "R1", "PaymentChannel" to "CARD "))
+		assertAnswer("SHC001", "Invalid Parameter - (PaymentChannel)", route("TransactionType" to "4", "SettlementType" to "weekly"))
+		assertAnswer("SHC001", "Invalid Parameter - (PreAuthType)", route("TransactionType" to "2", "TransactionAmount" to "50", "PaymentChannel" to "CARD", "PreAuthType" to "x"))
+		assertAnswer("SHC001", "Invalid Parameter - (PreAuthType)", route("TransactionType" to "5", "PreAuthType" to ""))
+		host.flags["SALES_CARD"] = false
+		assertAnswer("SHC001", "Invalid Parameter - (PaymentChannel)", route("TransactionType" to "2", "TransactionAmount" to "50", "PaymentChannel" to "BITCOIN"))
+		assertTrue(host.saleModels.isEmpty())
+	}
+
+	@Test fun `an empty PaymentChannel falls back to SettlementType and is not junk`() {
+		assertScreen(Destination.SETTLE_OPTION, mapOf("settlementType" to "CARD"), route("TransactionType" to "4", "PaymentChannel" to "", "SettlementType" to "CARD"))
+		host.products["CARD_SETTINGS"] = "cardRow"
+		assertAnswer("SHC001", "Invalid Parameter - (PaymentChannel)", route("TransactionType" to "2", "TransactionAmount" to "50", "PaymentChannel" to ""))
+	}
+
 	@Test fun `ordering items are passed through`() {
 		host.products["CARD_SETTINGS"] = "cardRow"
 		val r = route("TransactionType" to "2", "TransactionAmount" to "50", "PaymentChannel" to "CARD", "OrderingItem" to "burger", "OrderingItemImage" to "img") as Route.Navigate

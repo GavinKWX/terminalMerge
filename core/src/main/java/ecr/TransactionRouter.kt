@@ -19,6 +19,10 @@ class TransactionRouter(
             })
         }
 
+        // Rejected on every path: before the move these threw in the parser and crashed the app.
+        if (req.invalidChannel) return invalidParameter(req, "PaymentChannel")
+        if (req.invalidPreAuthType) return invalidParameter(req, "PreAuthType")
+
         if (req.oldIntegration) {
             return when (req.txnType) {
                 1 -> {
@@ -92,6 +96,11 @@ class TransactionRouter(
             }
         }
     }
+
+    private fun invalidParameter(req: TxnRequest, field: String) = Route.Return(req.raw.apply {
+        put(TxnKeys.RESP_CODE, "SHC001")
+        put(TxnKeys.RESP_DESC, "Invalid Parameter - ($field)")
+    })
 
     private fun noSession(req: TxnRequest) = Route.Return(req.raw.apply {
         put(TxnKeys.RESP_CODE, "00")

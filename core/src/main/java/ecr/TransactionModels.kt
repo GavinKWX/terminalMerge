@@ -70,12 +70,17 @@ data class TxnRequest(
     var cardNo: String? = null,
     val expiryDt: String? = null,
 
-    /** Raw `AcknowledgeCountdown`; null when the key was absent. Applied by the app, not here. */
-    val ackCountdown: String? = null,
-    val hasAckCountdown: Boolean = false,
-
     val raw: HashMap<String, String>
-)
+) {
+    // Body properties, so they stay out of toString(): the request log line is unchanged.
+    /** Raw `AcknowledgeCountdown`; null when the key was absent. Applied by the app, not here. */
+    var ackCountdown: String? = null
+    var hasAckCountdown: Boolean = false
+
+    /** A PaymentChannel/SettlementType or PreAuthType was sent but is not a known value. */
+    var invalidChannel: Boolean = false
+    var invalidPreAuthType: Boolean = false
+}
 
 data class TxnResult(
     val responseCode: String,

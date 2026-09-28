@@ -19,7 +19,8 @@ class EnquiryUseCase(private val host: NewIntegrationHost = CurrentNewIntegratio
         return try {
             val receipt = host.receiptByPosRef(posReference)
 
-            host.log(TAG, "dbModelReceiptUpload :: ${Gson().toJson(receipt)}")
+            // logcat only, as before: this is receipt data and must not reach the uploaded file log.
+            println("dbModelReceiptUpload :: ${Gson().toJson(receipt)}")
             if (receipt != null) {
                 if (receipt.QrRefId?.trim()?.isNotEmpty() == true) {
                     val qr = host.qrByRef(receipt.QrRefId)
@@ -98,9 +99,5 @@ class EnquiryUseCase(private val host: NewIntegrationHost = CurrentNewIntegratio
                 put(TxnKeys.RESP_DESC, "Invalid Parameter - (TransactionType)")
             })
         }
-    }
-
-    private companion object {
-        const val TAG = "EnquiryUseCase"
     }
 }
