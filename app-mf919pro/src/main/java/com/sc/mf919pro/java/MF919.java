@@ -140,6 +140,8 @@ public class MF919 extends Application {
         MdbController.register(ProMdbHost.INSTANCE);
         // The WebSocket pair (ECR server + TMS push client) lives in :core; this is its app side.
         ws.CurrentWsHost.register(com.sc.mf919pro.kotlin.helper_common.ProWsHost.INSTANCE);
+        // ECR router and use cases in :core (audit item 98).
+        ecr.CurrentNewIntegrationHost.register(com.sc.mf919pro.kotlin.helper_common.ProNewIntegrationHost.INSTANCE);
         // The receipt reconciler lives in :core; this is the repo side it reads and writes through.
         tms.CurrentReceiptStore.register(com.sc.mf919pro.kotlin.helper_common.ProReceiptStore.INSTANCE);
 

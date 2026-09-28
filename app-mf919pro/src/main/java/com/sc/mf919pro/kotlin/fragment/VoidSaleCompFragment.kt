@@ -35,7 +35,7 @@ import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder.Companion.appRunningProcess
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder.Companion.getTerminalConfig
 import com.sc.mf919pro.kotlin.helper_common.TmsHelper
-import com.sc.mf919pro.kotlin.helper_common.intent_helper.TxnKeys
+import ecr.TxnKeys
 import com.sc.mf919pro.kotlin.helper_common.iso.IsoActivity
 import enums.EnumLogFileName
 import helpers.HelperCommon

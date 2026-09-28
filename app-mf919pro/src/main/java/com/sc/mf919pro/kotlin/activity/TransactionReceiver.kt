@@ -7,17 +7,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.sc.mf919pro.R
 import com.sc.mf919pro.java.activity.Utils
-import com.sc.mf919pro.kotlin.helper_common.intent_helper.Route
-import com.sc.mf919pro.kotlin.helper_common.intent_helper.TransactionParser
-import com.sc.mf919pro.kotlin.helper_common.intent_helper.TransactionRouter
+import com.sc.mf919pro.kotlin.helper_common.ProNewIntegrationHost
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
-import com.sc.mf919pro.kotlin.helper_common.intent_helper.EnquiryUseCase
-import com.sc.mf919pro.kotlin.helper_common.intent_helper.PreAuthUseCase
-import com.sc.mf919pro.kotlin.helper_common.intent_helper.SaleUseCase
-import com.sc.mf919pro.kotlin.helper_common.intent_helper.SettlementUseCase
-import com.sc.mf919pro.kotlin.helper_common.intent_helper.TxnKeys
-import com.sc.mf919pro.kotlin.helper_common.intent_helper.TxnRequest
-import com.sc.mf919pro.kotlin.helper_common.intent_helper.VoidUseCase
+import ecr.Route
+import ecr.TransactionParser
+import ecr.TransactionRouter
+import ecr.TxnKeys
+import ecr.TxnRequest
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperLog
@@ -28,14 +24,8 @@ import kotlinx.coroutines.launch
 class TransactionReceiver : AppCompatActivity() {
     private val parser = TransactionParser()
 
-    // Wire these with DI later; for now create directly
-    private val router = TransactionRouter(
-        saleUseCase = SaleUseCase(),
-        voidUseCase = VoidUseCase(),
-        settlementUseCase = SettlementUseCase(),
-        preauthUseCase = PreAuthUseCase(),
-        enquiryUseCase = EnquiryUseCase()
-    )
+    // Router and use cases live in :core (audit item 98); ProNewIntegrationHost is registered in MF919.java.
+    private val router = TransactionRouter()
 
     private lateinit var loading: AlertDialog
     private var currentReq: TxnRequest? = null
@@ -97,11 +87,16 @@ class TransactionReceiver : AppCompatActivity() {
         ServiceHolder.txnType = req.txnType
         ServiceHolder.packageName = req.returnPackage
         ServiceHolder.activityName = req.returnActivity
-        when (val route = router.route(this, req)) {
+        ServiceHolder.ackCountDownSecond = if (req.hasAckCountdown) {
+            Utils.atoi(req.ackCountdown ?: ServiceHolder.defaultAckCountdownSecond.toString())
+        } else {
+            ServiceHolder.defaultAckCountdownSecond
+        }
+        when (val route = router.route(req)) {
             is Route.Navigate -> {
                 startActivity(Intent(this, MainActivity::class.java).apply {
-                    putExtra("nav_action_id", route.actionId)
-                    putExtra("nav_bundle", route.bundle)
+                    putExtra("nav_action_id", ProNewIntegrationHost.navId(route.destination))
+                    putExtra("nav_bundle", ProNewIntegrationHost.bundle(route.args))
                     addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 })
             }

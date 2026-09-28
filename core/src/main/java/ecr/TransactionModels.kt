@@ -1,5 +1,6 @@
-package com.sc.mf919pro.kotlin.helper_common.intent_helper
+package ecr
 
+/** Keys of the ECR request/response map. Moved from Pro's intent_helper (audit item 98, phase 1). */
 object TxnKeys {
     const val EXTRA_TXN_JSON = "txn_json"
     const val EXTRA_TXN_MAP  = "txn_map" // optional legacy
@@ -19,6 +20,7 @@ object TxnKeys {
     const val EXPIRY_DT = "ExpiryDate"
     const val ORDERING_ITEM = "OrderingItem"
     const val ORDERING_ITEM_IMG = "OrderingItemImage"
+    const val ACK_COUNTDOWN = "AcknowledgeCountdown"
 
     //OLD INTEGRATION
     const val PRODUCT_CODE = "ProductCode"
@@ -33,18 +35,6 @@ object TxnKeys {
     const val RESP_CODE = "ResponseCode"
     const val RESP_DESC = "ResponseDescription"
 }
-
-/*data class TxnRequest(
-    val returnPackage: String,
-    val returnActivity: String,
-    val oldIntegration: Boolean = false,
-    val txnType: Int,
-    val channel: String?,
-    val amount: Long?,
-    val amountString: String?,
-    val posReference: String?,
-    val raw: HashMap<String, String>
-)*/
 
 data class TxnRequest(
     val returnPackage: String,
@@ -80,13 +70,13 @@ data class TxnRequest(
     var cardNo: String? = null,
     val expiryDt: String? = null,
 
-    //use as result??
+    /** Raw `AcknowledgeCountdown`; null when the key was absent. Applied by the app, not here. */
+    val ackCountdown: String? = null,
+    val hasAckCountdown: Boolean = false,
+
     val raw: HashMap<String, String>
 )
 
-/*data class TxnResult(
-    val map: HashMap<String, String>
-)*/
 data class TxnResult(
     val responseCode: String,
     val responseDescription: String,
@@ -99,11 +89,23 @@ enum class PaymentChannel {
     SCAN,
     QR,
     EPP,
-    MOTO
+    MOTO;
+
+    companion object {
+        /** Case-insensitive; null for an unknown value (valueOf used to throw out of parse). */
+        fun of(value: String?): PaymentChannel? =
+            value?.let { v -> entries.firstOrNull { it.name == v.uppercase() } }
+    }
 }
+
 enum class PreAuthType {
     PREAUTH,
     PREAUTHCOMPLETE,
     VOIDPREAUTH,
-    VOIDPREAUTHCOMPLETE
+    VOIDPREAUTHCOMPLETE;
+
+    companion object {
+        fun of(value: String?): PreAuthType? =
+            value?.let { v -> entries.firstOrNull { it.name == v.uppercase() } }
+    }
 }

@@ -5,7 +5,7 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.sc.mf919pro.java.activity.Utils
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
-import com.sc.mf919pro.kotlin.helper_common.intent_helper.TxnKeys
+import ecr.TxnKeys
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperLog

@@ -72,7 +72,7 @@ import com.sc.mf919pro.kotlin.helper_common.AppBus
 import com.sc.mf919pro.kotlin.helper_common.MfHelper
 import com.sc.mf919pro.kotlin.helper_common.TTSManager
 import com.sc.mf919pro.kotlin.helper_common.UiEvent
-import com.sc.mf919pro.kotlin.helper_common.intent_helper.TxnKeys
+import ecr.TxnKeys
 
 class GenerateQrFragment : BaseFragment() {
     lateinit var helperLog: HelperLog
