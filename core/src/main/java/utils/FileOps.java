@@ -251,16 +251,11 @@ public class FileOps {
                     InputStream ins = CurrentFiles.INSTANCE.openAsset(filename);
                     BufferedReader buf = new BufferedReader(new InputStreamReader(ins));
                     String str;
+                    java.util.Set<String> have = keysOf(exitValue);
                     while ((str = buf.readLine()) != null) {
-                        boolean update = true;
-                        for (String s : exitValue) {
-                            int loc = str.indexOf("=");
-                            if (s.startsWith(str.substring(0, loc))) {
-                                update = false;
-                                break;
-                            }
-                        }
-                        if (update) {
+                        String key = keyOf(str);
+                        // Lines without a key are not merged; they used to throw and end the merge.
+                        if (key != null && have.add(key)) {
                             writeToFile(str, filename);
                         }
                     }
@@ -286,20 +281,37 @@ public class FileOps {
     }
 
     /**
-     * "Is the internal file already in step with the asset?" -- decided purely on line count,
-     * which is why a changed value in an asset never re-seeds. Kept as it was.
+     * "Is the internal file already in step with the asset?" True when every key in the asset is
+     * already in the file. Values are never compared: provisioned values must survive (item 93).
      */
     private static boolean changeInFile(String filename) {
         boolean isSame;
         if (checkFiles(filename)) {
-            String[] a1 = readFromFile(filename);
-            String[] a2 = readFromAssetFile(filename);
-            isSame = (a1.length == a2.length);
+            java.util.Set<String> have = keysOf(readFromFile(filename));
+            java.util.Set<String> want = keysOf(readFromAssetFile(filename));
+            isSame = have.containsAll(want);
         } else {
             isSame = false;
         }
         Timber.tag(TAG).d("ChangeInFile: %s", isSame);
         return (isSame);
+    }
+
+    /** The text before the first '=', or null for a line with no key. */
+    static String keyOf(String line) {
+        if (line == null) return null;
+        int loc = line.indexOf('=');
+        return loc > 0 ? line.substring(0, loc) : null;
+    }
+
+    private static java.util.Set<String> keysOf(String[] lines) {
+        java.util.Set<String> keys = new java.util.HashSet<>();
+        if (lines == null) return keys;
+        for (String line : lines) {
+            String key = keyOf(line);
+            if (key != null) keys.add(key);
+        }
+        return keys;
     }
 
     private static void printErrorLog(String functionName, String logs) {

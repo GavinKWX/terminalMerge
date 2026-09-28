@@ -261,33 +261,10 @@ public class ActivityBase extends AppCompatActivity
     }
 
 
+    // Routed through the one guarded path (item 94).
     protected void print(List<MulPrintStrEntity> list)
     {
-        try {
-            //int fontSize = FontFamily.MIDDLE;
-            Bundle config = new Bundle();
-            //config.putString(PrinterConfig.COMMON_TYPEFACE_PATH, fontPath);
-            config.putInt(PrinterConfig.COMMON_GRAYLEVEL, 30);
-            DeviceHelper.getPrinter().printStr(list, new OnPrintListener.Stub()
-            {
-                @Override
-                public void onPrintResult(int result) throws RemoteException
-                {
-                    /*this.runOnUiThread(new Runnable()
-                    {
-                        @Override
-                        public void run()
-                        {
-                            //button.setEnabled(true);
-                        }
-                    });*/
-                    //showResult(textView, result == ServiceResult.Success ? getString(R.string.msg_succ) : getString(R.string.msg_fail));
-                    //this.sysPrint(result == ServiceResult.Success ? getString(R.string.msg_succ) : getString(R.string.msg_fail));
-                }
-            }, config);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
+        helpers.HelperCommon.sdkPrint(list);
     }
 
     protected void ToastMake(Context mContext,String msg,int duration)

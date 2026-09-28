@@ -32,6 +32,7 @@ import com.sc.mf919.kotlin.helper_common.CoroutineTask
 import com.sc.mf919.kotlin.helper_common.TmsHelper.checkIsConnectedWifi
 import com.sc.mf919.kotlin.helper_common.TmsHelper.checkTerminalPIN
 import enums.EnumLogFileName
+import helpers.HelperCommon
 import helpers.HelperCommon.Companion.getSession
 import helpers.HelperLog
 import org.apache.commons.lang3.StringUtils
@@ -161,31 +162,8 @@ open class ActivityBase : AppCompatActivity() {
 		pDTitle?.let { progressHost().updateProgress(title = it) }
 	}
 
-	protected fun print(list: List<MulPrintStrEntity?>?) {
-		try {
-			//int fontSize = FontFamily.MIDDLE;
-			val config = Bundle()
-			//config.putString(PrinterConfig.COMMON_TYPEFACE_PATH, fontPath);
-			config.putInt(PrinterConfig.COMMON_GRAYLEVEL, 30)
-			DeviceHelper.getPrinter().printStr(list, object : OnPrintListener.Stub() {
-				@Throws(RemoteException::class)
-				override fun onPrintResult(result: Int) {
-					/*this.runOnUiThread(new Runnable()
-                    {
-                        @Override
-                        public void run()
-                        {
-                            //button.setEnabled(true);
-                        }
-                    });*/
-					//showResult(textView, result == ServiceResult.Success ? getString(R.string.msg_succ) : getString(R.string.msg_fail));
-					//this.sysPrint(result == ServiceResult.Success ? getString(R.string.msg_succ) : getString(R.string.msg_fail));
-				}
-			}, config)
-		} catch (e: RemoteException) {
-			e.printStackTrace()
-		}
-	}
+	// Routed through the one guarded path; safe from a click handler (item 94).
+	protected fun print(list: List<MulPrintStrEntity?>?) = HelperCommon.sdkPrint(list)
 
 	protected fun ToastMake(mContext: Context?, msg: String?, duration: Int) {
 		runOnUiThread { Toast.makeText(mContext, msg, duration).show() }

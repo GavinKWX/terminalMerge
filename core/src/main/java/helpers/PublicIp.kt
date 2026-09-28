@@ -1,54 +1,55 @@
 package helpers
 
-import utils.Util
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Asks an external service for this terminal's public IP, for the `TERMINAL_IP` header on TMS
- * requests. Moved out of both apps' Utils in tranche 4 of the Utils slice.
- *
- * **The hazard came with it.** [get] starts a thread, then *busy-waits on the calling thread* in
- * 100 ms steps until that thread sets a flag. There is no timeout on the HTTP call, so a host that
- * accepts the connection and never answers parks the caller indefinitely. Both live callers are on
- * a TMS upload thread rather than the main thread, so it shows up as a stalled upload, not an ANR.
- *
- * That is left as it was on purpose: a real fix means a timeout and a cached value, which changes
- * what the TMS header contains when the lookup fails, and that is a contract change to make
- * deliberately. See `docs/merge-audit-mf919.md` item 50.
- *
- * Two things did change in the move, neither observable to a caller: the flag is cleared in a
- * `finally` rather than in both the success and failure paths, and the reader is closed, which the
- * original never did.
+ * requests. Bounded by timeouts; a failed or slow lookup gives the same `0.0.0.0` as before (item 93).
  */
 object PublicIp {
 
-	/** Returns the public IP, or `"0.0.0.0"` if the lookup failed. */
+	private const val URL_LOOKUP = "https://myexternalip.com/raw"
+	internal const val CONNECT_TIMEOUT_MS = 5_000
+	internal const val READ_TIMEOUT_MS = 5_000
+	internal const val JOIN_TIMEOUT_MS = 12_000L
+	internal const val FALLBACK = "0.0.0.0"
+
+	/** Returns the public IP, or `"0.0.0.0"` if the lookup failed or timed out. */
 	@JvmStatic
-	fun get(): String {
-		val waitTime = booleanArrayOf(true)
-		val ip = arrayOf("0.0.0.0")
+	fun get(): String = get(JOIN_TIMEOUT_MS) { fetch() }
 
-		object : Thread() {
-			override fun run() {
-				super.run()
-				try {
-					val whatismyip = URL("https://myexternalip.com/raw")
-					BufferedReader(InputStreamReader(whatismyip.openStream())).use { reader ->
-						ip[0] = reader.readLine()
-					}
-				} catch (e: Exception) {
-					// Swallowed as before: a failed lookup leaves the 0.0.0.0 placeholder.
-				} finally {
-					waitTime[0] = false
-				}
+	// The worker thread keeps the network call off the caller, which may be the main thread.
+	internal fun get(joinTimeoutMs: Long, lookup: () -> String?): String {
+		val ip = AtomicReference<String?>(null)
+		val worker = Thread {
+			try {
+				ip.set(lookup()?.trim()?.takeIf { it.isNotEmpty() })
+			} catch (e: Exception) {
+				// A failed lookup leaves the fallback.
 			}
-		}.start()
-
-		while (waitTime[0]) {
-			Util.DelayMili(100)
 		}
-		return ip[0]
+		worker.isDaemon = true
+		worker.start()
+		try {
+			worker.join(joinTimeoutMs)
+		} catch (e: InterruptedException) {
+			Thread.currentThread().interrupt()
+		}
+		return ip.get() ?: FALLBACK
+	}
+
+	private fun fetch(): String? {
+		val conn = URL(URL_LOOKUP).openConnection() as HttpURLConnection
+		conn.connectTimeout = CONNECT_TIMEOUT_MS
+		conn.readTimeout = READ_TIMEOUT_MS
+		return try {
+			BufferedReader(InputStreamReader(conn.inputStream)).use { it.readLine() }
+		} finally {
+			conn.disconnect()
+		}
 	}
 }

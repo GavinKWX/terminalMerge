@@ -818,6 +818,21 @@ class SettlementActivity : BaseActivity() {
 				return false
 			}
 
+			// Nothing in any product: no host settlement, same reply shape with zero counts (item 97).
+			if (settlementProduct.none { hasBatchActivity(it) }) {
+				helperLog.appendLine(helperLogClassName, "Skip :: empty batch, no host settlement for ${settlementProduct.size} product(s) batchNo=$batchNo")
+				settlementProduct.forEach { emptySettlementDetails(it) }
+				printNoTransactionInfo()
+				ToastMake(mContext, "No Transaction to Settle", Toast.LENGTH_LONG)
+				if (DbModelTerminalConfig.getBooleanValue(dbModelTerminalConfig, "FORCE_SETTLEMENT") || DbModelTerminalConfig.getBooleanValue(dbModelTerminalConfig, "FORCE_SETTLEMENT_DAILY")) {
+					ServiceHolder.clearSettlementBatch = false
+				}
+				autoSettlementIsRunning = false
+				helperLog.appendLine(helperLogClassName, "-----------------Process Settlement Batch [END]-------------------->")
+				helperLog.logToFile(EnumLogFileName.TerminaLog)
+				return true
+			}
+
 			for(forIndex in settlementProduct.indices) {
 				val tempObj = settlementProduct[forIndex]
 				helperLog.appendLine(helperLogClassName, "Settling product [${forIndex + 1}/${settlementProduct.size}] :: acq=${tempObj.AcqCode} mid=${tempObj.AcqMid} tid=${tempObj.AcqTid} batchNo=$batchNo")
@@ -1127,6 +1142,48 @@ class SettlementActivity : BaseActivity() {
 	}
 
 
+
+	/** Any sale, void or refund in the settlement totals, or a reversal still pending, for this product. */
+	private fun hasBatchActivity(product: DbModelProductList): Boolean {
+		val counted = listOf("txnCount", "voidTxnCount", "refundTxnCount").sumOf { tag ->
+			SettlementSummaryRepo.getSelectiveData(applicationContext,
+				ArrayList(listOf("acq_code", "mid", "tid", "tag")),
+				arrayOf(product.AcqCode, product.AcqMid, product.AcqTid, tag)
+			).sumOf { Utils.atoi(it.value) }
+		}
+		if (counted != 0) return true
+		return ReversalBatchTableRepo.getBatchData(mContext, listOf("batchNo", "mid", "tid"), arrayOf(batchNo, product.AcqMid, product.AcqTid)).isNotEmpty()
+	}
+
+	/** The settlementDetails reply for a product skipped as empty: zero counts, no STAN/RRN. */
+	private fun emptySettlementDetails(product: DbModelProductList) {
+		val tpa = product.IsTpaAccount?.lowercase() == "true"
+		val mid = if (tpa) DbModelMerchantConfig.getSafeValue(dbModelMerchantConfig, "ScMid") else product.AcqMid
+		val tid = if (tpa) DbModelMerchantConfig.getSafeValue(dbModelMerchantConfig, "ScTid") else product.AcqTid
+		val fields = linkedMapOf(
+			"ResponseCode" to "00",
+			"ResponseDescription" to "Settled",
+			"TransactionType" to txnType.toString(),
+			"SettlementAmount" to "0.00",
+			"SettlementCount" to "0",
+			"SettlementSaleAmount" to "0.00",
+			"SettlementSaleCount" to "0",
+			"SettlementVoidAmount" to "0.00",
+			"SettlementVoidCount" to "0",
+			"SettlementMID" to (mid ?: ""),
+			"SettlementTID" to (tid ?: ""),
+			"SettlementSTN" to "",
+			"SettlementRRN" to "",
+			"SettlementBatchNo" to batchNo,
+			"SettlementDateTime" to SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH).format(Date()),
+		)
+		txnMap = HashMap<String, String?>(fields)
+		val jsonObject = JSONObject()
+		fields.forEach { (k, v) -> jsonObject.put(k, v) }
+		helperLog.appendLine(helperLogClassName, "Settlement outcome :: ResponseCode :: [00] Settled (empty, not sent to host) mid=${product.AcqMid} tid=${product.AcqTid}")
+		txnMapList.add(txnMap)
+		jsonArray.put(jsonObject)
+	}
 
 	@RequiresApi(Build.VERSION_CODES.O)
 	private fun settlementDetails(txnTotal: String, txnCount: String, voidTxnTotal: String, voidTxnCount: String, result: Boolean, iResp: Int){

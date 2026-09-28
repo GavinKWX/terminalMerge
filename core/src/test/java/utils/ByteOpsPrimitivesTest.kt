@@ -134,16 +134,9 @@ class ByteOpsPrimitivesTest {
 	}
 
 	@Test
-	fun `String2ArrayString throws when the input has no newline`() {
-		// Found by writing this test, not by reading the code. With no newline the index array
-		// is empty and the j==0 branch still dereferences loc[0]. Every caller today happens to
-		// pass multi-line text, so it has never fired -- pinned here so a new caller learns it
-		// from a red test rather than from a crash on a terminal.
-		try {
-			ByteOps.String2ArrayString("abc")
-			throw AssertionError("expected an ArrayIndexOutOfBoundsException")
-		} catch (expected: ArrayIndexOutOfBoundsException) {
-			// documented behaviour, not a wish
-		}
+	fun `String2ArrayString with no newline returns the whole input as one line`() {
+		// Used to throw ArrayIndexOutOfBoundsException on loc[0] (item 93).
+		assertArrayEquals(arrayOf("abc"), ByteOps.String2ArrayString("abc"))
+		assertArrayEquals(arrayOf(""), ByteOps.String2ArrayString(""))
 	}
 }

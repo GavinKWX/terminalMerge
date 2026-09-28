@@ -37,14 +37,9 @@ object WebSocketClientSingleton {
 
     private val sendQueue = ConcurrentLinkedQueue<String>()
 
-    /*
-     * Duplicate suppression state. @Volatile because it is written on the socket's own thread and
-     * cleared from an IO coroutine.
-     */
     private const val DEDUP_WINDOW_MS = 3000L
 
-    @Volatile
-    private var lastMessage = ""
+    private val dedup = PushDedup(DEDUP_WINDOW_MS) { SystemClock.elapsedRealtime() }
 
     /** Bounded form of a message for a log line -- these are commands, not card data. */
     private fun brief(message: String): String =
@@ -167,16 +162,11 @@ object WebSocketClientSingleton {
                 // an empty list. So a repeat inside the window is dropped, but it is LOGGED:
                 // a silent drop is indistinguishable from a message that never arrived when
                 // reading a terminal log after the fact.
-                if (message == lastMessage) {
+                if (dedup.isDuplicate(message)) {
                     logWs("Duplicate ignored (within ${DEDUP_WINDOW_MS}ms) :: ${brief(message)}")
                     return
                 }
                 println("Received :: $message")
-                lastMessage = message
-                CoroutineScope(Dispatchers.IO).launch {
-                    delay(DEDUP_WINDOW_MS)
-                    lastMessage = ""
-                }
 
                 var returnMessage = message
                 var jsonObject: JsonObject? = null

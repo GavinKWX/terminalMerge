@@ -73,6 +73,7 @@ import helpers.HelperCommon
 import helpers.HelperCommon.Companion.getSession
 import helpers.HelperLog
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.apache.commons.lang3.StringUtils
@@ -755,9 +756,12 @@ abstract class BaseFragment : Fragment() {
         mainReceipt.addView(footer)
     }
 
+    // A malformed receipt row must fail the print, not kill the app from a background coroutine (item 95).
+    private val printCrashGuard = CoroutineExceptionHandler { _, e -> e.printStackTrace() }
+
     fun printReceipt(receipt: ScrollView?, details: Array<String>, whoseCopy: String, specialArg: Bundle) {
         val isTpa = specialArg.getBoolean("isTpa", false)
-        CoroutineScope(Dispatchers.Default).launch {
+        CoroutineScope(Dispatchers.Default + printCrashGuard).launch {
             var acqLogoEnumModel = AcquirerLogoEnumModel(
                 R.mipmap.blank,
                 "image/logo_footer_small.bmp",
@@ -1358,7 +1362,7 @@ abstract class BaseFragment : Fragment() {
         val acqCode = specialArg.getString("acqCode", "")
         val isTpa = specialArg.getBoolean("isTpa", false)
         val isUnionPayTxn = specialArg.getBoolean("isUnionPayTxn", false)
-        CoroutineScope(Dispatchers.Default).launch {
+        CoroutineScope(Dispatchers.Default + printCrashGuard).launch {
             var acqLogoEnumModel = AcquirerLogoEnumModel(
                 R.mipmap.blank,
                 "image/logo_footer_small.bmp",

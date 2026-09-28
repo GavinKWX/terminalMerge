@@ -448,38 +448,16 @@ public class Utils extends AppCompatActivity {
 
     public static int[] findCharWithLoc(String data, char value) { return utils.ByteOps.findCharWithLoc(data, value); }
 
-    // Still a stub: the real digest below is commented out and every call returns "123".
-    // Its only caller is getChecksum, on the dormant downloadApk path. See the audit doc.
-    public static String hashData(String input, String hash) {
-        try {
-            MessageDigest md = MessageDigest.getInstance(hash);
-            //byte[] messageDigest = md.digest(HexUtil.hexStringToByte(input));
-            //return HexUtil.bytesToHexString(messageDigest);
-            return "123";
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    public static String hashData(String input, String hash) { return crypto.DataHash.hashHex(input, hash); }
 
+    // Streamed MD5 of the APK; the old path hashed an always-empty string (item 93).
     private static String getChecksum(String appPaths) {
-        String value = readFileInByteFromPath(appPaths);
-        return (hashData(value, "MD5"));
-    }
-
-    protected static String readFileInByteFromPath(String filename) {
-        File file = new File(filename);
-        String value = "";
-        byte[] bytesArray = new byte[(int) file.length()];
-        FileInputStream fis = null;
         try {
-            fis = new FileInputStream(file);
-            int a = fis.read(bytesArray); //read file into bytes[]
-            fis.close();
-            //value = HexUtil.bytesToHexString(bytesArray);
-        } catch (Exception e) {
+            return crypto.DataHash.hashFile(appPaths, "MD5");
+        } catch (IOException e) {
             e.printStackTrace();
+            return "";
         }
-        return value;
     }
 
     public static void write2File(String[] arr1, String filename) { utils.FileOps.write2File(arr1, filename); }

@@ -182,16 +182,61 @@ class FileOpsTest {
 	}
 
 	@Test
-	fun `cpAssetFile does nothing when the line counts already match`() {
-		// changeInFile compares line COUNTS, not content. Two files of equal length are treated
-		// as in step, so a changed value in an asset never re-seeds. Documented, not fixed --
-		// changing it would rewrite provisioned config on the next update.
+	fun `cpAssetFile never overwrites a provisioned value`() {
 		FileOps.writeToFile("TID=12345678", "termInfo.txt")
 		fake.assets["termInfo.txt"] = "TID=00000000\n"
 
 		FileOps.cpAssetFile("termInfo.txt")
 
 		assertArrayEquals(arrayOf("TID=12345678"), FileOps.readFromFile("termInfo.txt"))
+	}
+
+	@Test
+	fun `cpAssetFile adds a new key even when the line counts match`() {
+		// The old gate compared line counts, so this new key never arrived (item 93).
+		FileOps.writeToFile("TID=12345678", "termInfo.txt")
+		FileOps.writeToFile("OLDKEY=1", "termInfo.txt")
+		fake.assets["termInfo.txt"] = "TID=00000000\nNEWKEY=7\n"
+
+		FileOps.cpAssetFile("termInfo.txt")
+
+		assertArrayEquals(
+			arrayOf("TID=12345678", "OLDKEY=1", "NEWKEY=7"),
+			FileOps.readFromFile("termInfo.txt"),
+		)
+	}
+
+	@Test
+	fun `cpAssetFile matches whole keys, not prefixes`() {
+		// TIDX used to count as TID being present.
+		FileOps.writeToFile("TIDX=1", "termInfo.txt")
+		fake.assets["termInfo.txt"] = "TID=00000000\n"
+
+		FileOps.cpAssetFile("termInfo.txt")
+
+		assertArrayEquals(arrayOf("TIDX=1", "TID=00000000"), FileOps.readFromFile("termInfo.txt"))
+	}
+
+	@Test
+	fun `cpAssetFile skips a line with no key and still merges the rest`() {
+		// A keyless line used to throw on substring(0, -1) and end the merge.
+		FileOps.writeToFile("TID=12345678", "termInfo.txt")
+		fake.assets["termInfo.txt"] = "TID=00000000\n# comment\nNEWKEY=7\n"
+
+		FileOps.cpAssetFile("termInfo.txt")
+
+		assertArrayEquals(arrayOf("TID=12345678", "NEWKEY=7"), FileOps.readFromFile("termInfo.txt"))
+	}
+
+	@Test
+	fun `cpAssetFile is a no-op when every asset key is already present`() {
+		FileOps.writeToFile("MID=1", "termInfo.txt")
+		FileOps.writeToFile("TID=12345678", "termInfo.txt")
+		fake.assets["termInfo.txt"] = "TID=00000000\n"
+
+		FileOps.cpAssetFile("termInfo.txt")
+
+		assertArrayEquals(arrayOf("MID=1", "TID=12345678"), FileOps.readFromFile("termInfo.txt"))
 	}
 
 	@Test

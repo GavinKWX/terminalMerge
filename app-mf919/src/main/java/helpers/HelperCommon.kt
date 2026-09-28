@@ -35,6 +35,9 @@ import java.text.DateFormat
 import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
 
@@ -132,28 +135,46 @@ class HelperCommon {
 			tempContext.sendBroadcast(intent)
 		}
 
+		// Only the worker waits, so this can cover a long history printout without blocking anyone.
+		private const val PRINT_TIMEOUT_SECONDS = 60L
+
+		// One worker: jobs print in call order and never overlap on the printer.
+		private val printQueue = Executors.newSingleThreadExecutor { r ->
+			Thread(r, "sdkPrint").apply { isDaemon = true }
+		}
+
+		/**
+		 * The one MF919 print path (item 94). Queues the job and returns at once, from any thread;
+		 * the worker waits for `onPrintResult` (60 s cap) before starting the next job.
+		 */
+		@JvmStatic
 		fun sdkPrint(list: List<MulPrintStrEntity?>?) {
+			val job = list?.let { ArrayList(it) }
+			printQueue.execute { printBlocking(job) }
+		}
+
+		private fun printBlocking(list: List<MulPrintStrEntity?>?) {
 			try {
-				//int fontSize = FontFamily.MIDDLE;
 				val config = Bundle()
-				//config.putString(PrinterConfig.COMMON_TYPEFACE_PATH, fontPath);
 				config.putInt(PrinterConfig.COMMON_GRAYLEVEL, 30)
+				val printDone = CountDownLatch(1)
 				DeviceHelper.getPrinter().printStr(list, object : OnPrintListener.Stub() {
 					@Throws(RemoteException::class)
 					override fun onPrintResult(result: Int) {
-						/*this.runOnUiThread(new Runnable()
-                    {
-                        @Override
-                        public void run()
-                        {
-                            //button.setEnabled(true);
-                        }
-                    });*/
-						//showResult(textView, result == ServiceResult.Success ? getString(R.string.msg_succ) : getString(R.string.msg_fail));
-						//this.sysPrint(result == ServiceResult.Success ? getString(R.string.msg_succ) : getString(R.string.msg_fail));
+						println("onPrintResult :: $result")
+						printDone.countDown()
 					}
 				}, config)
+				if (!printDone.await(PRINT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+					println("sdkPrint :: timed out after $PRINT_TIMEOUT_SECONDS s waiting for onPrintResult")
+				}
 			} catch (e: RemoteException) {
+				e.printStackTrace()
+			} catch (e: InterruptedException) {
+				// Not re-set: a stuck flag on the reused worker would skip the wait for every later job.
+				e.printStackTrace()
+			} catch (e: Exception) {
+				// A printer fault must not kill the print worker.
 				e.printStackTrace()
 			}
 		}

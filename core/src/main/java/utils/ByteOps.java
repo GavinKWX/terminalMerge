@@ -341,6 +341,8 @@ public class ByteOps {
 
     public static String[] String2ArrayString(String value) {
         int[] loc = findCharWithLoc(value, '\n');
+        // No newline: one line. This used to throw on loc[0] (item 93).
+        if (loc.length == 0) return new String[]{value};
         String[] array = new String[loc.length + 1];
         for (int j = 0; j < loc.length + 1; j++) {
             if (j == 0) {

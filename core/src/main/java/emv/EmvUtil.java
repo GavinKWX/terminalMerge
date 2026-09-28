@@ -176,6 +176,7 @@ public class EmvUtil {
         bundle.putBoolean(EmvTransDataConstrants.EMV_TRANS_ENABLE_CONTACTLESS, isEnableContactless);
 
         ArrayList<String> tlvList = StringUtils.createArrayList("DF81180160", "DF81190108", "DF811B01B0");
+        System.out.println("Core Util :: " + CurrentEmvHost.INSTANCE.isOptIn());
         if(CurrentEmvHost.INSTANCE.isOptIn()){
             bundle.putBoolean(EmvTransDataConstrants.SELECT_APP_RETURN_AID, true);
             tlvList.add("DF7F05A000000615");

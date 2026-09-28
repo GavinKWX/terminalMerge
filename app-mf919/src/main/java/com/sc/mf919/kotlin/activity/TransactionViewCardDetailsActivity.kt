@@ -38,6 +38,7 @@ import helpers.HelperCommon
 import helpers.HelperLog
 import helpers.HelperCommon.Db.Companion.setDebouncedOnClickListener
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -741,7 +742,8 @@ class TransactionViewCardDetailsActivity : ActivityBase() {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun printReceipt() = CoroutineScope(Dispatchers.Main).launch{
+    // A missing or malformed receipt row fails the print instead of crashing the app (item 95).
+    fun printReceipt() = CoroutineScope(Dispatchers.Main + CoroutineExceptionHandler { _, e -> e.printStackTrace() }).launch{
         print_receipt()
     }
 
