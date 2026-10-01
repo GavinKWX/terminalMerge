@@ -27,6 +27,9 @@ object Mf919TransactionStore : TransactionStore {
 		IsoBatchInfoRepo.insertToBatchInfo(context, DbModelIsoBatchInfo(tag, subtag, value))
 	}
 
+	override fun updateBatchInfo(context: Context, value: String, tag: String, subtag: String): Boolean =
+		IsoBatchInfoRepo.updateBatchInfo(context, value, tag, subtag)
+
 	override fun acquirerProduct(context: Context, mid: String, tid: String): AcquirerProduct? =
 		ProductListRepo.getSingle(context, listOf("AcqMid", "AcqTid"), arrayOf(mid, tid))?.let {
 			AcquirerProduct(

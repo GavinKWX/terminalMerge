@@ -144,6 +144,8 @@ public class MF919 extends Application {
         ecr.CurrentNewIntegrationHost.register(com.sc.mf919pro.kotlin.helper_common.ProNewIntegrationHost.INSTANCE);
         // The receipt reconciler lives in :core; this is the repo side it reads and writes through.
         tms.CurrentReceiptStore.register(com.sc.mf919pro.kotlin.helper_common.ProReceiptStore.INSTANCE);
+        // The DeviceInfo poll (tms.Tms) lives in :core; this is its config and download side (item 107).
+        tms.CurrentTmsHost.register(com.sc.mf919pro.kotlin.helper_common.ProTmsHost.INSTANCE);
 
         // The ISO forming code in :core reads the in-flight transaction through this seam.
         // TransData stays per app -- each fleet carries its own extra fields.

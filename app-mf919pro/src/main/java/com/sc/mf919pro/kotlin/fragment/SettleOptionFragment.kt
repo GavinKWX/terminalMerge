@@ -49,7 +49,7 @@ import com.sc.mf919pro.kotlin.database.repo.ProductListRepo
 import com.sc.mf919pro.kotlin.database.repo.ReversalBatchTableRepo
 import com.sc.mf919pro.kotlin.database.repo.SettlementSummaryRepo
 import com.sc.mf919pro.kotlin.database.repo.TransactionQrRepo
-import com.sc.mf919pro.kotlin.helper_common.CoroutineTask
+import helpers.CoroutineTask
 import com.sc.mf919pro.kotlin.helper_common.HTTPServer
 import com.sc.mf919pro.kotlin.helper_common.Helper
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
@@ -135,6 +135,8 @@ class SettleOptionFragment : BaseFragment() {
     }
     override fun onDestroyView() {
         super.onDestroyView()
+        // The PIN dialog belongs to the activity, so it would otherwise stay over the next screen.
+        alertDialog1?.dismiss()
         _binding = null
         // Final boundary for this screen. Everything appended since the last flush is only
         // in the buffer until now, and a fragment can be torn down at any point (back-press,
@@ -202,8 +204,9 @@ class SettleOptionFragment : BaseFragment() {
         if (DbModelTerminalConfig.getBooleanValue(terminalConfig, "SETTLEMENT_WITH_PIN")) {
             helperLog.appendLine(helperLogClassName, "SETTLEMENT_WITH_PIN is true")
             pinDialog("") { canceled ->
+                if (view == null) return@pinDialog
                 if (canceled) {
-                    customOnBackPress()
+                    replySettlementPinCancelled()
                 } else {
                     lifecycleScope.launch {
                         renderDynamicProduct()
@@ -1554,6 +1557,31 @@ class SettleOptionFragment : BaseFragment() {
 
             val dbModelTerminalConfig = ServiceHolder.getTerminalConfig()
             navigateToHome(dbModelTerminalConfig)
+        }
+    }
+
+    /**
+     * PIN cancelled: answer USER_CANCELLED. customOnBackPress would send "00 Settlement" with an
+     * empty detail, which reads as a successful settlement (item 113).
+     */
+    private fun replySettlementPinCancelled() {
+        helperLog.appendLine(helperLogClassName, "User Cancel :: settlement PIN abandoned")
+        helperLog.logToFile(EnumLogFileName.TerminaLog)
+        if (ServiceHolder.appIntent) {
+            ServiceHolder.appIntent = false
+            txnMapList.add(hashMapOf(
+                "ResponseCode" to enums.EnumResponseCode.USER_CANCELLED.code,
+                "ResponseDescription" to enums.EnumResponseCode.USER_CANCELLED.description))
+            onBackToApp()
+        } else {
+            if (ServiceHolder.appHTTP) {
+                val reply = JsonObject()
+                reply.addProperty("ResponseCode", enums.EnumResponseCode.USER_CANCELLED.code)
+                reply.addProperty("ResponseDescription", enums.EnumResponseCode.USER_CANCELLED.description)
+                HTTPServer.getInstance().setResponseMessage(reply.toString())
+                ServiceHolder.appHTTP = false
+            }
+            navigateToHome(ServiceHolder.getTerminalConfig())
         }
     }
 

@@ -129,8 +129,9 @@ class HttpNewIntegration(
                     resultObject.addProperty("ResponseDescription", desc)
                     resultObject.addProperty("TransactionLabel", receipt.TXN_TYPE)
                     resultObject.addProperty("TransactionAmount", AmountFormat.getActualAmount(receipt.TXN_AMT!!))
-                    resultObject.addProperty("TransactionMID", receipt.MID)
-                    resultObject.addProperty("TransactionTID", receipt.TID)
+                    val tpa = host.tpaMidTid(receipt.MID, receipt.TID)
+                    resultObject.addProperty("TransactionMID", tpa?.first ?: receipt.MID)
+                    resultObject.addProperty("TransactionTID", tpa?.second ?: receipt.TID)
                     resultObject.addProperty("TransactionSTN", receipt.STAN)
                     resultObject.addProperty("TransactionRRN", receipt.RRN)
                     resultObject.addProperty("TransactionBatchNo", receipt.BATCH_NO)
@@ -230,7 +231,7 @@ class HttpNewIntegration(
             "CARD" -> {
                 host.activeProduct(Products.CARD_SETTINGS)?.let { row ->
                     host.setSaleModel(row, txnAmount, Products.SALES_TYPE_CARD)
-                    http.navigate(Destination.CARD_SALE,
+                    go(resultObject, Destination.CARD_SALE,
                         mapOf("posReference" to posReference, "orderingItem" to orderingItem, "orderingItemImage" to orderingItemImage))
                 } ?: productNotConfigured(resultObject)
             }
@@ -245,7 +246,7 @@ class HttpNewIntegration(
 
                 host.activeProduct(Products.EWALLET_MERCHANT_SCANS)?.let { row ->
                     host.setSaleModel(row, txnAmount, Products.SALES_TYPE_EWALLET_SCAN)
-                    http.navigate(Destination.SCAN_QR,
+                    go(resultObject, Destination.SCAN_QR,
                         mapOf("posReference" to posReference, "cameraFacing" to cameraFacing, "orderingItem" to orderingItem, "orderingItemImage" to orderingItemImage))
                 } ?: productNotConfigured(resultObject)
             }
@@ -262,13 +263,13 @@ class HttpNewIntegration(
 
                 host.activeProduct(Products.GENERATE_QR, paymentCode)?.let { row ->
                     host.setSaleModel(row, txnAmount, Products.SALES_TYPE_GENERATE_QR)
-                    http.navigate(Destination.GENERATE_QR,
+                    go(resultObject, Destination.GENERATE_QR,
                         mapOf("posReference" to posReference, "orderingItem" to orderingItem, "orderingItemImage" to orderingItemImage))
                 } ?: productNotConfigured(resultObject)
             }
             "EPP" -> {
                 if (host.hasEppAcquirer()) {
-                    http.navigate(Destination.EPP_ACQUIRER,
+                    go(resultObject, Destination.EPP_ACQUIRER,
                         mapOf("txnAmt" to txnAmount, "posReference" to posReference, "orderingItem" to orderingItem, "orderingItemImage" to orderingItemImage))
                 } else {
                     productNotConfigured(resultObject)
@@ -310,7 +311,7 @@ class HttpNewIntegration(
                     }
 
                     row?.let {
-                        http.navigate(Destination.KEYPAD_MOTO,
+                        go(resultObject, Destination.KEYPAD_MOTO,
                             mapOf(
                                 "txnAmt" to txnAmount,
                                 "cardNumber" to cardNumber,
@@ -362,7 +363,7 @@ class HttpNewIntegration(
             "CARD", "EPP" -> {
                 host.activeProduct(Products.CARD_SETTINGS)?.let { row ->
                     host.setSaleModel(row, null, Products.SALES_TYPE_CARD)
-                    http.navigate(Destination.VOID_SALE,
+                    go(resultObject, Destination.VOID_SALE,
                         mapOf("Invoice" to txnInvoice, "forceVoid" to forceVoid, "posReference" to posReference))
                 } ?: productNotConfigured(resultObject)
             }
@@ -370,7 +371,7 @@ class HttpNewIntegration(
                 val scan = host.activeProduct(Products.EWALLET_MERCHANT_SCANS)
                 val genQr = host.activeProduct(Products.GENERATE_QR)
                 if (scan != null || genQr != null) {
-                    http.navigate(Destination.VOID_QR,
+                    go(resultObject, Destination.VOID_QR,
                         mapOf("Invoice" to txnInvoice, "forceVoid" to forceVoid, "posReference" to posReference))
                 } else {
                     productNotConfigured(resultObject)
@@ -399,7 +400,7 @@ class HttpNewIntegration(
             invalidSettlementType(resultObject)
         }
 
-        http.navigate(Destination.SETTLE_OPTION, mapOf("settlementType" to settlementType))
+        go(resultObject, Destination.SETTLE_OPTION, mapOf("settlementType" to settlementType))
     }
 
     private fun preAuth(requestJson: JsonObject, resultObject: JsonObject, posReference: String?, orderingItem: String?, orderingItemImage: String?) {
@@ -417,6 +418,8 @@ class HttpNewIntegration(
         }
 
         val preAuthType: String = requestJson.get("PreAuthType").asString
+        // ForceVoid skips the screen's confirmation dialog, as for a sale void (item 111).
+        val forceVoid = if (requestJson.has("ForceVoid")) requestJson.get("ForceVoid").asInt else 0
         when (preAuthType.trim().uppercase()) {
             "PREAUTH", "PREAUTHCOMPLETE" -> {
                 if (!host.configFlag("SALES_CARD")) {
@@ -434,7 +437,7 @@ class HttpNewIntegration(
 
                 when (preAuthType.trim().uppercase()) {
                     "PREAUTH" -> {
-                        http.navigate(Destination.PREAUTH,
+                        go(resultObject, Destination.PREAUTH,
                             mapOf("posReference" to posReference, "orderingItem" to orderingItem, "orderingItemImage" to orderingItemImage))
                     }
                     "PREAUTHCOMPLETE" -> {
@@ -451,11 +454,12 @@ class HttpNewIntegration(
                             sendInvalidParameterResponse("TransactionInvoice")
                         }
 
-                        http.navigate(Destination.SALE_COMPLETION,
+                        go(resultObject, Destination.SALE_COMPLETION,
                             mapOf(
                                 "apprCode" to requestJson.get("TransactionApprovalCode").asString,
                                 "rrn" to requestJson.get("TransactionRRN").asString,
                                 "invNo" to requestJson.get("TransactionInvoice").asString,
+                                "forceVoid" to forceVoid,
                                 "posReference" to posReference,
                                 "orderingItem" to orderingItem,
                                 "orderingItemImage" to orderingItemImage
@@ -472,14 +476,27 @@ class HttpNewIntegration(
                 host.setSaleModel(row, null, Products.SALES_TYPE_PREAUTH)
 
                 when (preAuthType.trim().uppercase()) {
-                    "VOIDPREAUTH" -> http.navigate(Destination.VOID_PREAUTH,
-                        mapOf("Invoice" to txnInvoice, "posReference" to posReference))
-                    "VOIDPREAUTHCOMPLETE" -> http.navigate(Destination.VOID_SALE_COMPLETION,
-                        mapOf("Invoice" to txnInvoice, "posReference" to posReference))
+                    "VOIDPREAUTH" -> go(resultObject, Destination.VOID_PREAUTH,
+                        mapOf("Invoice" to txnInvoice, "forceVoid" to forceVoid, "posReference" to posReference))
+                    "VOIDPREAUTHCOMPLETE" -> go(resultObject, Destination.VOID_SALE_COMPLETION,
+                        mapOf("Invoice" to txnInvoice, "forceVoid" to forceVoid, "posReference" to posReference))
                 }
             }
             else -> sendInvalidParameterResponse("PreAuthType")
         }
+    }
+
+    /** Opens [destination] unless the app gates it (MF919's own config flags); Pro has no gate. */
+    private fun go(resultObject: JsonObject, destination: Destination, args: Map<String, Any?>) {
+        host.gate(destination)?.let { code ->
+            // No throw: MOTO opens its screen inside a try that would turn it into a second reply.
+            resultObject.addProperty("ResponseCode", code.code)
+            resultObject.addProperty("ResponseDescription", code.description)
+            http.reply(resultObject.toString())
+            http.setAppHttp(false)
+            return
+        }
+        http.navigate(destination, args)
     }
 
     private fun productNotConfigured(resultObject: JsonObject) {

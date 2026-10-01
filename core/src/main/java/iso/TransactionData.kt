@@ -86,6 +86,9 @@ interface TransactionData {
 	/** @param formatType 16 = hex string, 256 = ascii. */
 	fun getFromTransactionDb(tag: String, formatType: Int): String
 	fun removeTlvFromTransDb(tag: String)
+
+	/** The live transaction session; it changes on every `reset()`. Used by `helpers.CoroutineTask` (item 105). */
+	fun currentSessionId(): Long
 }
 
 /**
@@ -112,6 +115,8 @@ object CurrentTxn : TransactionData {
 
 	private val txn: TransactionData
 		get() = backing ?: error("CurrentTxn used before register() -- wire it in Application.onCreate")
+
+	override fun currentSessionId(): Long = txn.currentSessionId()
 
 	override var acqCode: String
 		get() = txn.acqCode

@@ -62,7 +62,7 @@ import com.sc.mf919pro.kotlin.data_enum.variables.TransDataViewModel
 import com.sc.mf919pro.kotlin.database.model.DbModelMerchantConfig
 import com.sc.mf919pro.kotlin.database.model.DbModelMerchantConfig.Companion.getSafeValue
 import com.sc.mf919pro.kotlin.database.model.DbModelTerminalConfig
-import com.sc.mf919pro.kotlin.helper_common.CoroutineTask
+import helpers.CoroutineTask
 import com.sc.mf919pro.kotlin.helper_common.Helper
 import com.sc.mf919pro.kotlin.helper_common.Helper.Companion.getInstance
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
@@ -76,6 +76,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.apache.commons.lang3.StringUtils
 import tms.models.AcquirerLogoReplaceObject
 import java.io.File
@@ -194,8 +195,11 @@ abstract class BaseFragment : Fragment() {
                         CoroutineScope(Dispatchers.IO).launch {
                             val dialogResult = VoidSaleTask().executeAwaitResult(terminalPIN, type).await()
                             if(dialogResult == true){
-                                alertDialog1?.dismiss()
-                                onCancel(false)
+                                // On Main: the callback touches the fragment's view (item 115 L1).
+                                withContext(Dispatchers.Main) {
+                                    alertDialog1?.dismiss()
+                                    onCancel(false)
+                                }
                             }
                         }
                     }
@@ -214,8 +218,10 @@ abstract class BaseFragment : Fragment() {
                 CoroutineScope(Dispatchers.IO).launch {
                     val dialogResult = VoidSaleTask().executeAwaitResult(terminalPIN, type).await()
                     if(dialogResult == true){
-                        alertDialog1?.dismiss()
-                        onCancel(false)
+                        withContext(Dispatchers.Main) {
+                            alertDialog1?.dismiss()
+                            onCancel(false)
+                        }
                     }
                 }
             }

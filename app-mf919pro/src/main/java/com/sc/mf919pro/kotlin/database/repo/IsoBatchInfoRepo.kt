@@ -5,7 +5,7 @@ import com.sc.mf919pro.java.activity.Utils
 import com.sc.mf919pro.kotlin.database.infrastructure.DatabaseTables
 import database.DbHandler
 import com.sc.mf919pro.kotlin.database.model.DbModelIsoBatchInfo
-import com.sc.mf919pro.kotlin.helper_common.CounterGuard
+import iso.CounterGuard
 
 class IsoBatchInfoRepo(){
     companion object{

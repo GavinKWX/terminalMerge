@@ -50,6 +50,9 @@ interface TransactionStore {
 	/** Insert a batch-info row. Used for the install token (`installAppVer`/`pos`, item 86). */
 	fun storeBatchInfo(context: Context, tag: String, subtag: String, value: String)
 
+	/** Update an existing batch-info row. Used by [CounterGuard] to restore a rewound counter (item 104). */
+	fun updateBatchInfo(context: Context, value: String, tag: String, subtag: String): Boolean
+
 	// ---- acquirer product ----------------------------------------------------------------
 
 	/** The product row for this MID/TID pair, or null when there is none. */
@@ -109,6 +112,9 @@ object CurrentStore : TransactionStore {
 
 	override fun storeBatchInfo(context: Context, tag: String, subtag: String, value: String) =
 		store.storeBatchInfo(context, tag, subtag, value)
+
+	override fun updateBatchInfo(context: Context, value: String, tag: String, subtag: String): Boolean =
+		store.updateBatchInfo(context, value, tag, subtag)
 
 	override fun acquirerProduct(context: Context, mid: String, tid: String): AcquirerProduct? =
 		store.acquirerProduct(context, mid, tid)

@@ -158,6 +158,8 @@ object TransData : TransactionData {
     @JvmStatic
     fun isCurrentSession(id: Long): Boolean = id == sessionIdHolder.get()
 
+    override fun currentSessionId(): Long = sessionIdHolder.get()
+
     /**
      * Fix E Stage A — the single checked write point for background/long-running flows.
      *

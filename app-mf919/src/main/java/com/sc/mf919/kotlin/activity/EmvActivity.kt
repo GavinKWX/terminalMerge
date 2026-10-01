@@ -44,6 +44,7 @@ import com.sc.mf919.java.activity.Utils
 import com.sc.mf919.java.device.DeviceHelper
 import utils.CardUtil
 import emv.EmvUtil
+import data_enum.CardSchemeEnum
 import utils.HexUtil
 import utils.TlvData
 import utils.TlvDataList
@@ -1093,8 +1094,14 @@ open class EmvActivity: ActivityBase() {
 
         var appLabel = EmvUtil.getPbocData("50", true) ?: ""
         if(appLabel.isEmpty()) {
-            tempHelperLog.appendLine(logClassName, "appLabel is empty take label from schemeType")
-            appLabel = Utils.ASCIItoHexString(TransData.schemeType)
+            tempHelperLog.appendLine(logClassName, "EMV Tag 50 is empty, take label from card BIN")
+            val cardBrand = CardSchemeEnum.detect(EmvUtil.readPan() ?: "")
+            appLabel = if (cardBrand != CardSchemeEnum.UNKNOWN) {
+                Utils.ASCIItoHexString(cardBrand.name.replace("_", " "))
+            } else {
+                tempHelperLog.appendLine(logClassName, "card BIN unrecognised, take label from schemeType")
+                Utils.ASCIItoHexString(TransData.schemeType)
+            }
         }
         if(TransData.aid.contains("A000000615",true)) {
             appLabel = Utils.ASCIItoHexString("MYDEBIT")

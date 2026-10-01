@@ -28,7 +28,7 @@ import com.morefun.yapi.device.printer.PrinterConfig
 import com.sc.mf919.R
 import com.sc.mf919.java.activity.Utils
 import com.sc.mf919.java.device.DeviceHelper
-import com.sc.mf919.kotlin.helper_common.CoroutineTask
+import helpers.CoroutineTask
 import com.sc.mf919.kotlin.helper_common.TmsHelper.checkIsConnectedWifi
 import com.sc.mf919.kotlin.helper_common.TmsHelper.checkTerminalPIN
 import enums.EnumLogFileName

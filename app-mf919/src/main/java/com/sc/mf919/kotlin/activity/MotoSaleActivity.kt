@@ -24,6 +24,7 @@ import com.sc.mf919.kotlin.data_enum.SaleModelNew
 import com.sc.mf919.kotlin.database.model.DbModelProductList
 import com.sc.mf919.kotlin.database.model.DbModelTerminalConfig
 import com.sc.mf919.kotlin.helper_common.*
+import helpers.CoroutineTask
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.isoComm
 import data_enum.SalesModel
 import com.sc.mf919.kotlin.data_enum.variables.TransData

@@ -380,6 +380,9 @@ class VoidSaleActivity : BaseActivity() {
 			TransData.entryModeLabel = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
 			TransData.cvm = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM, 16)
 			TransData.aid = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_AID, 16)
+			val byteAppLabel = HexUtil.hexStringToByte(TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_APPLABEL, 16))
+			byteAppLabel.copyInto(TransData.appLabel, 0)
+			TransData.appLabelLen = byteAppLabel.size
 
 			//TODO for transaction before revamp version
 			if(TransData.aid == "" && TransData.cvm == "") {

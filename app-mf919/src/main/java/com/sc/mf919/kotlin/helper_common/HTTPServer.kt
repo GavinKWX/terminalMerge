@@ -15,6 +15,11 @@ import android.widget.Toast
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import ecr.Destination
+import ecr.HttpNewIntegration
+import ecr.HttpSurface
+import ecr.TxnKeys
+import helpers.IntegrationMode
 import com.google.gson.JsonParser
 import com.google.gson.JsonSyntaxException
 import com.library.terminal.Utility
@@ -855,12 +860,68 @@ object HTTPServer: NanoHTTPD(8888) {
 
     //TODO RS232
     /**
-     * ECR entry point. MF919 speaks only its own protocol, so this forwards straight to
-     * [oldIntegrationType] -- the same name Pro gives the handler for this protocol, so the
-     * two can be compared directly. A new-integration branch would go here.
+     * ECR entry point. MF919's own protocol ([oldIntegrationType]) unless the request opts in with
+     * `IsNewIntegration: true`, which runs the shared new-integration handler (audit item 98,
+     * phase 3). The flag is read by value; MF919 never guesses the mode from the amount format.
      */
     private fun checkTransactionType(requestJson: JsonObject) {
-        oldIntegrationType(requestJson)
+        val flagOf = { key: String ->
+            IntegrationMode.flagIsTrue(requestJson.get(key)?.takeIf { it.isJsonPrimitive }?.asString)
+        }
+        val isNew = flagOf(TxnKeys.NEW_INTEGRATION)
+        val isOld = flagOf(TxnKeys.OLD_INTEGRATION)
+        Mf919NewIntegrationHost.begin(isNew && !isOld)
+        when {
+            isNew && isOld -> {
+                val resultObject = requestJson.deepCopy()
+                resultObject.addProperty("ResponseCode", "SHC001")
+                resultObject.addProperty("ResponseDescription", "Invalid Parameter - (IsNewIntegration)")
+                setResponseMessage(resultObject.toString())
+            }
+            isNew -> HttpNewIntegration(Mf919NewIntegrationHost, Mf919HttpSurface).handle(requestJson)
+            else -> oldIntegrationType(requestJson)
+        }
+    }
+
+    /** MF919's HTTP half of the new-integration seam: the reply, toasts, screen wake and screens. */
+    private object Mf919HttpSurface : HttpSurface {
+        private val handler = Handler(Looper.getMainLooper())
+
+        override fun setAppHttp(on: Boolean) {
+            ServiceHolder.appHTTP = on
+        }
+
+        override fun setTxnType(txnType: Int) {
+            ServiceHolder.txnType = txnType
+        }
+
+        override fun setAckCountdown(seconds: Int) {
+            ServiceHolder.ackCountDownSecond = seconds
+        }
+
+        override fun wakeScreen() = HTTPServer.wakeScreen()
+
+        override fun toast(message: String) {
+            handler.post {
+                Toast.makeText(ServiceHolder.getContext(), message, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // The handler replies here only when it answers straight away (no screen). Clear appHTTP:
+        // on MF919 a stale true makes a settlement screen opened later settle on its own (item 101).
+        override fun reply(json: String) {
+            // Cleared first: on cable/WS setResponseMessage frees the in-flight slot on this thread, and
+            // a request admitted in that window must not have its appHTTP cleared after it (item 106).
+            ServiceHolder.appHTTP = false
+            setResponseMessage(json)
+        }
+
+        override fun hasReply() = responseMsg != null
+
+        override fun defaultError() = HTTPServer.defaultError("", 1)
+
+        override fun navigate(destination: Destination, args: Map<String, Any?>) =
+            Mf919NewIntegrationHost.launch(destination, args, finishAttend = true)
     }
 
     private fun oldIntegrationType(requestJson: JsonObject){
@@ -1255,6 +1316,8 @@ object HTTPServer: NanoHTTPD(8888) {
                     intent.putExtra("apprCode", requestJson.get("TransactionApprovalCode").asString)
                     intent.putExtra("rrn", requestJson.get("TransactionRRN").asString)
                     intent.putExtra("invNo", requestJson.get("TransactionInvoice").asString)
+                    // ForceVoid skips the screen's confirmation dialog (item 111).
+                    intent.putExtra("forceVoid", if (requestJson.has("ForceVoid")) requestJson.get("ForceVoid").asInt else 0)
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
                     ServiceHolder.getContext().startActivity(intent)
                     attendActivityContext?.finish()
@@ -1281,6 +1344,7 @@ object HTTPServer: NanoHTTPD(8888) {
 
                     val intent = Intent(ServiceHolder.getContext(), VoidPreauthActivity::class.java)
                     intent.putExtra("Invoice", txnInvoice)
+                    intent.putExtra("forceVoid", if (requestJson.has("ForceVoid")) requestJson.get("ForceVoid").asInt else 0)
                     intent.putExtra("posReference", posReference)
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
                     ServiceHolder.getContext().startActivity(intent)
@@ -1480,6 +1544,7 @@ object HTTPServer: NanoHTTPD(8888) {
                     val txnInvoice: String = requestJson.get("TransactionInvoice").asString
                     val intent = Intent(ServiceHolder.getContext(), VoidOffSaleActivity::class.java)
                     intent.putExtra("Invoice", txnInvoice)
+                    intent.putExtra("forceVoid", if (requestJson.has("ForceVoid")) requestJson.get("ForceVoid").asInt else 0)
                     intent.putExtra("posReference", posReference)
                     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
                     ServiceHolder.getContext().startActivity(intent)
@@ -1661,8 +1726,10 @@ object HTTPServer: NanoHTTPD(8888) {
                                 resultObject.addProperty("ResponseDescription", desc)
                                 resultObject.addProperty("TransactionLabel", dbmodelReceiptUpload.TXN_TYPE)
                                 resultObject.addProperty("TransactionAmount", Utils.getActualAmount(dbmodelReceiptUpload.TXN_AMT))
-                                resultObject.addProperty("TransactionMID", dbmodelReceiptUpload.MID)
-                                resultObject.addProperty("TransactionTID", dbmodelReceiptUpload.TID)
+                                // TPA terminals answer the ScMid/ScTid pair, as the transaction reply did (item 116 D).
+                                val tpa = Mf919NewIntegrationHost.tpaMidTid(dbmodelReceiptUpload.MID, dbmodelReceiptUpload.TID)
+                                resultObject.addProperty("TransactionMID", tpa?.first ?: dbmodelReceiptUpload.MID)
+                                resultObject.addProperty("TransactionTID", tpa?.second ?: dbmodelReceiptUpload.TID)
                                 resultObject.addProperty("TransactionSTN", dbmodelReceiptUpload.STAN)
                                 resultObject.addProperty("TransactionRRN", dbmodelReceiptUpload.RRN)
                                 resultObject.addProperty("TransactionBatchNo", dbmodelReceiptUpload.BATCH_NO)
@@ -1697,7 +1764,11 @@ object HTTPServer: NanoHTTPD(8888) {
                     throw Exception()
                 }
                 else -> {
-                    Toast.makeText(ServiceHolder.getContext(), "Invalid Transaction Type", Toast.LENGTH_SHORT).show()
+                    // Posted like every other toast here: on the server thread it threw before the reply,
+                    // holding the in-flight slot for 300 s (every request answered SHC000). Item 102.
+                    handler.post {
+                        Toast.makeText(ServiceHolder.getContext(), "Invalid Transaction Type", Toast.LENGTH_SHORT).show()
+                    }
                     resultObject.addProperty("ResponseCode", "SHC001")
                     resultObject.addProperty("ResponseDescription", "Invalid Parameter - (TransactionType)")
                     setResponseMessage(resultObject.toString())

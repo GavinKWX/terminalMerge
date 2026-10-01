@@ -37,9 +37,17 @@ class HttpNewIntegrationTest {
 		override fun hasEppAcquirer() = epp
 		override fun receiptByPosRef(posReference: String) = receipt
 		override fun qrByRef(refId: String) = qr
+		var tpa: Pair<String, String>? = null
+		val tpaAsked = mutableListOf<Pair<String?, String?>>()
+		override fun tpaMidTid(acqMid: String?, acqTid: String?): Pair<String, String>? {
+			tpaAsked += acqMid to acqTid
+			return tpa
+		}
 		override fun log(tag: String, message: String) {
 			logs += "$tag:$message"
 		}
+		val gates = mutableMapOf<Destination, enums.EnumResponseCode>()
+		override fun gate(destination: Destination) = gates[destination]
 	}
 
 	private class FakeHttp : HttpSurface {
@@ -152,6 +160,18 @@ class HttpNewIntegrationTest {
 		assertFalse(r.has("TransactionTSI"))
 		assertTrue(r.get("TransactionMID").isJsonNull)
 		assertEquals("R1", r.get("PosReference").asString)
+	}
+
+	@Test fun `card enquiry on a TPA product answers the TPA pair, otherwise the acquirer pair`() {
+		host.receipt = EnquiryReceipt(RESP_CODE = "00", TXN_TYPE = "Sale", TXN_AMT = "050", MID = "ACQMID", TID = "ACQTID")
+		send("""{"TransactionType":1,"PosReference":"R1"}""")
+		assertEquals("ACQMID", reply().get("TransactionMID").asString)
+		assertEquals("ACQTID", reply().get("TransactionTID").asString)
+		http.replies.clear()
+		host.tpa = "SCMID" to "SCTID"
+		send("""{"TransactionType":1,"PosReference":"R1"}""")
+		assertEquals("SCMID", reply().get("TransactionMID").asString)
+		assertEquals("SCTID", reply().get("TransactionTID").asString)
 	}
 
 	@Test fun `QUIRK qr enquiry with no qr row says Transaction Not Found, not QR Transaction Not Found`() {
@@ -396,7 +416,7 @@ class HttpNewIntegrationTest {
 		assertEquals("Invalid Parameter - (TransactionInvoice)", reply().get("ResponseDescription").asString)
 		http.replies.clear()
 		send("""{"TransactionType":5,"PreAuthType":"PREAUTHCOMPLETE","TransactionAmount":0,"TransactionApprovalCode":"A","TransactionRRN":"R","TransactionInvoice":"1"}""")
-		assertNav(Destination.SALE_COMPLETION, mapOf("apprCode" to "A", "rrn" to "R", "invNo" to "1") + noOrdering)
+		assertNav(Destination.SALE_COMPLETION, mapOf("apprCode" to "A", "rrn" to "R", "invNo" to "1", "forceVoid" to 0) + noOrdering)
 	}
 
 	@Test fun `preauth voids cache the model without an amount`() {
@@ -405,8 +425,30 @@ class HttpNewIntegrationTest {
 		assertEquals("""{"ResponseCode":"SHC001","ResponseDescription":"Invalid Parameter - (TransactionInvoice)"}""", http.replies.single())
 		http.replies.clear()
 		send("""{"TransactionType":5,"PreAuthType":"VOIDPREAUTHCOMPLETE","TransactionInvoice":"9"}""")
-		assertNav(Destination.VOID_SALE_COMPLETION, mapOf("Invoice" to "9", "posReference" to null))
+		assertNav(Destination.VOID_SALE_COMPLETION, mapOf("Invoice" to "9", "forceVoid" to 0, "posReference" to null))
 		assertEquals(Triple<Any, Long?, Int>("cardRow", null, 8), host.saleModels.single())
+	}
+
+	@Test fun `ForceVoid reaches the completion and both preauth voids`() {
+		host.products["CARD_SETTINGS"] = "cardRow"
+		send("""{"TransactionType":5,"PreAuthType":"PREAUTHCOMPLETE","TransactionAmount":0,"TransactionApprovalCode":"A","TransactionRRN":"R","TransactionInvoice":"1","ForceVoid":1}""")
+		assertNav(Destination.SALE_COMPLETION, mapOf("apprCode" to "A", "rrn" to "R", "invNo" to "1", "forceVoid" to 1) + noOrdering)
+		http.navs.clear()
+		send("""{"TransactionType":5,"PreAuthType":"VOIDPREAUTH","TransactionInvoice":"2","ForceVoid":1}""")
+		assertNav(Destination.VOID_PREAUTH, mapOf("Invoice" to "2", "forceVoid" to 1, "posReference" to null))
+		http.navs.clear()
+		send("""{"TransactionType":5,"PreAuthType":"VOIDPREAUTHCOMPLETE","TransactionInvoice":"3","ForceVoid":1}""")
+		assertNav(Destination.VOID_SALE_COMPLETION, mapOf("Invoice" to "3", "forceVoid" to 1, "posReference" to null))
+	}
+
+	@Test fun `an app gate replies once, clears appHttp and opens nothing, even on the MOTO path`() {
+		host.products["CARD_SETTINGS"] = "cardRow"
+		host.gates[Destination.KEYPAD_MOTO] = enums.EnumResponseCode.TRANSACTION_NOT_SUPPORTED
+		send("""{"TransactionType":2,"TransactionAmount":50,"PaymentChannel":"MOTO","CardNumber":"4","ExpiryDate":"2912"}""")
+		assertReply("SHC010", "Transaction Not Supported")
+		assertTrue(http.navs.isEmpty())
+		assertEquals(false, http.appHttp)
+		assertEquals(0, http.defaultErrors)
 	}
 
 	@Test fun `unknown preauth type`() {

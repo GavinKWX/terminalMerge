@@ -102,7 +102,19 @@ interface NewIntegrationHost {
 
     fun qrByRef(refId: String): EnquiryQr?
 
+    /**
+     * The TPA pair (`ScMid`/`ScTid`) for a stored card transaction, when the product it ran on is a
+     * TPA account; null keeps the receipt's acquirer pair. Matches the transaction reply (item 116 D).
+     */
+    fun tpaMidTid(acqMid: String?, acqTid: String?): Pair<String, String>? = null
+
     fun log(tag: String, message: String)
+
+    /**
+     * An app-specific gate before a screen opens, e.g. MF919's own PreAuth / SaleComOnline / MOTO
+     * config flags. Null lets it through. Pro has none.
+     */
+    fun gate(destination: Destination): enums.EnumResponseCode? = null
 }
 
 object CurrentNewIntegrationHost : NewIntegrationHost {
@@ -130,5 +142,7 @@ object CurrentNewIntegrationHost : NewIntegrationHost {
     override fun hasEppAcquirer() = host.hasEppAcquirer()
     override fun receiptByPosRef(posReference: String) = host.receiptByPosRef(posReference)
     override fun qrByRef(refId: String) = host.qrByRef(refId)
+    override fun tpaMidTid(acqMid: String?, acqTid: String?) = host.tpaMidTid(acqMid, acqTid)
     override fun log(tag: String, message: String) = host.log(tag, message)
+    override fun gate(destination: Destination) = host.gate(destination)
 }

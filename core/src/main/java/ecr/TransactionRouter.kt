@@ -12,6 +12,19 @@ class TransactionRouter(
     private val enquiryUseCase: EnquiryUseCase = EnquiryUseCase(host),
 ) {
     fun route(req: TxnRequest): Route {
+        val route = routeInner(req)
+        if (route is Route.Navigate) {
+            host.gate(route.destination)?.let { code ->
+                return Route.Return(req.raw.apply {
+                    put(TxnKeys.RESP_CODE, code.code)
+                    put(TxnKeys.RESP_DESC, code.description)
+                })
+            }
+        }
+        return route
+    }
+
+    private fun routeInner(req: TxnRequest): Route {
         if (host.autoSettlementIsRunning()) {
             return Route.Return(req.raw.apply {
                 put(TxnKeys.RESP_CODE, EnumResponseCode.AUTO_SETTLEMENT_RUNNING.code)

@@ -29,6 +29,7 @@ import com.sc.mf919pro.kotlin.domain.usecase.VoidSaleExecutionResult
 import com.sc.mf919pro.kotlin.domain.usecase.VoidSaleLookupData
 import com.sc.mf919pro.kotlin.domain.usecase.VoidSaleLookupResult
 import com.sc.mf919pro.kotlin.domain.usecase.VoidSaleUseCase
+import com.sc.mf919pro.kotlin.database.model.DbModelTerminalConfig
 import com.sc.mf919pro.kotlin.helper_common.HTTPServer
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder.Companion.getTerminalConfig
@@ -69,6 +70,8 @@ class VoidSaleFragment : BaseFragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+        // The PIN dialog belongs to the activity, so it would otherwise stay over the next screen.
+        alertDialog1?.dismiss()
         // Final boundary for this screen. Everything appended since the last flush is only
         // in the buffer until now, and a fragment can be torn down at any point (back-press,
         // navigation, process pressure). helperLog is a lateinit built in onViewCreated, so
@@ -126,7 +129,27 @@ class VoidSaleFragment : BaseFragment() {
             }
         }
 
-        if (!argumentInvoice.isNullOrEmpty()) {
+        // VOID_WITH_PIN gates an ECR sale void, as on MF919: PIN first, then the search. The MDB
+        // vend-failure refund is not ECR (no appIntent/appHTTP) and stays unattended (item 117).
+        val isEcr = ServiceHolder.appIntent || ServiceHolder.appHTTP
+        val pinRequired = DbModelTerminalConfig.getBooleanValue(getTerminalConfig(), "VOID_WITH_PIN")
+        val waitForPin = pinRequired && isEcr && argumentInvoice != null
+        if (waitForPin) {
+            helperLog.appendLine(helperLogClassName, "VOID_WITH_PIN is true :: ECR sale void waits for the PIN")
+            pinDialog("") { canceled ->
+                if (view == null) return@pinDialog
+                if (canceled) {
+                    replyPinCancelled()
+                } else {
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        tv.text = argumentInvoice
+                        searchByInvoice(argumentInvoice!!)
+                    }
+                }
+            }
+        }
+
+        if (!argumentInvoice.isNullOrEmpty() && !waitForPin) {
             viewLifecycleOwner.lifecycleScope.launch {
                 helperLog.appendLine(helperLogClassName, "onOK(arguments)  ::  $argumentInvoice")
                 tv.text = argumentInvoice
@@ -401,6 +424,25 @@ class VoidSaleFragment : BaseFragment() {
 
         val dbModelTerminalConfig = getTerminalConfig()
         navigateToHome(dbModelTerminalConfig)
+    }
+
+    /** PIN cancelled on an ECR sale void: answer USER_CANCELLED rather than leave the caller waiting. */
+    private fun replyPinCancelled() {
+        helperLog.appendLine(helperLogClassName, "User Cancel :: PIN entry abandoned [VOID PIN]")
+        if (ServiceHolder.appIntent) {
+            val txnMap = HashMap<String, String>()
+            txnMap["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+            txnMap["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
+            onBackToApp(txnMap)
+        } else {
+            if (ServiceHolder.appHTTP) {
+                val jObject = JsonObject()
+                jObject.addProperty("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+                jObject.addProperty("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
+                HTTPServer.getInstance().setResponseMessage(jObject.toString())
+            }
+            customOnBackPress()
+        }
     }
 
     private fun onBackToApp(txnMap: HashMap<String, String>) {

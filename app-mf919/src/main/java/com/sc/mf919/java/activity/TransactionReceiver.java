@@ -36,6 +36,8 @@ import com.sc.mf919.kotlin.database.model.DbModelTransactionQrGet;
 import com.sc.mf919.kotlin.database.repo.ProductListRepo;
 import com.sc.mf919.kotlin.database.repo.ReceiptUploadRepo;
 import com.sc.mf919.kotlin.database.repo.TransactionQrRepo;
+import com.sc.mf919.kotlin.helper_common.Mf919A2aNewIntegration;
+import com.sc.mf919.kotlin.helper_common.Mf919NewIntegrationHost;
 import com.sc.mf919.kotlin.helper_common.ServiceHolder;
 import data_enum.SalesModel;
 
@@ -128,6 +130,20 @@ public class TransactionReceiver extends AppCompatActivity {
                     ServiceHolder.Companion.setAppIntent(true);
                     ServiceHolder.Companion.setPackageName(txn_map.get("Package_Name")); //returnAppPackage
                     ServiceHolder.Companion.setActivityName(txn_map.get("Activity_Name")); //returnActivity
+
+                    // IsNewIntegration: true opts in to the shared new-integration router (audit item 98).
+                    if (Mf919A2aNewIntegration.isNew(txn_map)) {
+                        HashMap<String, String> answer = Mf919A2aNewIntegration.handle(txn_map);
+                        if (answer != null) {
+                            txn_map = answer;
+                            onBackToApp();
+                        } else {
+                            finish();
+                        }
+                        return;
+                    }
+                    Mf919NewIntegrationHost.INSTANCE.begin(false);
+
                     ServiceHolder.Companion.setTxnType(Integer.parseInt(Objects.requireNonNull(txn_map.get("TransactionType"))));
 
                     if(ServiceHolder.Companion.getAutoSettlementIsRunning()) {
@@ -550,6 +566,8 @@ public class TransactionReceiver extends AppCompatActivity {
                             intent.putExtra("apprCode", txn_map.get("TransactionApprovalCode"));
                             intent.putExtra("rrn", txn_map.get("TransactionRRN"));
                             intent.putExtra("invNo", txn_map.get("TransactionInvoice"));
+                            // ForceVoid skips the screen's confirmation dialog (item 111).
+                            intent.putExtra("forceVoid", forceVoidExtra());
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                             startActivity(intent);
@@ -581,8 +599,19 @@ public class TransactionReceiver extends AppCompatActivity {
                                 break;
                             }
 
+                            if (!cacheCardVoidModel()) {
+                                runOnUiThread(new Runnable() {
+                                    public void run() { Toast.makeText(getApplicationContext(), "System Error", Toast.LENGTH_SHORT).show(); }
+                                });
+                                txn_map.put("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getDescription());
+                                onBackToApp();
+                                break;
+                            }
+
                             Intent intent = new Intent(this, VoidPreauthActivity.class);
                             intent.putExtra("Invoice", txnInvoice);
+                            intent.putExtra("forceVoid", forceVoidExtra());
                             intent.putExtra("posReference", posReferenceNo);
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -801,8 +830,19 @@ public class TransactionReceiver extends AppCompatActivity {
                                 break;
                             }
 
+                            if (!cacheCardVoidModel()) {
+                                runOnUiThread(new Runnable() {
+                                    public void run() { Toast.makeText(getApplicationContext(), "System Error", Toast.LENGTH_SHORT).show(); }
+                                });
+                                txn_map.put("ResponseCode", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getCode());
+                                txn_map.put("ResponseDescription", EnumResponseCode.TERMINAL_SYSTEM_ERROR.getDescription());
+                                onBackToApp();
+                                break;
+                            }
+
                             Intent intent = new Intent(this, VoidOffSaleActivity.class);
                             intent.putExtra("Invoice", txnInvoice);
+                            intent.putExtra("forceVoid", forceVoidExtra());
                             intent.putExtra("posReference", posReferenceNo);
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -1028,8 +1068,11 @@ public class TransactionReceiver extends AppCompatActivity {
                                         txn_map.put("ResponseDescription", desc);
                                         txn_map.put("TransactionLabel", dbmodelReceiptUpload.getTXN_TYPE());
                                         txn_map.put("TransactionAmount", Utils.getActualAmount(txnAmt));
-                                        txn_map.put("TransactionMID", dbmodelReceiptUpload.getMID());
-                                        txn_map.put("TransactionTID", dbmodelReceiptUpload.getTID());
+                                        // TPA terminals answer the ScMid/ScTid pair, as the transaction reply did (item 116 D).
+                                        kotlin.Pair<String, String> tpa = com.sc.mf919.kotlin.helper_common.Mf919NewIntegrationHost.INSTANCE
+                                                .tpaMidTid(dbmodelReceiptUpload.getMID(), dbmodelReceiptUpload.getTID());
+                                        txn_map.put("TransactionMID", tpa != null ? tpa.getFirst() : dbmodelReceiptUpload.getMID());
+                                        txn_map.put("TransactionTID", tpa != null ? tpa.getSecond() : dbmodelReceiptUpload.getTID());
                                         txn_map.put("TransactionSTN", dbmodelReceiptUpload.getSTAN());
                                         txn_map.put("TransactionRRN", dbmodelReceiptUpload.getRRN());
                                         txn_map.put("TransactionBatchNo", dbmodelReceiptUpload.getBATCH_NO());
@@ -1108,6 +1151,36 @@ public class TransactionReceiver extends AppCompatActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         ServiceHolder.Companion.setAppIntent(false);
         startActivity(intent);
+    }
+
+    /**
+     * Caches the card product with SalesType 1 before a pre-auth or completion void, as the old HTTP
+     * branches do. These two cases never set it, so the void ran on a stale or empty cache (item 112).
+     */
+    private boolean cacheCardVoidModel() {
+        try {
+            DbModelProductListGet productModel = ProductListRepo.Companion.getSinglev2(ServiceHolder.mContext,
+                    new ArrayList<>(List.of("Product")), new ArrayList<>(List.of(ProductCatSelectionDataEnum.CARD_SETTINGS.name())));
+            if (productModel == null) {
+                return false;
+            }
+            Gson gson = new Gson();
+            SaleModelNew saleModelNew = gson.fromJson(gson.toJson(productModel), SaleModelNew.class);
+            saleModelNew.setSalesType(ProductCatSelectionDataEnum.CARD_SETTINGS.getData().getSalesType());
+            ServiceHolder.Companion.setSaleModelCache(saleModelNew);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** The request's ForceVoid as an extra: 1 only when it reads as 1, as the HTTP side does. */
+    private int forceVoidExtra() {
+        try {
+            return Integer.parseInt(String.valueOf(txn_map.get("ForceVoid")).trim()) == 1 ? 1 : 0;
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     public void onBackToApp() {

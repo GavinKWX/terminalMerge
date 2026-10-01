@@ -4,7 +4,7 @@ import android.content.Context
 import android.os.Looper
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.sc.mf919.java.activity.Tms
+import tms.Tms
 import com.sc.mf919.java.activity.Utils
 import com.sc.mf919.kotlin.activity.AppServices
 import com.sc.mf919.kotlin.database.repo.ReceiptUploadRepo

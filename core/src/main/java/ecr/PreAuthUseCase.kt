@@ -36,7 +36,7 @@ class PreAuthUseCase(private val host: NewIntegrationHost = CurrentNewIntegratio
 
                     Route.Navigate(
                         Destination.VOID_PREAUTH,
-                        mapOf("Invoice" to transInvoice, "posReference" to req.posReference)
+                        mapOf("Invoice" to transInvoice, "forceVoid" to req.forceVoid, "posReference" to req.posReference)
                     )
                 }
                 PreAuthType.PREAUTHCOMPLETE -> {
@@ -67,6 +67,7 @@ class PreAuthUseCase(private val host: NewIntegrationHost = CurrentNewIntegratio
                             "apprCode" to transApproval,
                             "rrn" to transRrn,
                             "invNo" to transInvoice,
+                            "forceVoid" to req.forceVoid,
                             "posReference" to req.posReference,
                             "orderingItem" to req.orderingItem,
                             "orderingItemImage" to req.orderingItemImage
@@ -83,7 +84,7 @@ class PreAuthUseCase(private val host: NewIntegrationHost = CurrentNewIntegratio
 
                     Route.Navigate(
                         Destination.VOID_SALE_COMPLETION,
-                        mapOf("Invoice" to transInvoice, "posReference" to req.posReference)
+                        mapOf("Invoice" to transInvoice, "forceVoid" to req.forceVoid, "posReference" to req.posReference)
                     )
                 }
                 else -> Route.Return(txn.apply {

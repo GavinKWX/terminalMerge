@@ -6,6 +6,7 @@ import com.sc.mf919pro.R
 import com.sc.mf919pro.java.activity.Utils
 import com.sc.mf919pro.kotlin.data_enum.SaleModelNew
 import com.sc.mf919pro.kotlin.database.model.DbModelTerminalConfig
+import com.sc.mf919pro.kotlin.database.model.DbModelMerchantConfig
 import com.sc.mf919pro.kotlin.database.repo.ProductListRepo
 import com.sc.mf919pro.kotlin.database.repo.ReceiptUploadRepo
 import com.sc.mf919pro.kotlin.database.repo.TransactionQrRepo
@@ -49,6 +50,18 @@ object ProNewIntegrationHost : NewIntegrationHost {
 	override fun qrByRef(refId: String): EnquiryQr? =
 		TransactionQrRepo.getSingleTransactionQr(ServiceHolder.getContext(), listOf("refId"), listOf(refId))
 			?.let { gson.fromJson(gson.toJson(it), EnquiryQr::class.java) }
+
+	/** ScMid/ScTid when the product row with this acquirer pair is a TPA account (item 116 D). */
+	override fun tpaMidTid(acqMid: String?, acqTid: String?): Pair<String, String>? {
+		if (acqMid.isNullOrEmpty() || acqTid.isNullOrEmpty()) return null
+		val row = ProductListRepo.getSinglev2(ServiceHolder.getContext(), listOf("AcqMid", "AcqTid"), listOf(acqMid, acqTid))
+			?: return null
+		if (row.IsTpaAccount?.lowercase() != "true") return null
+		val merchant = ServiceHolder.getMerchantInfo()
+		val mid = DbModelMerchantConfig.getSafeValue(merchant, "ScMid")
+		val tid = DbModelMerchantConfig.getSafeValue(merchant, "ScTid")
+		return if (mid.isNotEmpty() && tid.isNotEmpty()) mid to tid else null
+	}
 
 	override fun log(tag: String, message: String) = Utils.debugLogPrint(tag, message)
 

@@ -94,7 +94,7 @@ import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
-import com.sc.mf919.kotlin.helper_common.CounterGuard
+import iso.CounterGuard
 import helpers.StorageGuard
 import com.sc.mf919.kotlin.helper_common.MfHelper
 

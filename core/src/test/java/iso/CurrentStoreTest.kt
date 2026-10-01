@@ -34,6 +34,10 @@ class CurrentStoreTest {
 		override fun storeBatchInfo(context: Context, tag: String, subtag: String, value: String) {
 			calls += "store:$tag:$subtag"
 		}
+		override fun updateBatchInfo(context: Context, value: String, tag: String, subtag: String): Boolean {
+			calls += "update:$tag:$subtag"
+			return true
+		}
 		override fun acquirerProduct(context: Context, mid: String, tid: String): AcquirerProduct? {
 			calls += "product:$mid:$tid"
 			return product

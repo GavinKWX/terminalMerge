@@ -51,6 +51,18 @@ class CurrentTxnTest {
 		override fun removeTlvFromTransDb(tag: String) {
 			calls += "rm:$tag"
 		}
+		var session = 0L
+		override fun currentSessionId(): Long = session
+	}
+
+	@Test
+	fun `currentSessionId forwards to the registered TransData`() {
+		val f = Fake()
+		CurrentTxn.register(f)
+		f.session = 41L
+		assertEquals(41L, CurrentTxn.currentSessionId())
+		f.session = 42L
+		assertEquals(42L, CurrentTxn.currentSessionId())
 	}
 
 	@Test

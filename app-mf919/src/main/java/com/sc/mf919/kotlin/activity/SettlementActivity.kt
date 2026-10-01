@@ -44,6 +44,7 @@ import com.sc.mf919.kotlin.database.repo.ProductListRepo
 import com.sc.mf919.kotlin.database.repo.ReversalBatchTableRepo
 import com.sc.mf919.kotlin.database.repo.SettlementSummaryRepo
 import com.sc.mf919.kotlin.helper_common.*
+import helpers.CoroutineTask
 import com.sc.mf919.kotlin.helper_common.Helper.Companion.getInstance
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.appHTTP
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.appIntent
@@ -62,6 +63,10 @@ import org.json.JSONObject
 import tms.models.AcquirerLogoReplaceObject
 import java.io.File
 import java.text.SimpleDateFormat
+import com.google.gson.JsonArray
+import com.sc.mf919.kotlin.helper_common.Mf919NewIntegrationHost
+import com.sc.mf919.kotlin.helper_common.ServiceHolder
+import ecr.SettlementReply
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Consumer
@@ -86,6 +91,9 @@ class SettlementActivity : BaseActivity() {
 	var txnMapList = ArrayList<HashMap<String, String?>>()
 	var txnMap = HashMap<String, String?>()
 	var jsonArray = JSONArray()
+	// New integration (audit item 98): the reply in Pro's shape, built alongside MF919's own.
+	private var newHttpEntries = JsonArray()
+	private var newA2aEntries = ArrayList<HashMap<String, String?>>()
 
 	var txnDt: String = ""
 	var rrn: String = ""
@@ -802,6 +810,8 @@ class SettlementActivity : BaseActivity() {
 			autoSettlementIsRunning = true
 			jsonArray = JSONArray()
 			txnMapList = arrayListOf()
+			newHttpEntries = JsonArray()
+			newA2aEntries = arrayListOf()
 			val sharedPreferences: SharedPreferences = Helper.getInstance().getPrefs(mContext)
 			val timeString = SimpleDateFormat("yyyyMMdd", Locale.ENGLISH).format(Date())
 			sharedPreferences.edit { putString(AppServices.LAST_SETTLE_TAG, timeString) }
@@ -1077,6 +1087,7 @@ class SettlementActivity : BaseActivity() {
 					helperLog.logToFile(EnumLogFileName.TerminaLogException)
 					ToastMake(mContext, "Nothing to Settle", Toast.LENGTH_LONG)
 					result = false
+					newIntegrationEntry(tempObj, null, "99")
 					continue
 				}
 
@@ -1087,6 +1098,7 @@ class SettlementActivity : BaseActivity() {
 					helperLog.logToFile(EnumLogFileName.TerminaLogException)
 					ToastMake(mContext, "Fail to Settle", Toast.LENGTH_LONG)
 					result = false
+					newIntegrationEntry(tempObj, null, Utility.HexString2ASCII(TransData.respCode))
 					continue
 				}
 
@@ -1097,6 +1109,7 @@ class SettlementActivity : BaseActivity() {
 
 				settledProduct.put(tempObj, recordSummary)
 				settlementDetails(txnTotal, txnCount, voidTxnTotal, voidTxnCount, result, TransData.transResult)
+				newIntegrationEntry(tempObj, recordSummary, "")
 				preparePrintRecord(tempObj, recordSummary)
 
 				val isLastItem = settlementProduct.lastIndex == forIndex
@@ -1126,6 +1139,11 @@ class SettlementActivity : BaseActivity() {
 			super.onPostExecute(result)
 			closeProgressDialog()
 			runningBlock = 0
+
+			if (Mf919NewIntegrationHost.active && (appIntent || appHTTP)) {
+				newIntegrationReply()
+				return
+			}
 
 			if (appIntent) {
 				helperLog.appendLine(helperLogClassName, "Validation passed :: navigate -> TransactionTransmitter (appIntent)")
@@ -1399,6 +1417,49 @@ class SettlementActivity : BaseActivity() {
 //		val scrollReceipt: ScrollView = findViewById(R.id.scrollReceipt)
 		scrollReceipt.startAnimation(animSlideDown)
 		printInfo(settleInfo, true)
+	}
+
+	/**
+	 * New integration: one card acquirer's entry in Pro's shape. [summary] null means it failed
+	 * with [failCode]; HTTP then leaves it out and App-to-App keeps it, as Pro does.
+	 */
+	private fun newIntegrationEntry(product: DbModelProductList, summary: List<DbModelSettlementSummary>?, failCode: String) {
+		if (!Mf919NewIntegrationHost.active) return
+		val tpa = product.IsTpaAccount?.lowercase() == "true"
+		val mid = if (tpa) DbModelMerchantConfig.getSafeValue(dbModelMerchantConfig, "ScMid") else product.AcqMid
+		val tid = if (tpa) DbModelMerchantConfig.getSafeValue(dbModelMerchantConfig, "ScTid") else product.AcqTid
+		val time = SimpleDateFormat(SettlementReply.DATE_FORMAT, Locale.ENGLISH).format(Date())
+		val schemes = summary?.let { rows ->
+			SettlementReply.cardSchemes(
+				rows.map { SettlementReply.SummaryRow(it.tag ?: "", it.subtag ?: "", it.value) },
+				acquirerSettingModel.acqName ?: "",
+				getBooleanValue(getTerminalConfig(), "OptIn")
+			)
+		}
+		if (schemes != null) newHttpEntries.add(SettlementReply.cardEntryHttp(time, mid, tid, batchNo, schemes))
+		newA2aEntries.add(SettlementReply.cardEntryA2a(time, mid, tid, batchNo, schemes, failCode))
+	}
+
+	/** New integration: answer in Pro's shape, or for ALL hand the card part on to the QR settlement. */
+	private fun newIntegrationReply() {
+		val type = Mf919NewIntegrationHost.settlementType ?: "CARD"
+		if (type == "ALL") {
+			helperLog.appendLine(helperLogClassName, "New integration ALL :: card part done (${newA2aEntries.size} acquirer(s)), starting QR settlement")
+			helperLog.logToFile(EnumLogFileName.TerminaLog)
+			Mf919NewIntegrationHost.pendingCardHttp = newHttpEntries
+			Mf919NewIntegrationHost.pendingCardA2a = newA2aEntries
+			startActivity(Intent(this, SettlementQrActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK))
+			finish()
+			return
+		}
+		if (appIntent) {
+			onBackToApp(newA2aEntries)
+		} else {
+			val reply = SettlementReply.wrapperHttp(ServiceHolder.txnType, type, newHttpEntries).toString()
+			helperLog.appendLine(helperLogClassName, "Returning new-integration settlement over HTTP")
+			helperLog.logToFile(EnumLogFileName.TerminaLog)
+			onBackToHTTP(reply)
+		}
 	}
 
 	private fun onBackToApp(txn_map: ArrayList<HashMap<String, String?>>) {

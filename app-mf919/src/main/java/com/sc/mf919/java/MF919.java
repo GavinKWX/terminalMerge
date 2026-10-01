@@ -60,6 +60,21 @@ public class MF919 extends Application {
     private static MF919 instance;
     private DeviceServiceEngine deviceServiceEngine = null;
 
+    /**
+     * Set once any activity has been created in this process. Read by
+     * StartMyServiceAtBootReceiver to skip its launch when the app is already up.
+     *
+     * On Android 13 (SR800) the ROM auto-start launches MainActivity first, and BOOT_COMPLETED
+     * reaches the receiver ~17 s later -- by then the app is foreground, so its startActivity is
+     * allowed and the whole startup ran twice. Process-scoped on purpose: a fresh process (the
+     * Android 7 boot path, where the receiver is the only launcher) always sees false.
+     */
+    private static volatile boolean activityCreated = false;
+
+    public static boolean hasActivityCreated() {
+        return activityCreated;
+    }
+
     Set<Class<?>> httpActiveDestinations = new HashSet<>(Arrays.asList(
             AttendActivity.class,
             UnattendActivity.class,
@@ -178,6 +193,8 @@ public class MF919 extends Application {
         ws.CurrentWsHost.register(com.sc.mf919.kotlin.helper_common.Mf919WsHost.INSTANCE);
         // The receipt reconciler lives in :core; this is the repo side it reads and writes through.
         tms.CurrentReceiptStore.register(com.sc.mf919.kotlin.helper_common.Mf919ReceiptStore.INSTANCE);
+        // The DeviceInfo poll (tms.Tms) lives in :core; this is its config and download side (item 107).
+        tms.CurrentTmsHost.register(com.sc.mf919.kotlin.helper_common.Mf919TmsHost.INSTANCE);
 
         // The ISO forming code in :core reads the in-flight transaction through this seam.
         // TransData stays per app -- each fleet carries its own extra fields.
@@ -223,7 +240,9 @@ public class MF919 extends Application {
             @Override
             public void onActivityPaused(@NonNull Activity activity) { }
             @Override
-            public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle bundle) { }
+            public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle bundle) {
+                activityCreated = true;
+            }
             @Override
             public void onActivityResumed(@NonNull Activity activity) {
                 //System.out.println("Current onActivityResumed: " + activity.getClass().getSimpleName());

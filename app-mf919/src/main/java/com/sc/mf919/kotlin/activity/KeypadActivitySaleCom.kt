@@ -1,4 +1,5 @@
 package com.sc.mf919.kotlin.activity
+import com.sc.mf919.kotlin.database.model.DbModelMerchantConfig
 import enums.EnumResponseCode
 
 import android.annotation.SuppressLint
@@ -24,6 +25,7 @@ import com.google.gson.Gson
 import com.sc.mf919.R
 import emv.EmvTag
 import constants.TerminalConstants
+import com.sc.mf919.java.activity.TransactionTransmitter
 import com.sc.mf919.java.activity.Utils
 import utils.CardUtil
 import emv.EmvUtil
@@ -34,6 +36,7 @@ import com.sc.mf919.kotlin.database.model.DbModelTerminalConfig
 import com.sc.mf919.kotlin.database.repo.IsoBatchInfoRepo
 import com.sc.mf919.kotlin.database.repo.PreAuthTableRepo
 import com.sc.mf919.kotlin.helper_common.BaseActivity
+import com.sc.mf919.kotlin.helper_common.HTTPServer
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
 import com.sc.mf919.kotlin.helper_common.TmsHelper
 import com.sc.mf919.kotlin.helper_common.iso.IsoActivity
@@ -59,6 +62,9 @@ class KeypadActivitySaleCom : BaseActivity() {
 	var approvalCode: String? = null
 	var rrn: String? = null
 	var invoiceNo: String? = null
+	var posReference: String? = null
+	// ForceVoid from the ECR: complete without the confirmation dialog (item 111).
+	private var forceVoid = false
 	var preAuthBatchNo: String? = null
 	var cardPan: String = ""
 
@@ -100,6 +106,9 @@ class KeypadActivitySaleCom : BaseActivity() {
 			approvalCode = intent.getStringExtra("apprCode")
 			rrn = intent.getStringExtra("rrn")
 			invoiceNo = intent.getStringExtra("invNo")
+			posReference = intent.getStringExtra("posReference")
+			forceVoid = intent.getIntExtra("forceVoid", 0) == 1
+			helperLog.appendLine(helperLogClassName, "Force Void :: $forceVoid")
 
 			/*if (approvalCode != null && rrn != null && invoiceNo != null) {
 				Utils.printLog("asdf 1234")
@@ -150,6 +159,7 @@ class KeypadActivitySaleCom : BaseActivity() {
 			ToastMake(mContext, "Invalid Input", Toast.LENGTH_SHORT)
 			helperLog.appendLine(helperLogClassName, "REJECT :: approval code, RRN and invoice no are all required")
 			helperLog.logToFile(EnumLogFileName.TerminaLog)
+			replyEcr(EnumResponseCode.INVALID_TRANSACTION_DETAILS)
 			return
 		}
 
@@ -157,23 +167,6 @@ class KeypadActivitySaleCom : BaseActivity() {
 			preAuthInfo = PreAuthTableRepo.getPreauthInfo(mContext, approvalCode!!, rrn!!, invoiceNo!!) ?: run {
 				ToastMake(mContext, "Not Found", Toast.LENGTH_SHORT)
 				helperLog.appendLine(helperLogClassName, "REJECT :: pre-auth record not found")
-				//TODO
-				/*if (ServiceHolder.appIntent) {
-					val txnMap = java.util.HashMap<String, String>()
-					txnMap["ResponseCode"] = EnumResponseCode.INVALID_TRANSACTION_DETAILS.code
-					txnMap["ResponseDescription"] = EnumResponseCode.INVALID_TRANSACTION_DETAILS.description
-					//onBackToApp(txnMap)
-				} else if (ServiceHolder.appHTTP) {
-					val jObject = JSONObject()
-					try {
-						jObject.put("ResponseCode", EnumResponseCode.INVALID_TRANSACTION_DETAILS.code)
-						jObject.put("ResponseDescription", EnumResponseCode.INVALID_TRANSACTION_DETAILS.description)
-					} catch (e: JSONException) {
-						e.printStackTrace()
-					}
-					HTTPServer.getInstance().setResponseMessage(jObject.toString())
-					customOnBackPress()
-				}*/
 				null
 			}
 			Utils.printLog("preAuthInfo >> ${Gson().toJson(preAuthInfo)}")
@@ -185,6 +178,7 @@ class KeypadActivitySaleCom : BaseActivity() {
 		closeProgressDialog()
 		if (preAuthInfo == null) {
 			helperLog.logToFile(EnumLogFileName.TerminaLog)
+			replyEcr(EnumResponseCode.INVALID_TRANSACTION_DETAILS)
 		}
 		preAuthInfo?.let {
 			showConfirmationDialog(it)
@@ -198,6 +192,7 @@ class KeypadActivitySaleCom : BaseActivity() {
 
 		var preAuthAmount = ""
 		var maskedPan = ""
+		var decodeOk = false
 		try{
 			val batchData = dbModelPreAuthTable.addInfo
 			val bBatchInfo = HexUtil.hexStringToByte(batchData)
@@ -235,10 +230,28 @@ class KeypadActivitySaleCom : BaseActivity() {
 			tempPan = tempPan.replace("F", "")
 			Utils.debugLogPrint(TAG, "Temp Pan -> $tempPan")
 			maskedPan = Utils.hideCardDetails(tempPan)
+			decodeOk = cardPan.length >= 9
 		} catch (ex: Exception){
 			ex.printStackTrace()
 			helperLog.appendLine(helperLogClassName, "Exception decoding pre-auth batch data :: ${ex.message ?: "-"}")
 			helperLog.logToFile(EnumLogFileName.TerminaLogException)
+		}
+
+		// saleComplete() needs the PAN from the stored record; without it, reject rather than crash (item 115 L3).
+		if (!decodeOk) {
+			helperLog.appendLine(helperLogClassName, "REJECT :: stored pre-auth record could not be read")
+			helperLog.logToFile(EnumLogFileName.TerminaLogException)
+			ToastMake(mContext, "Invalid Transaction Details", Toast.LENGTH_SHORT)
+			replyEcr(EnumResponseCode.INVALID_TRANSACTION_DETAILS)
+			return
+		}
+
+		if (forceVoid) {
+			helperLog.appendLine(helperLogClassName, "Force Void :: skipping [CONFIRM SALE COMPLETION], card not presented")
+			lifecycleScope.launch {
+				saleComplete()
+			}
+			return
 		}
 
 		helperLog.appendLine(helperLogClassName, "Dialog opened :: [CONFIRM SALE COMPLETION]")
@@ -255,23 +268,7 @@ class KeypadActivitySaleCom : BaseActivity() {
 			helperLog.appendLine(helperLogClassName, "User Cancel :: dismissed [CONFIRM SALE COMPLETION]")
 			helperLog.logToFile(EnumLogFileName.TerminaLog)
 			alertDialog?.dismiss()
-			//TODO
-			/*if (ServiceHolder.appIntent) {
-				val txnMap = HashMap<String, String>()
-				txnMap["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
-				txnMap["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
-				onBackToApp(txnMap)
-			} else if (ServiceHolder.appHTTP) {
-				val jsonObject = JSONObject()
-				try {
-					jsonObject.put("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
-					jsonObject.put("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
-				} catch (e: JSONException) {
-					e.printStackTrace()
-				}
-				HTTPServer.getInstance().setResponseMessage(jsonObject.toString())
-				customOnBackPress()
-			}*/
+			replyEcr(EnumResponseCode.USER_CANCELLED)
 		}
 		val voidConfirmBtn = dialogView.findViewById<Button>(R.id.confirmBtn)
 		voidConfirmBtn.setOnClickListener {
@@ -311,6 +308,9 @@ class KeypadActivitySaleCom : BaseActivity() {
 				TransData.ksn = it.Ksn ?: ""
 				TransData.pinKsn = it.PinKsn ?: ""
 				TransData.isTpaAccount = it.IsTpaAccount?.lowercase() == "true"
+				// The TPA reply sends tpaMid/tpaTid; reset() cleared them and only the sale screens refilled them (item 116 A).
+				TransData.tpaMid = DbModelMerchantConfig.getSafeValue(ServiceHolder.getMerchantInfo(), "ScMid")
+				TransData.tpaTid = DbModelMerchantConfig.getSafeValue(ServiceHolder.getMerchantInfo(), "ScTid")
 			}
 			val txnDt = EmvUtil.getCurrentTime("yyyyMMddHHmmss")
 			TransData.transDateAsci = txnDt
@@ -337,13 +337,14 @@ class KeypadActivitySaleCom : BaseActivity() {
 			TransData.batchNo = IsoBatchInfoRepo.getBatchInfo(applicationContext, "batchNo", TransData.schemeTag)?.value ?: "000001"
 			TransData.entryModeLabel = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
 			TransData.cvm = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM, 16)
-
-			//TODO MISSING
-			/*posReference?.let {
+			// The reply's app label and PosReference were left at reset() values (item 116 B, C).
+			val byteAppLabel = HexUtil.hexStringToByte(TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_APPLABEL, 16))
+			byteAppLabel.copyInto(TransData.appLabel, 0)
+			TransData.appLabelLen = byteAppLabel.size
+			posReference?.let {
 				TransData.posReference = it
-				helperLog.appendLine(helperlogClassName, "Add Pos Reference >> $it")
-			}*/
-			//TODO MISSING
+				helperLog.appendLine(helperLogClassName, "Add Pos Reference >> $it")
+			}
 
 			Thread.sleep(2000)
 			val isNotCompl = booleanArrayOf(true)
@@ -448,6 +449,31 @@ class KeypadActivitySaleCom : BaseActivity() {
 		intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
 		startActivity(intent)
 		finish()
+	}
+
+	/** Answers the ECR caller, if any, so a rejected or cancelled completion never holds the request (item 111). */
+	private fun replyEcr(code: EnumResponseCode) {
+		if (ServiceHolder.appIntent) {
+			val txnMap = HashMap<String, String>()
+			txnMap["ResponseCode"] = code.code
+			txnMap["ResponseDescription"] = code.description
+			txnMap["TransactionType"] = ServiceHolder.txnType.toString()
+			helperLog.appendLine(helperLogClassName, "Returning to calling app :: ${code.code} - ${code.description}")
+			helperLog.logToFile(EnumLogFileName.TerminaLog)
+			val intent = Intent(this, TransactionTransmitter::class.java)
+			intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+			intent.putExtra("txn_map", txnMap)
+			startActivity(intent)
+			finish()
+		} else if (ServiceHolder.appHTTP) {
+			val jsonObject = com.google.gson.JsonObject()
+			jsonObject.addProperty("ResponseCode", code.code)
+			jsonObject.addProperty("ResponseDescription", code.description)
+			HTTPServer.getInstance().setResponseMessage(jsonObject.toString())
+			customOnBackPress()
+			// customOnBackPress only starts home; without finish() this screen stays in the back stack (L4).
+			finish()
+		}
 	}
 
 	fun customOnBackPress() {

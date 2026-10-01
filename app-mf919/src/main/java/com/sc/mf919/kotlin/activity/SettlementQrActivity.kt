@@ -37,6 +37,9 @@ import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.autoSettlementI
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.getInternalFilesPaths
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.getMerchantInfo
 import com.sc.mf919.kotlin.helper_common.ServiceHolder.Companion.txnType
+import com.sc.mf919.kotlin.helper_common.Mf919NewIntegrationHost
+import com.google.gson.JsonArray
+import ecr.SettlementReply
 import enums.EnumLogFileName
 import helpers.HelperCommon
 import helpers.HelperLog
@@ -336,11 +339,54 @@ class SettlementQrActivity : ActivityBase() {
 					e.printStackTrace()
 				}
 			}
+			if (Mf919NewIntegrationHost.active && !autoSettlementIsRunning) {
+				newIntegrationReply(log)
+				return
+			}
 			if (appIntent) {
 				onBackToApp(txn_map)
 			} else {
 				onBackToHTTP(jObject.toString())
 			}
+		}
+	}
+
+	/**
+	 * New integration (audit item 98): the QR entry in Pro's shape. For ALL it is merged with the
+	 * card part SettlementActivity left in [Mf919NewIntegrationHost], and the reply says "ALL".
+	 */
+	private fun newIntegrationReply(log: helpers.HelperLog) {
+		val products = SettlementReply.qrProducts(qrPayBrandV2.indices.map { i ->
+			SettlementReply.QrProductTotals(
+				qrPayBrandV2[i].productCode,
+				Utils.atoi(qrPayTotalTxnCount[i] ?: "0"),
+				(qrPayTotalTxnAmt[i] ?: "0").toLong(),
+				Utils.atoi(qrPayTotalVoidTxnCount[i] ?: "0"),
+				(qrPayTotalVoidTxnAmt[i] ?: "0").toLong(),
+			)
+		})
+		val mid = dbModelMerchantConfig?.QrMid ?: ""
+		val isAll = Mf919NewIntegrationHost.settlementType == "ALL"
+		log.appendLine(helperlogClassName, "New integration settlement :: ${if (isAll) "ALL" else "QR"} qrProducts=${products.size()}")
+		log.logToFile(EnumLogFileName.TerminaLog)
+		// As Pro: no QR entry when there were no QR transactions (its QR row is hidden then).
+		val hasQr = products.size() > 0
+		if (appIntent) {
+			val list = ArrayList<HashMap<String, String?>>()
+			if (isAll) Mf919NewIntegrationHost.pendingCardA2a?.let { list.addAll(it) }
+			if (hasQr) list.add(SettlementReply.qrEntryA2a(txnDt, mid, products))
+			Mf919NewIntegrationHost.pendingCardA2a = null
+			val intent = Intent(applicationContext, TransactionTransmitter::class.java)
+			intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+			intent.putExtra("settlement_map", list)
+			startActivity(intent)
+			finish()
+		} else {
+			val entries = JsonArray()
+			if (isAll) Mf919NewIntegrationHost.pendingCardHttp?.let { entries.addAll(it) }
+			if (hasQr) entries.add(SettlementReply.qrEntryHttp(txnDt, mid, products))
+			Mf919NewIntegrationHost.pendingCardHttp = null
+			onBackToHTTP(SettlementReply.wrapperHttp(txnType, if (isAll) "ALL" else "QR", entries).toString())
 		}
 	}
 

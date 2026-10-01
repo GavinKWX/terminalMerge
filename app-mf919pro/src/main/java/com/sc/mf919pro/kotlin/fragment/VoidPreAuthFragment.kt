@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.fragment
+import com.sc.mf919pro.kotlin.database.model.DbModelMerchantConfig
 import enums.EnumResponseCode
 
 import android.annotation.SuppressLint
@@ -55,6 +56,8 @@ class VoidPreAuthFragment: BaseFragment() {
 
     lateinit var preAuthTableModel: DbModelPreAuthTable
     var posReference: String? = null
+    // ForceVoid from the ECR: skip the confirmation dialog, not the PIN (item 111).
+    private var forceVoid = false
     lateinit var amount: String
     lateinit var cardPan: String
     lateinit var prevStan: String
@@ -68,6 +71,8 @@ class VoidPreAuthFragment: BaseFragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+        // The PIN dialog belongs to the activity, so it would otherwise stay over the next screen.
+        alertDialog1?.dismiss()
         // Final boundary for this screen. Everything appended since the last flush is only
         // in the buffer until now, and a fragment can be torn down at any point (back-press,
         // navigation, process pressure). helperLog is a lateinit built in onViewCreated, so
@@ -103,11 +108,22 @@ class VoidPreAuthFragment: BaseFragment() {
 
         posReference = arguments?.getString("posReference", "-")
         val dbModelTerminalConfig = getTerminalConfig()
-        val voidWithPIN = getSafeValue(dbModelTerminalConfig, "VOID_WITH_PIN")
-        if (voidWithPIN.toInt() == 1) {
+        val pinRequired = getSafeValue(dbModelTerminalConfig, "VOID_WITH_PIN").toInt() == 1
+        forceVoid = (arguments?.getInt("forceVoid") ?: 0) != 0
+        helperLog.appendLine(helperLogClassName, "Force Void :: $forceVoid")
+        val ecrInvoice = if (ServiceHolder.appIntent || ServiceHolder.appHTTP) arguments?.getString("Invoice") else null
+        // With VOID_WITH_PIN an ECR void searches only after the PIN, or its confirmation dialog
+        // covers the PIN dialog and Confirm voids without it (item 113).
+        // "" counts as an ECR invoice too: it is searched (and not found) after the PIN, as on MF919 (L6).
+        val waitForPin = pinRequired && ecrInvoice != null
+        if (pinRequired) {
             pinDialog("") { canceled ->
+                // The dialog can outlive this screen; its callback must not touch a dead view (item 114).
+                if (view == null) return@pinDialog
                 if (canceled) {
-                    customOnBackPress()
+                    if (waitForPin) replyPinCancelled() else customOnBackPress()
+                } else if (waitForPin) {
+                    viewLifecycleOwner.lifecycleScope.launch { searchByInvoice(ecrInvoice!!) }
                 }
             }
         }
@@ -134,7 +150,7 @@ class VoidPreAuthFragment: BaseFragment() {
 
         if (ServiceHolder.appIntent || ServiceHolder.appHTTP) {
             val argumentInvoice = arguments?.getString("Invoice")
-            if(!argumentInvoice.isNullOrEmpty()) {
+            if(argumentInvoice != null && !waitForPin) {
                 tv.text = argumentInvoice
                 viewLifecycleOwner.lifecycleScope.launch {
                     helperLog.appendLine(helperLogClassName, "onOK(arguments)  ::  $argumentInvoice")
@@ -216,7 +232,13 @@ class VoidPreAuthFragment: BaseFragment() {
                 amount = HexUtil.bytesToHexString(bTxnAmt)
                 cardPan = HexUtil.bytesToHexString(bCardPan, 0, bCardPanLen).replace("F", "")  /*Remove padding "F"*/
                 prevStan = HexUtil.bytesToHexString(bStan)
-                showConfirmationDialog(Utils.getActualAmount(amount), Utils.hideCardDetails(cardPan), preAuthTableModel.apprCode, preAuthTableModel.invNo)
+                if (forceVoid) {
+                    helperLog.appendLine(helperLogClassName, "Force Void :: skipping the confirmation dialog")
+                    appRunningProcess = true
+                    voidPreAuth()
+                } else {
+                    showConfirmationDialog(Utils.getActualAmount(amount), Utils.hideCardDetails(cardPan), preAuthTableModel.apprCode, preAuthTableModel.invNo)
+                }
             } else {
                 helperLog.appendLine(helperLogClassName, "REJECT :: invoice not found in batch, void cannot proceed")
                 showToast("Invalid Input", Toast.LENGTH_SHORT)
@@ -320,6 +342,9 @@ class VoidPreAuthFragment: BaseFragment() {
                 TransData.ksn = it.Ksn ?: ""
                 TransData.pinKsn = it.PinKsn ?: ""
                 TransData.isTpaAccount = it.IsTpaAccount?.lowercase() == "true"
+                // The TPA reply sends tpaMid/tpaTid; reset() cleared them and only the sale screens refilled them (item 116 A).
+                TransData.tpaMid = DbModelMerchantConfig.getSafeValue(ServiceHolder.getMerchantInfo(), "ScMid")
+                TransData.tpaTid = DbModelMerchantConfig.getSafeValue(ServiceHolder.getMerchantInfo(), "ScTid")
             }
             val txnDt = EmvUtil.getCurrentTime("yyyyMMddHHmmss")
             TransData.transDateAsci = txnDt
@@ -473,6 +498,25 @@ class VoidPreAuthFragment: BaseFragment() {
         ServiceHolder.appHTTP = false
         val dbModelTerminalConfig = ServiceHolder.getTerminalConfig()
         navigateToHome(dbModelTerminalConfig)
+    }
+
+    /** PIN cancelled on an ECR void: answer USER_CANCELLED rather than leave the caller waiting (item 114). */
+    private fun replyPinCancelled() {
+        helperLog.appendLine(helperLogClassName, "User Cancel :: PIN entry abandoned [VOID PIN]")
+        if (ServiceHolder.appIntent) {
+            val txnMap = HashMap<String, String>()
+            txnMap["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+            txnMap["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
+            onBackToApp(txnMap)
+        } else {
+            if (ServiceHolder.appHTTP) {
+                val jObject = JsonObject()
+                jObject.addProperty("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+                jObject.addProperty("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
+                HTTPServer.getInstance().setResponseMessage(jObject.toString())
+            }
+            customOnBackPress()
+        }
     }
 
     private fun onBackToApp(txn_map: HashMap<String, String>) {

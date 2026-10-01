@@ -71,39 +71,24 @@ class TmsReceiptUploadScheduler(appContext: Context, workerParams: WorkerParamet
 			val receiptUploadHandler = ReceiptUploadHandler(environmentManager)
 
 			/*
-			 * Report the install token before the receipts that carry it. UpdateToken is what puts this
-			 * installation into Terminal_App_History and links it to the one it replaces; the receipts
-			 * only carry the value. The backend confirmed the registration has to land first, so this
-			 * gates the run -- see the skip branch below. The call is idempotent, so a retry is free.
+			 * Report the install token ahead of the receipts that carry it. UpdateToken is what puts
+			 * this installation into Terminal_App_History and links it to the one it replaces; the
+			 * receipts only carry the value.
+			 *
+			 * Attempted first, but deliberately NOT a gate: a failed registration must never stop
+			 * receipts reaching TMS. An unreported token reads as *unknown* on the server, never as a
+			 * mismatch. needsReporting stays true until the call succeeds and UpdateToken is
+			 * idempotent, so every later run retries it. Upstream MF919 ff5e103c.
 			 */
 			val installToken = InstallIdentity.getToken(mContext)
 			if (InstallIdentity.needsReporting(mContext, installToken)) {
-				var tokenReported = false
 				try {
 					UpdateTokenHandler(environmentManager).invoke(log, installToken)
 					InstallIdentity.markReported(mContext, installToken)
-					tokenReported = true
 					log.appendLine(className, "Install token reported to TMS :: [$installToken]")
 				} catch (ex: Exception) {
 					ex.printStackTrace()
-					log.appendLine(className, "Install token report FAILED :: ", HelperText.oneLine(ex.toString()))
-				}
-				if (!tokenReported) {
-					/*
-					 * The server needs the token registered before it sees receipts carrying it, so
-					 * nothing uploads until UpdateToken succeeds. The receipts stay IsSend[false] and
-					 * go up on a later run -- exactly where a failed upload leaves them. Only reached
-					 * for a non-blank token: a blank one is "unknown" to the server and settles as it
-					 * does today, so it never blocks.
-					 *
-					 * Release the lock before returning. Leaving uploadingReceipt set would block
-					 * every subsequent run until the one-hour stale-lock takeover above clears it.
-					 */
-					ServiceHolder.uploadingReceipt = false
-					ServiceHolder.uploadingReceiptTimeStamp = 0L
-					log.appendLine(className, "Receipt upload SKIPPED this run :: install token [$installToken] is not registered with TMS yet, receipts left queued for retry")
-					log.logToFile(EnumLogFileName.TerminaLog)
-					return Result.success()
+					log.appendLine(className, "Install token report FAILED :: receipts still upload, will retry on the next run :: ", HelperText.oneLine(ex.toString()))
 				}
 				log.logToFile(EnumLogFileName.TerminaLog)
 			}

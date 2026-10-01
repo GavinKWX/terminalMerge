@@ -151,6 +151,8 @@ object TransData : TransactionData {
 
     fun isCurrentSession(id: Long) = id == sessionId
 
+    override fun currentSessionId(): Long = sessionId
+
     fun reset(context: Context): Long {
         val session = sessionIdHolder.incrementAndGet()
         startTime = System.currentTimeMillis()

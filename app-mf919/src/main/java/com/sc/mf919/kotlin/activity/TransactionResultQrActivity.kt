@@ -15,6 +15,7 @@ import com.sc.mf919.kotlin.database.model.DbModelMerchantConfig
 import com.sc.mf919.kotlin.database.model.DbModelTerminalConfig
 import com.sc.mf919.kotlin.helper_common.HTTPServer
 import com.sc.mf919.kotlin.helper_common.ServiceHolder
+import com.sc.mf919.kotlin.helper_common.Mf919NewIntegrationHost
 import com.sc.mf919.kotlin.helper_common.TmsHelper
 import enums.EnumLogFileName
 import helpers.HelperCommon
@@ -132,6 +133,8 @@ class TransactionResultQrActivity : AppCompatActivity(), FragmentResultQr.OnFrag
                 jsonObject.put("TransactionId", TransData.qrHostRef)
                 jsonObject.put("TransactionRefId", TransData.qrRef)
                 jsonObject.put("TransactionEWallet", TransData.qrPayBrand)
+                // New integration answers in Pro's shape, which carries the e-wallet's name (item 98).
+                if (Mf919NewIntegrationHost.active) jsonObject.put("TransactionEWalletDescription", TransData.qrPayBrandDesc)
                 jsonObject.put("TransactionDateTime", Utils.DateTimeFormat(TransData.transDateAsci))
                 jsonObject.put("PosReference", TransData.posReference)
             } catch (e: JSONException) {
@@ -151,6 +154,7 @@ class TransactionResultQrActivity : AppCompatActivity(), FragmentResultQr.OnFrag
             txn_map["TransactionId"] = TransData.qrHostRef
             txn_map["TransactionRefId"] = TransData.qrRef
             txn_map["TransactionEWallet"] = TransData.qrPayBrand
+            if (Mf919NewIntegrationHost.active) txn_map["TransactionEWalletDescription"] = TransData.qrPayBrandDesc
             txn_map["TransactionDateTime"] = Utils.DateTimeFormat(TransData.transDateAsci)
             txn_map["PosReference"] = TransData.posReference
 

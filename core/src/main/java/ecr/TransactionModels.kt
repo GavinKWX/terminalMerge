@@ -9,6 +9,8 @@ object TxnKeys {
     const val ACTIVITY_NAME = "Activity_Name"
 
     const val OLD_INTEGRATION = "IsOldIntegration"
+    /** MF919's opt-in to new integration (audit item 98). Pro routes new by default. */
+    const val NEW_INTEGRATION = "IsNewIntegration"
     const val TXN_TYPE = "TransactionType"
     const val AMOUNT = "TransactionAmount"
     const val CAMERA_FACING = "CameraFacing"

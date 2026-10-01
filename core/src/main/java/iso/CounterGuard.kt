@@ -1,7 +1,6 @@
-package com.sc.mf919.kotlin.helper_common
+package iso
 
 import android.content.Context
-import com.sc.mf919.kotlin.database.repo.IsoBatchInfoRepo
 import enums.EnumLogFileName
 import helpers.HelperLog
 
@@ -17,18 +16,17 @@ import helpers.HelperLog
  * The fix mirrors each counter into SharedPreferences (which survives a DB wipe) as a high-water
  * mark, and reapplies it on startup if the DB has gone backwards.
  *
- * This is the second half of the counter story. [IsoBatchInfoRepo.allocateCounter] stops two
+ * This is the second half of the counter story. `IsoBatchInfoRepo.allocateCounter` stops two
  * callers getting the *same* number going forward; this stops the whole sequence going *backwards*.
  *
  * **A local mitigation, not host reconciliation.** It prevents *new* reuse going forward. It cannot
  * repair numbers already duplicated before the mark existed, and a factory reset clears the prefs
  * along with the DB, taking the protection with it.
  *
- * Ported from MF919 Pro 2026-09-07, where it has been shipping. One deliberate difference: this
- * version resolves prefs through `getPrefs(mContext)` rather than the no-argument overload, because
- * [restore] runs early in startup and the no-argument form returns null until `Helper.Initialize`
- * has been called -- which would make the guard silently do nothing on exactly the cold start it
- * exists to protect.
+ * Moved to `:core` from both apps (audit item 104), MF919's version. Prefs are opened from the
+ * context, the same file both apps' `Helper.getPrefs(ctx)` opens, so existing marks carry over.
+ * Pro's copy used the no-argument `getPrefs()`, which is null until `Helper.Initialize` and made
+ * the guard silently do nothing on the cold start it exists to protect.
  */
 object CounterGuard {
 
@@ -38,6 +36,22 @@ object CounterGuard {
 	private val TRACKED = setOf("stan", "invoiceNo", "batchNo")
 
 	private fun key(tag: String, subtag: String) = "$PREFIX${tag}_$subtag"
+
+	private fun prefs(context: Context) = context.getSharedPreferences(context.packageName, Context.MODE_PRIVATE)
+
+	/** What [restore] does with one counter whose DB value is [current] against its [mark]. */
+	internal enum class Action { KEEP, WRAP, RESTORE }
+
+	/**
+	 * A DB value merely *lower* than the mark is a rewind only when the counter has collapsed to
+	 * near the asset seed. A small drop from a high value is a legitimate 999999 wrap, and forcing
+	 * it back up would break the wrap rather than protect it.
+	 */
+	internal fun actionFor(mark: Int, current: Int): Action = when {
+		current >= mark -> Action.KEEP
+		mark > 900000 && current < 1000 -> Action.WRAP
+		else -> Action.RESTORE
+	}
 
 	/**
 	 * Records [value] as the high-water mark for (tag, subtag) if it exceeds what we have.
@@ -51,7 +65,7 @@ object CounterGuard {
 		if (tag !in TRACKED) return
 		val n = value.trim().toIntOrNull() ?: return
 		try {
-			val prefs = Helper.getInstance().getPrefs(mContext)
+			val prefs = prefs(mContext)
 			val k = key(tag, subtag)
 			if (n > prefs.getInt(k, 0)) prefs.edit().putInt(k, n).apply()
 		} catch (_: Exception) {
@@ -65,17 +79,13 @@ object CounterGuard {
 	 * Must run **after** the schema exists (after migrations) and **before** the first transaction
 	 * of the session, which is why it is called from MainActivity's startup path rather than from
 	 * `DbHandler` -- calling repo code from inside `onOpen` would re-enter `getWritableDatabase`.
-	 *
-	 * A DB value merely *lower* than the mark is treated as a rewind only when the counter has
-	 * collapsed to near the asset seed. A small drop from a high value is what a legitimate 999999
-	 * wrap looks like, and forcing it back up would break the wrap rather than protect it.
 	 */
 	@JvmStatic
 	fun restore(mContext: Context): Int {
 		val sbLog = HelperLog.init("CounterGuard")
 		var repaired = 0
 		try {
-			val prefs = Helper.getInstance().getPrefs(mContext)
+			val prefs = prefs(mContext)
 			for ((k, v) in prefs.all) {
 				if (!k.startsWith(PREFIX)) continue
 				val mark = (v as? Int) ?: continue
@@ -83,22 +93,20 @@ object CounterGuard {
 				val tag = TRACKED.firstOrNull { rest.startsWith("${it}_") } ?: continue
 				val subtag = rest.removePrefix("${tag}_")
 
-				val current = IsoBatchInfoRepo.getBatchInfo(mContext, tag, subtag)
-					?.value?.trim()?.toIntOrNull() ?: 0
-				if (current >= mark) continue
-
-				// A wrap (999999 -> small) is legitimate; a recopy resets to the asset seed of 1.
-				// Only treat it as a rewind when the counter has collapsed to near the seed.
-				if (mark > 900000 && current < 1000) {
-					HelperLog.appendLine(sbLog, "Wrap detected, not restoring", "$tag/$subtag $current (mark $mark)")
-					prefs.edit().putInt(k, current).apply()
-					continue
+				val current = CurrentStore.batchInfoValue(mContext, tag, subtag)?.trim()?.toIntOrNull() ?: 0
+				when (actionFor(mark, current)) {
+					Action.KEEP -> continue
+					Action.WRAP -> {
+						HelperLog.appendLine(sbLog, "Wrap detected, not restoring", "$tag/$subtag $current (mark $mark)")
+						prefs.edit().putInt(k, current).apply()
+					}
+					Action.RESTORE -> {
+						HelperLog.appendLine(sbLog, "COUNTER REWIND DETECTED",
+							"$tag/$subtag db=$current mark=$mark -- restoring")
+						CurrentStore.updateBatchInfo(mContext, String.format("%06d", mark), tag, subtag)
+						repaired++
+					}
 				}
-
-				HelperLog.appendLine(sbLog, "COUNTER REWIND DETECTED",
-					"$tag/$subtag db=$current mark=$mark -- restoring")
-				IsoBatchInfoRepo.updateBatchInfo(mContext, String.format("%06d", mark), tag, subtag)
-				repaired++
 			}
 			if (repaired > 0) {
 				HelperLog.appendLine(sbLog, "Counters restored", repaired.toString())

@@ -35,9 +35,17 @@ class TransactionRouterTest {
 		override fun hasEppAcquirer() = epp
 		override fun receiptByPosRef(posReference: String) = receipt
 		override fun qrByRef(refId: String) = qr
+		var tpa: Pair<String, String>? = null
+		val tpaAsked = mutableListOf<Pair<String?, String?>>()
+		override fun tpaMidTid(acqMid: String?, acqTid: String?): Pair<String, String>? {
+			tpaAsked += acqMid to acqTid
+			return tpa
+		}
 		override fun log(tag: String, message: String) {
 			logs += message
 		}
+		val gates = mutableMapOf<Destination, enums.EnumResponseCode>()
+		override fun gate(destination: Destination) = gates[destination]
 	}
 
 	private val host = FakeHost()
@@ -195,6 +203,23 @@ class TransactionRouterTest {
 		assertAnswer("SHC001", "Invalid Parameter - (PaymentChannel)", route("TransactionType" to "2", "TransactionAmount" to "50", "PaymentChannel" to ""))
 	}
 
+	@Test fun `an app gate turns a screen into an answer`() {
+		host.products["CARD_SETTINGS"] = "cardRow"
+		host.gates[Destination.PREAUTH] = enums.EnumResponseCode.TRANSACTION_NOT_SUPPORTED
+		assertAnswer("SHC010", "Transaction Not Supported", route("TransactionType" to "5", "PreAuthType" to "PREAUTH", "TransactionAmount" to "1"))
+		assertTrue(route("TransactionType" to "2", "TransactionAmount" to "50", "PaymentChannel" to "CARD") is Route.Navigate)
+	}
+
+	@Test fun `forceNew ignores the old flag and the amount format`() {
+		host.products["CARD_SETTINGS"] = "cardRow"
+		val m = hashMapOf("Package_Name" to "p", "Activity_Name" to "a", "IsOldIntegration" to "true", "TransactionType" to "2",
+			"TransactionAmount" to "50", "PaymentChannel" to "CARD")
+		val r = parser.parseMap(m, forceNew = true).getOrThrow()
+		assertEquals(false, r.oldIntegration)
+		assertEquals(50L, r.amount)
+		assertEquals(Destination.CARD_SALE, (router.route(r) as Route.Navigate).destination)
+	}
+
 	@Test fun `ordering items are passed through`() {
 		host.products["CARD_SETTINGS"] = "cardRow"
 		val r = route("TransactionType" to "2", "TransactionAmount" to "50", "PaymentChannel" to "CARD", "OrderingItem" to "burger", "OrderingItemImage" to "img") as Route.Navigate
@@ -279,7 +304,7 @@ class TransactionRouterTest {
 		assertAnswer("SHC001", "Invalid Parameter - (TransactionApprovalCode)", route("TransactionType" to "5", "PreAuthType" to "PREAUTHCOMPLETE", "TransactionInvoice" to "1"))
 		assertAnswer("SHC001", "Invalid Parameter - (TransactionRRN)",
 			route("TransactionType" to "5", "PreAuthType" to "PREAUTHCOMPLETE", "TransactionInvoice" to "1", "TransactionApprovalCode" to "A"))
-		assertScreen(Destination.SALE_COMPLETION, mapOf("apprCode" to "A", "rrn" to "R", "invNo" to "1") + noOrdering,
+		assertScreen(Destination.SALE_COMPLETION, mapOf("apprCode" to "A", "rrn" to "R", "invNo" to "1", "forceVoid" to 0) + noOrdering,
 			route("TransactionType" to "5", "PreAuthType" to "PREAUTHCOMPLETE", "TransactionInvoice" to "1", "TransactionApprovalCode" to "A",
 				"TransactionRRN" to "R", "TransactionAmount" to "300", "PosReference" to "R1"))
 		assertEquals(Triple<Any, Long?, Int>("cardRow", 300L, 8), host.saleModels.single())
@@ -287,8 +312,19 @@ class TransactionRouterTest {
 
 	@Test fun `the preauth voids need an invoice`() {
 		assertAnswer("SHC001", "Invalid Parameter - (TransactionInvoice)", route("TransactionType" to "5", "PreAuthType" to "VOIDPREAUTH"))
-		assertScreen(Destination.VOID_PREAUTH, mapOf("Invoice" to "1", "posReference" to null), route("TransactionType" to "5", "PreAuthType" to "VOIDPREAUTH", "TransactionInvoice" to "1"))
-		assertScreen(Destination.VOID_SALE_COMPLETION, mapOf("Invoice" to "1", "posReference" to null), route("TransactionType" to "5", "PreAuthType" to "VOIDPREAUTHCOMPLETE", "TransactionInvoice" to "1"))
+		assertScreen(Destination.VOID_PREAUTH, mapOf("Invoice" to "1", "forceVoid" to 0, "posReference" to null), route("TransactionType" to "5", "PreAuthType" to "VOIDPREAUTH", "TransactionInvoice" to "1"))
+		assertScreen(Destination.VOID_SALE_COMPLETION, mapOf("Invoice" to "1", "forceVoid" to 0, "posReference" to null), route("TransactionType" to "5", "PreAuthType" to "VOIDPREAUTHCOMPLETE", "TransactionInvoice" to "1"))
+	}
+
+	@Test fun `ForceVoid reaches the completion and both preauth voids`() {
+		host.products["CARD_SETTINGS"] = "cardRow"
+		assertScreen(Destination.SALE_COMPLETION, mapOf("apprCode" to "A", "rrn" to "R", "invNo" to "1", "forceVoid" to 1) + noOrdering,
+			route("TransactionType" to "5", "PreAuthType" to "PREAUTHCOMPLETE", "TransactionInvoice" to "1", "TransactionApprovalCode" to "A",
+				"TransactionRRN" to "R", "TransactionAmount" to "300", "PosReference" to "R1", "ForceVoid" to "1"))
+		assertScreen(Destination.VOID_PREAUTH, mapOf("Invoice" to "1", "forceVoid" to 1, "posReference" to null),
+			route("TransactionType" to "5", "PreAuthType" to "VOIDPREAUTH", "TransactionInvoice" to "1", "ForceVoid" to "1"))
+		assertScreen(Destination.VOID_SALE_COMPLETION, mapOf("Invoice" to "1", "forceVoid" to 1, "posReference" to null),
+			route("TransactionType" to "5", "PreAuthType" to "VOIDPREAUTHCOMPLETE", "TransactionInvoice" to "1", "ForceVoid" to "1"))
 	}
 
 	@Test fun `a missing or unknown preauth type answers invalid preauth type`() {
@@ -325,6 +361,18 @@ class TransactionRouterTest {
 		assertEquals("RO", m["OriTransactionRRN"])
 		assertEquals("-", m["TransactionEPP"])
 		assertEquals("R1", m["PosReference"])
+	}
+
+	@Test fun `card enquiry on a TPA product answers the TPA pair, otherwise the acquirer pair`() {
+		host.receipt = EnquiryReceipt(RESP_CODE = "00", TXN_AMT = "050", MID = "ACQMID", TID = "ACQTID")
+		var m = (route("TransactionType" to "1", "PosReference" to "R1") as Route.Return).resultMap
+		assertEquals("ACQMID", m["TransactionMID"])
+		assertEquals("ACQTID", m["TransactionTID"])
+		assertEquals(listOf<Pair<String?, String?>>("ACQMID" to "ACQTID"), host.tpaAsked)
+		host.tpa = "SCMID" to "SCTID"
+		m = (route("TransactionType" to "1", "PosReference" to "R1") as Route.Return).resultMap
+		assertEquals("SCMID", m["TransactionMID"])
+		assertEquals("SCTID", m["TransactionTID"])
 	}
 
 	@Test fun `card enquiry with an unknown response code says Failed, and keeps an epp tenure`() {

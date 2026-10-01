@@ -1136,12 +1136,16 @@ object HTTPServer: NanoHTTPD(8888) {
                         return
                     }
 
+                    // Parsed here, inside the request's try: a bad value thrown in mainScope would crash the app (item 115 M3).
+                    val forceVoid = if (requestJson.has("ForceVoid")) requestJson.get("ForceVoid").asInt else 0
                     mainScope.launch {
                         AppBus.emitWhenSubscribed(UiEvent.FragmentNavigation(R.id.keypadSaleCompletionFragment,
                             bundleOf(
                                 "apprCode" to requestJson.get("TransactionApprovalCode").asString,
                                 "rrn" to requestJson.get("TransactionRRN").asString,
                                 "invNo" to requestJson.get("TransactionInvoice").asString,
+                                // ForceVoid skips the screen's confirmation dialog (item 111).
+                                "forceVoid" to forceVoid,
                                 "posReference" to posReference
                             )
                         ))
@@ -1166,10 +1170,13 @@ object HTTPServer: NanoHTTPD(8888) {
                     saleModelNew.SalesType = ProductCatSelectionDataEnum.CARD_SETTINGS.data.SalesType
                     ServiceHolder.saleModelCache = saleModelNew
 
+                    // Parsed here, inside the request's try: a bad value thrown in mainScope would crash the app (item 115 M3).
+                    val forceVoid = if (requestJson.has("ForceVoid")) requestJson.get("ForceVoid").asInt else 0
                     mainScope.launch {
                         AppBus.emitWhenSubscribed(UiEvent.FragmentNavigation(R.id.voidPreAuthFragment,
                             bundleOf(
                                 "Invoice" to requestJson.get("TransactionInvoice").asString,
+                                "forceVoid" to forceVoid,
                                 "posReference" to posReference
                             )
                         ))
@@ -1331,9 +1338,11 @@ object HTTPServer: NanoHTTPD(8888) {
                     ServiceHolder.saleModelCache = saleModelNew
 
                     val txnInvoice: String = requestJson.get("TransactionInvoice").asString
+                    // Parsed here, inside the request's try: a bad value thrown in mainScope would crash the app (item 115 M3).
+                    val forceVoid = if (requestJson.has("ForceVoid")) requestJson.get("ForceVoid").asInt else 0
                     mainScope.launch {
                         AppBus.emitWhenSubscribed(UiEvent.FragmentNavigation(R.id.voidSaleCompletionFragment,
-                            bundleOf("Invoice" to txnInvoice, "posReference" to posReference)))
+                            bundleOf("Invoice" to txnInvoice, "forceVoid" to forceVoid, "posReference" to posReference)))
                     }
                 }
                 // MOTO
@@ -1538,7 +1547,11 @@ object HTTPServer: NanoHTTPD(8888) {
                     throw Exception()
                 }
                 else -> {
-                    Toast.makeText(ServiceHolder.getContext(), "Invalid Transaction Type", Toast.LENGTH_SHORT).show()
+                    // Posted like every other toast here: on the server thread it threw before the reply,
+                    // so the answer fell to the generic "Invalid Input" (on MF919: a 300 s lock). Item 102.
+                    handler.post {
+                        Toast.makeText(ServiceHolder.getContext(), "Invalid Transaction Type", Toast.LENGTH_SHORT).show()
+                    }
                     resultObject.addProperty("ResponseCode", "SHC001")
                     resultObject.addProperty("ResponseDescription", "Invalid Parameter - (TransactionType)")
                     setResponseMessage(resultObject.toString())

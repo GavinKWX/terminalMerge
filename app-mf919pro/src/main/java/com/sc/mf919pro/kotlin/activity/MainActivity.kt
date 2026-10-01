@@ -44,7 +44,7 @@ import com.sc.mf919pro.kotlin.fragment.SettingsFragment
 import com.sc.mf919pro.kotlin.fragment.TerminalConfigFragment
 import com.sc.mf919pro.kotlin.fragment.VoidOptionFragment
 import com.sc.mf919pro.kotlin.helper_common.AppBus
-import com.sc.mf919pro.kotlin.helper_common.CounterGuard
+import iso.CounterGuard
 import com.sc.mf919pro.kotlin.helper_common.HTTPServer
 import com.sc.mf919pro.kotlin.helper_common.Helper
 import tms.ReceiptReconciler

@@ -121,10 +121,12 @@ public class DeviceHelper {
      * silently dropped from Android 10 onward with no exception and nothing in logcat. On the
      * fleet that shows up as only the Android 7 terminals coming back after a power cycle.
      *
-     * Handing the job to the YSDK device service removes the problem rather than working around
-     * it: the ROM starts us, so no background-start restriction applies on any OS version. The
-     * receiver stays as-is for the Android 7 units and as a fallback where the ROM does not
-     * implement this property.
+     * Handing the job to the YSDK device service removes the problem on Android 10+: the ROM
+     * starts us, so no background-start restriction applies. It does NOT cover Android 7 --
+     * verified 2026-09-30 on 7.1.2 / YSDK 6.05.05, the property returns 0 but the ROM never
+     * launches the app, so ret == 0 (and "autostart=OK" in the capability line) only means the
+     * call was accepted. The receiver remains the Android 7 boot path, and skips its own launch
+     * when this one already started the app (see StartMyServiceAtBootReceiver).
      *
      * Deliberately re-applied on every process start instead of being latched behind a
      * SharedPreferences flag, so the setting self-heals if it is ever cleared (factory reset,

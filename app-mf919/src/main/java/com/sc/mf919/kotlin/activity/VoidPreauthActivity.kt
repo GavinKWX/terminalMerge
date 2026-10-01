@@ -1,4 +1,5 @@
 package com.sc.mf919.kotlin.activity
+import com.sc.mf919.kotlin.database.model.DbModelMerchantConfig
 import enums.EnumResponseCode
 
 
@@ -67,6 +68,8 @@ class VoidPreauthActivity : BaseActivity() {
 	lateinit var helperLog: HelperLog
 
 	var posReference: String? = null
+	// ForceVoid from the ECR: skip the confirmation dialog, not the PIN (item 111).
+	private var forceVoid = false
 	lateinit var amount: String
 	lateinit var cardPan: String
 	lateinit var prevStan: String
@@ -90,7 +93,12 @@ class VoidPreauthActivity : BaseActivity() {
 		helperLog.appendLine(helperlogClassName, "Void PreAuth Init")
 		typeOfSales = intent.getIntExtra("typeofSale", 3)
 		posReference = intent.getStringExtra("posReference")
+		forceVoid = intent.getIntExtra("forceVoid", 0) == 1
+		helperLog.appendLine(helperlogClassName, "Force Void :: $forceVoid")
 		TransData.reset(applicationContext)
+
+		val dbModelTerminalConfig = getTerminalConfig()
+		val pinRequired = getSafeValue(dbModelTerminalConfig, "VOID_WITH_PIN").toInt() == 1
 
 		val keypad = findViewById<Keypad>(R.id.keypad_voidpreauth)
 		val tv = findViewById<TextView>(R.id.textView_voidPreauthInvNo)
@@ -100,8 +108,12 @@ class VoidPreauthActivity : BaseActivity() {
 		if (invoice != null) {
 			tv.text = invoice
 			helperLog.appendLine(helperlogClassName, "Void target invoice :: $invoice")
-			lifecycleScope.launch {
-				searchByInvoice(invoice)
+			// With VOID_WITH_PIN the search waits for the PIN, or its confirmation dialog covers
+			// the PIN dialog and Confirm voids without it (item 113).
+			if (!pinRequired) {
+				lifecycleScope.launch {
+					searchByInvoice(invoice)
+				}
 			}
 		}
 
@@ -111,11 +123,15 @@ class VoidPreauthActivity : BaseActivity() {
 			}
 		})
 
-		val dbModelTerminalConfig = getTerminalConfig()
-		val voidWithPIN = getSafeValue(dbModelTerminalConfig, "VOID_WITH_PIN")
-		if (voidWithPIN.toInt() == 1) {
+		if (pinRequired) {
 			helperLog.appendLine(helperlogClassName, "Dialog opened :: [VOID PIN]")
-			PINDialog("", true)
+			if (invoice != null) {
+				PINDialog("", false, onPinConfirmed = { _, _ ->
+					lifecycleScope.launch { searchByInvoice(invoice) }
+				}, onPinCancel = { replyPinCancelled() })
+			} else {
+				PINDialog("", true)
+			}
 		}
 		helperLog.logToFile(EnumLogFileName.TerminaLog)
 	}
@@ -137,6 +153,7 @@ class VoidPreauthActivity : BaseActivity() {
 
 	@RequiresApi(Build.VERSION_CODES.O)
 	suspend fun searchByInvoice(invoiceNum: String) {
+		var runForced = false
 		val startCoroutine = CoroutineScope(Dispatchers.IO).launch {
 			val criteriaList = listOf("invNo")
 			val valueList = arrayOf(invoiceNum)
@@ -194,6 +211,10 @@ class VoidPreauthActivity : BaseActivity() {
 					} else {
 						Unit
 					}
+				} else if (forceVoid) {
+					helperLog.appendLine(helperlogClassName, "Start ForceVoid PreAuth Transaction :: invoice ${it.invNo}")
+					appRunningProcess = true
+					runForced = true
 				} else {
 					handlerVoid.sendMessage(msg)
 				}
@@ -226,6 +247,9 @@ class VoidPreauthActivity : BaseActivity() {
 		startProgressDialog(mContext, "Finding the Transaction", "Searching...")
 		startCoroutine.join()
 		closeProgressDialog()
+		// Inline, after the search dialog closes: launched from the search job, the void's own
+		// "Bank Authorization" dialog could be closed by the line above (item 115 M1).
+		if (runForced) executeVoidTxn()
 	}
 
 	@RequiresApi(Build.VERSION_CODES.O)
@@ -307,6 +331,9 @@ class VoidPreauthActivity : BaseActivity() {
 				TransData.ksn = it.Ksn ?: ""
 				TransData.pinKsn = it.PinKsn ?: ""
 				TransData.isTpaAccount = it.IsTpaAccount?.lowercase() == "true"
+				// The TPA reply sends tpaMid/tpaTid; reset() cleared them and only the sale screens refilled them (item 116 A).
+				TransData.tpaMid = DbModelMerchantConfig.getSafeValue(ServiceHolder.getMerchantInfo(), "ScMid")
+				TransData.tpaTid = DbModelMerchantConfig.getSafeValue(ServiceHolder.getMerchantInfo(), "ScTid")
 			}
 			val txnDt = EmvUtil.getCurrentTime("yyyyMMddHHmmss")
 			TransData.transDateAsci = txnDt
@@ -338,6 +365,9 @@ class VoidPreauthActivity : BaseActivity() {
 			TransData.entryModeLabel = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
 			TransData.cvm = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM, 16)
 			TransData.aid = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_AID, 16)
+			val byteAppLabel = HexUtil.hexStringToByte(TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_APPLABEL, 16))
+			byteAppLabel.copyInto(TransData.appLabel, 0)
+			TransData.appLabelLen = byteAppLabel.size
 			posReference?.let {
 				TransData.posReference = it
 				helperLog.appendLine(helperlogClassName, "Add Pos Reference >> $it")
@@ -464,6 +494,25 @@ class VoidPreauthActivity : BaseActivity() {
 		}
 		val body = jsonObject.toString()
 		UploadTMS.getInstance().addReceipt(body)
+	}
+
+	/** PIN cancelled on an ECR void: answer USER_CANCELLED rather than leave the caller waiting (item 114). */
+	private fun replyPinCancelled() {
+		helperLog.appendLine(helperlogClassName, "User Cancel :: PIN entry abandoned [VOID PIN]")
+		if (ServiceHolder.appIntent) {
+			val txnMap = HashMap<String, String>()
+			txnMap["ResponseCode"] = EnumResponseCode.USER_CANCELLED.code
+			txnMap["ResponseDescription"] = EnumResponseCode.USER_CANCELLED.description
+			onBackToApp(txnMap)
+		} else {
+			if (ServiceHolder.appHTTP) {
+				val jObject = JSONObject()
+				jObject.put("ResponseCode", EnumResponseCode.USER_CANCELLED.code)
+				jObject.put("ResponseDescription", EnumResponseCode.USER_CANCELLED.description)
+				HTTPServer.getInstance().setResponseMessage(jObject.toString())
+			}
+			customOnBackPress()
+		}
 	}
 
 	fun customOnBackPress() {

@@ -21,7 +21,11 @@ class TransactionParser(
         return parseMap(map)
     }
 
-    fun parseMap(map: HashMap<String, String>): Result<TxnRequest> {
+    /**
+     * [forceNew]: the caller has already decided this is new integration (MF919's explicit
+     * `IsNewIntegration` opt-in), so the IntegrationMode rule and its amount-format guess are skipped.
+     */
+    fun parseMap(map: HashMap<String, String>, forceNew: Boolean = false): Result<TxnRequest> {
         host.log(TAG, "TransactionParser :: $map")
         val pkg = map[TxnKeys.PACKAGE_NAME].orEmpty()
         val act = map[TxnKeys.ACTIVITY_NAME].orEmpty()
@@ -40,7 +44,7 @@ class TransactionParser(
         val amountInOldFormat = !amountString.isNullOrBlank() && !isDigitsOnly(amountString)
 
         // Same rule as HTTP -- see helpers.IntegrationMode.
-        val isOldIntegration = IntegrationMode.isOld(
+        val isOldIntegration = !forceNew && IntegrationMode.isOld(
             flagIsTrue = IntegrationMode.flagIsTrue(map[TxnKeys.OLD_INTEGRATION]),
             amountInOldFormat = amountInOldFormat
         )

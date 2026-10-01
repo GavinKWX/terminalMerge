@@ -1,4 +1,5 @@
 package com.sc.mf919pro.kotlin.fragment
+import com.sc.mf919pro.kotlin.database.model.DbModelMerchantConfig
 import enums.EnumResponseCode
 
 import android.annotation.SuppressLint
@@ -54,6 +55,8 @@ class KeypadSaleCompFragment: BaseFragment() {
     lateinit var textViewRrn: EditText
     lateinit var textViewInvNo: EditText
     var posReference: String? = null
+    // ForceVoid from the ECR: complete without the confirmation dialog (item 111).
+    private var forceVoid = false
     var txnAmount: Long = 0
     var approvalCode: String? = null
     var rrn: String? = null
@@ -124,8 +127,26 @@ class KeypadSaleCompFragment: BaseFragment() {
             val approvalCodeArgument = arguments?.getString("apprCode")
             val rrnArgument = arguments?.getString("rrn")
             val invNoArgument = arguments?.getString("invNo")
+            forceVoid = (arguments?.getInt("forceVoid") ?: 0) != 0
+            if (this::helperLog.isInitialized) helperLog.appendLine(helperLogClassName, "Force Void :: $forceVoid")
 
-            if(!approvalCodeArgument.isNullOrEmpty() && !rrnArgument.isNullOrEmpty() && !invNoArgument.isNullOrEmpty()) {
+            if (approvalCodeArgument.isNullOrEmpty() || rrnArgument.isNullOrEmpty() || invNoArgument.isNullOrEmpty()) {
+                // :core only checks the keys are present, so "" reaches here; answer rather than hang (item 111).
+                showToast("Invalid Input", Toast.LENGTH_SHORT)
+                if (this::helperLog.isInitialized) helperLog.appendLine(helperLogClassName, "REJECT :: approval code, RRN and invoice no are all required")
+                if (ServiceHolder.appIntent) {
+                    val txnMap = HashMap<String, String>()
+                    txnMap["ResponseCode"] = EnumResponseCode.INVALID_TRANSACTION_DETAILS.code
+                    txnMap["ResponseDescription"] = EnumResponseCode.INVALID_TRANSACTION_DETAILS.description
+                    onBackToApp(txnMap)
+                } else {
+                    val jObject = JsonObject()
+                    jObject.addProperty("ResponseCode", EnumResponseCode.INVALID_TRANSACTION_DETAILS.code)
+                    jObject.addProperty("ResponseDescription", EnumResponseCode.INVALID_TRANSACTION_DETAILS.description)
+                    HTTPServer.getInstance().setResponseMessage(jObject.toString())
+                    customOnBackPress()
+                }
+            } else {
                 textViewApvCode.setText(approvalCodeArgument)
                 textViewRrn.setText(rrnArgument)
                 textViewInvNo.setText(invNoArgument)
@@ -146,6 +167,7 @@ class KeypadSaleCompFragment: BaseFragment() {
         }
         showProgress("Finding the Transaction", "Searching...")
 
+        var forced = false
         try{
             val criteriaList = listOf("apprCode", "rrn", "invNo")
             val valueList = arrayOf(approvalCode!!, rrn!!, invoiceNo!!)
@@ -156,7 +178,7 @@ class KeypadSaleCompFragment: BaseFragment() {
             if(fetchPreAuthRecord != null) {
                 preAuthInfo = fetchPreAuthRecord
                 helperLog.appendLine(helperLogClassName, "PreAuth Table Record :: $fetchPreAuthRecord")
-                showConfirmationDialog(preAuthInfo)
+                forced = showConfirmationDialog(preAuthInfo)
             } else {
                 showToast("Invalid Input", Toast.LENGTH_SHORT)
                 if (ServiceHolder.appIntent) {
@@ -183,17 +205,21 @@ class KeypadSaleCompFragment: BaseFragment() {
         } catch (ex: Exception) {
             ex.printStackTrace()
         } finally {
-            delay(500L)
+            // No suspension on the forced path, so a view torn down here cannot skip saleComplete (L5).
+            if (!forced) delay(500L)
             hideProgress()
         }
+        if (forced) saleComplete()
     }
 
-    private fun showConfirmationDialog(dbModelPreAuthTable: DbModelPreAuthTable) {
+    /** Returns true when ForceVoid skipped the dialog; the caller then runs [saleComplete]. */
+    private fun showConfirmationDialog(dbModelPreAuthTable: DbModelPreAuthTable): Boolean {
         val alertDialogBuilder = AlertDialog.Builder(requireContext(), R.style.CustomAlertDialog)
         val inflater = this.layoutInflater
 
         var preAuthAmount = ""
         var maskedPan = ""
+        var decodeOk = false
         try{
             val batchData = dbModelPreAuthTable.addInfo
 
@@ -230,9 +256,35 @@ class KeypadSaleCompFragment: BaseFragment() {
             cardPan = tempPan
             Utils.printLog("Temp Pan -> ${Utils.hideCardDetails(tempPan)}")
             maskedPan = Utils.hideCardDetails(tempPan)
+            decodeOk = cardPan.length >= 9
         } catch (ex: Exception){
             ex.printStackTrace()
             Utils.printLog( ex.message)
+        }
+
+        // saleComplete() needs the PAN from the stored record; without it, reject rather than crash (item 115 L3).
+        if (!decodeOk) {
+            helperLog.appendLine(helperLogClassName, "REJECT :: stored pre-auth record could not be read")
+            helperLog.logToFile(EnumLogFileName.TerminaLogException)
+            showToast("Invalid Transaction Details", Toast.LENGTH_SHORT)
+            if (ServiceHolder.appIntent) {
+                val txnMap = HashMap<String, String>()
+                txnMap["ResponseCode"] = EnumResponseCode.INVALID_TRANSACTION_DETAILS.code
+                txnMap["ResponseDescription"] = EnumResponseCode.INVALID_TRANSACTION_DETAILS.description
+                onBackToApp(txnMap)
+            } else if (ServiceHolder.appHTTP) {
+                val jObject = JsonObject()
+                jObject.addProperty("ResponseCode", EnumResponseCode.INVALID_TRANSACTION_DETAILS.code)
+                jObject.addProperty("ResponseDescription", EnumResponseCode.INVALID_TRANSACTION_DETAILS.description)
+                HTTPServer.getInstance().setResponseMessage(jObject.toString())
+                customOnBackPress()
+            }
+            return false
+        }
+
+        if (forceVoid) {
+            helperLog.appendLine(helperLogClassName, "Force Void :: skipping the sale completion confirmation")
+            return true
         }
 
         @SuppressLint("InflateParams")
@@ -280,6 +332,7 @@ class KeypadSaleCompFragment: BaseFragment() {
         alertDialogBuilder.setCancelable(false)
         alertDialog = alertDialogBuilder.create()
         alertDialog?.show()
+        return false
     }
 
     private suspend fun saleComplete() {
@@ -305,6 +358,9 @@ class KeypadSaleCompFragment: BaseFragment() {
                 TransData.ksn = it.Ksn ?: ""
                 TransData.pinKsn = it.PinKsn ?: ""
                 TransData.isTpaAccount = it.IsTpaAccount?.lowercase() == "true"
+                // The TPA reply sends tpaMid/tpaTid; reset() cleared them and only the sale screens refilled them (item 116 A).
+                TransData.tpaMid = DbModelMerchantConfig.getSafeValue(ServiceHolder.getMerchantInfo(), "ScMid")
+                TransData.tpaTid = DbModelMerchantConfig.getSafeValue(ServiceHolder.getMerchantInfo(), "ScTid")
             }
             val txnDt = EmvUtil.getCurrentTime("yyyyMMddHHmmss")
             TransData.transDateAsci = txnDt
@@ -338,6 +394,10 @@ class KeypadSaleCompFragment: BaseFragment() {
                  TransData.batchNo = IsoBatchInfoRepo.getBatchInfo(mContext, "batchNo", TransData.schemeTag)?.value ?: "000001"
                  TransData.entryModeLabel = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
                  TransData.cvm = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM, 16)
+                 // The reply's app label was left at the reset() value (item 116 B).
+                 val byteAppLabel = HexUtil.hexStringToByte(TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_APPLABEL, 16))
+                 byteAppLabel.copyInto(TransData.appLabel, 0)
+                 TransData.appLabelLen = byteAppLabel.size
                  posReference?.let {
                      TransData.posReference = it
                      helperLog.appendLine(helperLogClassName, "Add Pos Reference :: $it")

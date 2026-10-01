@@ -4,7 +4,7 @@ import android.content.Context
 import android.os.Looper
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.sc.mf919pro.java.activity.Tms
+import tms.Tms
 import com.sc.mf919pro.java.activity.Utils
 import com.sc.mf919pro.kotlin.activity.AppServices
 import com.sc.mf919pro.kotlin.helper_common.ServiceHolder
