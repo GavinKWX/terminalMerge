@@ -1727,7 +1727,7 @@ object HTTPServer: NanoHTTPD(8888) {
                                 resultObject.addProperty("TransactionLabel", dbmodelReceiptUpload.TXN_TYPE)
                                 resultObject.addProperty("TransactionAmount", Utils.getActualAmount(dbmodelReceiptUpload.TXN_AMT))
                                 // TPA terminals answer the ScMid/ScTid pair, as the transaction reply did (item 116 D).
-                                val tpa = Mf919NewIntegrationHost.tpaMidTid(dbmodelReceiptUpload.MID, dbmodelReceiptUpload.TID)
+                                val tpa = Mf919NewIntegrationHost.tpaMidTid(dbmodelReceiptUpload.MID, dbmodelReceiptUpload.TID, dbmodelReceiptUpload.TXN_TYPE)
                                 resultObject.addProperty("TransactionMID", tpa?.first ?: dbmodelReceiptUpload.MID)
                                 resultObject.addProperty("TransactionTID", tpa?.second ?: dbmodelReceiptUpload.TID)
                                 resultObject.addProperty("TransactionSTN", dbmodelReceiptUpload.STAN)

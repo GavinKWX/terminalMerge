@@ -446,6 +446,7 @@ class KeypadActivitySaleCom : BaseActivity() {
 		intent.putExtra("invNo", invoiceNo)
 		intent.putExtra("cardPan", cardPan)
 		intent.putExtra("preAuthBatchNo", preAuthBatchNo)
+		intent.putExtra("posReference", posReference)
 		intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
 		startActivity(intent)
 		finish()

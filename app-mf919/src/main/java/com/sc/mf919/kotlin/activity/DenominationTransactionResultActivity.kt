@@ -160,8 +160,9 @@ class DenominationTransactionResultActivity: AppCompatActivity(), FragmentDenomi
                     jsonObject.put("ResponseDescription", desc)
                     jsonObject.put("TransactionType", ServiceHolder.txnType.toString())
                     jsonObject.put("TransactionAmount", Utils.getActualAmount(TransData.amount.toString()))
-                    jsonObject.put("TransactionMID", TransData.mid)
-                    jsonObject.put("TransactionTID", TransData.tid)
+                    // Same TPA rule as TransactionResultActivity, so the enquiry agrees (item 118 L-3).
+                    jsonObject.put("TransactionMID", if(TransData.isTpaAccount) TransData.tpaMid else TransData.mid)
+                    jsonObject.put("TransactionTID", if(TransData.isTpaAccount) TransData.tpaTid else TransData.tid)
                     jsonObject.put("TransactionSTN", TransData.stan)
                     jsonObject.put("TransactionRRN", TransData.rrn)
                     jsonObject.put("OriTransactionRRN", TransData.prevRRN.ifEmpty { TransData.rrn })
@@ -214,8 +215,8 @@ class DenominationTransactionResultActivity: AppCompatActivity(), FragmentDenomi
                 txn_map["ResponseDescription"] = desc
                 txn_map["TransactionType"] = ServiceHolder.txnType.toString()
                 txn_map["TransactionAmount"] = Utils.getActualAmount(TransData.amount.toString())
-                txn_map["TransactionMID"] = TransData.mid
-                txn_map["TransactionTID"] = TransData.tid
+                txn_map["TransactionMID"] = if(TransData.isTpaAccount) TransData.tpaMid else TransData.mid
+                txn_map["TransactionTID"] = if(TransData.isTpaAccount) TransData.tpaTid else TransData.tid
                 txn_map["TransactionSTN"] = TransData.stan
                 txn_map["TransactionRRN"] = TransData.rrn
                 txn_map["OriTransactionRRN"] = TransData.prevRRN.ifEmpty { TransData.rrn }

@@ -105,8 +105,9 @@ interface NewIntegrationHost {
     /**
      * The TPA pair (`ScMid`/`ScTid`) for a stored card transaction, when the product it ran on is a
      * TPA account; null keeps the receipt's acquirer pair. Matches the transaction reply (item 116 D).
+     * [txnType] is the receipt's TXN_TYPE, which picks the product row (item 118 L-1).
      */
-    fun tpaMidTid(acqMid: String?, acqTid: String?): Pair<String, String>? = null
+    fun tpaMidTid(acqMid: String?, acqTid: String?, txnType: String?): Pair<String, String>? = null
 
     fun log(tag: String, message: String)
 
@@ -142,7 +143,7 @@ object CurrentNewIntegrationHost : NewIntegrationHost {
     override fun hasEppAcquirer() = host.hasEppAcquirer()
     override fun receiptByPosRef(posReference: String) = host.receiptByPosRef(posReference)
     override fun qrByRef(refId: String) = host.qrByRef(refId)
-    override fun tpaMidTid(acqMid: String?, acqTid: String?) = host.tpaMidTid(acqMid, acqTid)
+    override fun tpaMidTid(acqMid: String?, acqTid: String?, txnType: String?) = host.tpaMidTid(acqMid, acqTid, txnType)
     override fun log(tag: String, message: String) = host.log(tag, message)
     override fun gate(destination: Destination) = host.gate(destination)
 }

@@ -38,9 +38,9 @@ class HttpNewIntegrationTest {
 		override fun receiptByPosRef(posReference: String) = receipt
 		override fun qrByRef(refId: String) = qr
 		var tpa: Pair<String, String>? = null
-		val tpaAsked = mutableListOf<Pair<String?, String?>>()
-		override fun tpaMidTid(acqMid: String?, acqTid: String?): Pair<String, String>? {
-			tpaAsked += acqMid to acqTid
+		val tpaAsked = mutableListOf<Triple<String?, String?, String?>>()
+		override fun tpaMidTid(acqMid: String?, acqTid: String?, txnType: String?): Pair<String, String>? {
+			tpaAsked += Triple(acqMid, acqTid, txnType)
 			return tpa
 		}
 		override fun log(tag: String, message: String) {
@@ -167,11 +167,18 @@ class HttpNewIntegrationTest {
 		send("""{"TransactionType":1,"PosReference":"R1"}""")
 		assertEquals("ACQMID", reply().get("TransactionMID").asString)
 		assertEquals("ACQTID", reply().get("TransactionTID").asString)
+		assertEquals(listOf<Triple<String?, String?, String?>>(Triple("ACQMID", "ACQTID", "Sale")), host.tpaAsked)
 		http.replies.clear()
 		host.tpa = "SCMID" to "SCTID"
 		send("""{"TransactionType":1,"PosReference":"R1"}""")
 		assertEquals("SCMID", reply().get("TransactionMID").asString)
 		assertEquals("SCTID", reply().get("TransactionTID").asString)
+	}
+
+	@Test fun `a qr enquiry never asks for the TPA pair`() {
+		host.receipt = EnquiryReceipt(QrRefId = "REF1")
+		send("""{"TransactionType":1,"PosReference":"R1"}""")
+		assertTrue(host.tpaAsked.isEmpty())
 	}
 
 	@Test fun `QUIRK qr enquiry with no qr row says Transaction Not Found, not QR Transaction Not Found`() {

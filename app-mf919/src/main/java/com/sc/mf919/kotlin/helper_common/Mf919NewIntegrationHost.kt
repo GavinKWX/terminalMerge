@@ -107,10 +107,20 @@ object Mf919NewIntegrationHost : NewIntegrationHost {
 		TransactionQrRepo.getSingleTransactionQr(ServiceHolder.getContext(), listOf("refId"), listOf(refId))
 			?.let { gson.fromJson(gson.toJson(it), EnquiryQr::class.java) }
 
-	/** ScMid/ScTid when the product row with this acquirer pair is a TPA account (item 116 D). */
-	override fun tpaMidTid(acqMid: String?, acqTid: String?): Pair<String, String>? {
+	/**
+	 * ScMid/ScTid when the product the transaction ran on is a TPA account (item 116 D). Several
+	 * products can share an acquirer pair, so TXN_TYPE picks the row first (item 118 L-1).
+	 */
+	override fun tpaMidTid(acqMid: String?, acqTid: String?, txnType: String?): Pair<String, String>? {
 		if (acqMid.isNullOrEmpty() || acqTid.isNullOrEmpty()) return null
-		val row = ProductListRepo.getSinglev2(ServiceHolder.getContext(), listOf("AcqMid", "AcqTid"), listOf(acqMid, acqTid))
+		val product = when {
+			txnType?.contains("Moto", ignoreCase = true) == true -> "MOTO"
+			txnType?.contains("Instalment", ignoreCase = true) == true -> "EPP"
+			else -> "CARD_SETTINGS"
+		}
+		val ctx = ServiceHolder.getContext()
+		val row = ProductListRepo.getSinglev2(ctx, listOf("Product", "AcqMid", "AcqTid"), listOf(product, acqMid, acqTid))
+			?: ProductListRepo.getSinglev2(ctx, listOf("AcqMid", "AcqTid"), listOf(acqMid, acqTid))
 			?: return null
 		if (row.IsTpaAccount?.lowercase() != "true") return null
 		val merchant = ServiceHolder.getMerchantInfo()

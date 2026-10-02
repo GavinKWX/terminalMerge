@@ -36,9 +36,9 @@ class TransactionRouterTest {
 		override fun receiptByPosRef(posReference: String) = receipt
 		override fun qrByRef(refId: String) = qr
 		var tpa: Pair<String, String>? = null
-		val tpaAsked = mutableListOf<Pair<String?, String?>>()
-		override fun tpaMidTid(acqMid: String?, acqTid: String?): Pair<String, String>? {
-			tpaAsked += acqMid to acqTid
+		val tpaAsked = mutableListOf<Triple<String?, String?, String?>>()
+		override fun tpaMidTid(acqMid: String?, acqTid: String?, txnType: String?): Pair<String, String>? {
+			tpaAsked += Triple(acqMid, acqTid, txnType)
 			return tpa
 		}
 		override fun log(tag: String, message: String) {
@@ -364,11 +364,11 @@ class TransactionRouterTest {
 	}
 
 	@Test fun `card enquiry on a TPA product answers the TPA pair, otherwise the acquirer pair`() {
-		host.receipt = EnquiryReceipt(RESP_CODE = "00", TXN_AMT = "050", MID = "ACQMID", TID = "ACQTID")
+		host.receipt = EnquiryReceipt(RESP_CODE = "00", TXN_TYPE = "Moto", TXN_AMT = "050", MID = "ACQMID", TID = "ACQTID")
 		var m = (route("TransactionType" to "1", "PosReference" to "R1") as Route.Return).resultMap
 		assertEquals("ACQMID", m["TransactionMID"])
 		assertEquals("ACQTID", m["TransactionTID"])
-		assertEquals(listOf<Pair<String?, String?>>("ACQMID" to "ACQTID"), host.tpaAsked)
+		assertEquals(listOf<Triple<String?, String?, String?>>(Triple("ACQMID", "ACQTID", "Moto")), host.tpaAsked)
 		host.tpa = "SCMID" to "SCTID"
 		m = (route("TransactionType" to "1", "PosReference" to "R1") as Route.Return).resultMap
 		assertEquals("SCMID", m["TransactionMID"])

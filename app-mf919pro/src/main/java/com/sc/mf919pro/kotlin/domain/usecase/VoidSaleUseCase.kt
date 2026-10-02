@@ -164,6 +164,10 @@ class VoidSaleUseCase {
             TransData.entryModeLabel = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_ENTRY_MODE, 256)
             TransData.cvm = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_CVM, 16)
             TransData.aid = TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_AID, 16)
+            // The reply, receipt and TMS CARD_LABEL read the app label; reset() cleared it (item 118 L-5).
+            val byteAppLabel = HexUtil.hexStringToByte(TransData.getFromTransactionDb(TerminalConstants.cube.CUBE_TAG_CARD_APPLABEL, 16))
+            byteAppLabel.copyInto(TransData.appLabel, 0)
+            TransData.appLabelLen = byteAppLabel.size
 
             if (TransData.aid == "" && TransData.cvm == "") {
                 TransData.aid = TransData.getFromTransactionDb(TerminalConstants.iso.tag.AID, 16)

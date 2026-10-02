@@ -129,7 +129,7 @@ class HttpNewIntegration(
                     resultObject.addProperty("ResponseDescription", desc)
                     resultObject.addProperty("TransactionLabel", receipt.TXN_TYPE)
                     resultObject.addProperty("TransactionAmount", AmountFormat.getActualAmount(receipt.TXN_AMT!!))
-                    val tpa = host.tpaMidTid(receipt.MID, receipt.TID)
+                    val tpa = host.tpaMidTid(receipt.MID, receipt.TID, receipt.TXN_TYPE)
                     resultObject.addProperty("TransactionMID", tpa?.first ?: receipt.MID)
                     resultObject.addProperty("TransactionTID", tpa?.second ?: receipt.TID)
                     resultObject.addProperty("TransactionSTN", receipt.STAN)

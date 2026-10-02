@@ -149,11 +149,13 @@ class VoidSaleFragment : BaseFragment() {
             }
         }
 
-        if (!argumentInvoice.isNullOrEmpty() && !waitForPin) {
+        // An ECR "" is searched too, so it gets SHC001 instead of a 300 s hang (item 118 L-4).
+        val searchNow = if (isEcr) argumentInvoice != null else !argumentInvoice.isNullOrEmpty()
+        if (searchNow && !waitForPin) {
             viewLifecycleOwner.lifecycleScope.launch {
                 helperLog.appendLine(helperLogClassName, "onOK(arguments)  ::  $argumentInvoice")
                 tv.text = argumentInvoice
-                searchByInvoice(argumentInvoice)
+                searchByInvoice(argumentInvoice ?: "")
             }
         }
         helperLog.logToFile(EnumLogFileName.TerminaLog)

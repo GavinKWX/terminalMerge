@@ -1070,7 +1070,7 @@ public class TransactionReceiver extends AppCompatActivity {
                                         txn_map.put("TransactionAmount", Utils.getActualAmount(txnAmt));
                                         // TPA terminals answer the ScMid/ScTid pair, as the transaction reply did (item 116 D).
                                         kotlin.Pair<String, String> tpa = com.sc.mf919.kotlin.helper_common.Mf919NewIntegrationHost.INSTANCE
-                                                .tpaMidTid(dbmodelReceiptUpload.getMID(), dbmodelReceiptUpload.getTID());
+                                                .tpaMidTid(dbmodelReceiptUpload.getMID(), dbmodelReceiptUpload.getTID(), dbmodelReceiptUpload.getTXN_TYPE());
                                         txn_map.put("TransactionMID", tpa != null ? tpa.getFirst() : dbmodelReceiptUpload.getMID());
                                         txn_map.put("TransactionTID", tpa != null ? tpa.getSecond() : dbmodelReceiptUpload.getTID());
                                         txn_map.put("TransactionSTN", dbmodelReceiptUpload.getSTAN());
